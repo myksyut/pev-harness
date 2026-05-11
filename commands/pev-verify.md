@@ -37,6 +37,22 @@ description: Run only the Verify phase. Validates changes against plan.md accept
 
 両者 PASS → NICE → ship 可。いずれか FAIL → NAUGHTY → planner に retry 依頼。
 
+### 動作詳細 (v0.4 以降)
+
+`--strict` 指定時、verifier は以下の流れで動く:
+
+1. 通常の verify (build/test/lint/AC check) を**先に**実行し、その結果と git diff を取得
+2. `pev-dual-review` skill のプロトコルに従い、**同一メッセージ内で**2 つの Agent tool calls を並列発射:
+   - Reviewer A: subagent_type=verifier, model=opus, effort=xhigh
+   - Reviewer B: subagent_type=verifier, model=sonnet, effort=high
+   - 両者に同じ rubric (PEV標準 + team-conventions.md からの追加) を渡す
+3. 両者の structured JSON output を受け取って merge
+4. `artifacts/verify.json` に `strict_mode: true` + `reviewer_a` / `reviewer_b` / `merged` セクションを追加して書き出し
+5. `merged.agreement_pct` を recap.log に追記 (model diversity の機能確認用)
+
+詳細プロトコル: `skills/pev-dual-review/SKILL.md`。
+例: `examples/verify.strict.example.json`。
+
 ## FAIL時の自動retry
 
 `PEV_MAX_RETRIES` (default: 3) 回まで自動retry。3回超えたら escalate。

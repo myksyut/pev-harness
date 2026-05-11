@@ -52,11 +52,21 @@ tools: Read, Bash, Grep, Glob, Write
 
 ## --strict モード
 
-`pev-dual-review` skill が起動された場合:
+`pev-dual-review` skill が起動された場合の責務:
 
-- Reviewer A (この verifier 自身、Opus xhigh) と Reviewer B (Sonnet high) を並列起動
-- 両方が PASS で初めて NICE 判定
-- 詳細は `skills/pev-dual-review/SKILL.md`
+1. 通常 verify (build/test/lint/AC) を**自分で**先に実行し、結果を握っておく
+2. `git diff` を取得
+3. **同一メッセージ内で** 2つの Agent tool calls を並列発射:
+   - Reviewer A: subagent_type=verifier, model=opus, effort=xhigh
+   - Reviewer B: subagent_type=verifier, model=sonnet, effort=high
+   - 両者に同じ rubric (PEV標準 + team-conventions.md 追加分) と git diff、checks 結果を渡す
+4. 両者の structured JSON output を受け取って merge:
+   - 両PASS → NICE
+   - いずれかFAIL → NAUGHTY、critical_issues を dedupe + merge
+5. `artifacts/verify.json` に `strict_mode: true` + `reviewer_a` / `reviewer_b` / `merged` セクション追加
+6. `merged.agreement_pct` を recap.log に追記
+
+詳細プロトコルは `skills/pev-dual-review/SKILL.md`。例の verify.json は `examples/verify.strict.example.json`。
 
 ## 動作原則
 

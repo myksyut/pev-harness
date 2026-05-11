@@ -7,8 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v0.4+
-- See open Issues #5-#9 on GitHub
+### Planned for v0.5+
+- See open Issues #6-#9 on GitHub
+
+## [0.4.0] - 2026-05-11
+
+Dual review release: pev-dual-review skill rewritten with executable Agent tool spawn protocol, structured JSON merge logic, and an agreement_pct metric for measuring model diversity health.
+
+### Added
+- `examples/verify.strict.example.json` — concrete example of `--strict` mode output showing reviewer_a / reviewer_b / merged sections (closes #5)
+- agreement_pct metric in merged section — measures how often Reviewer A and B catch the same issue; 100% suggests rubric is too loose, low values indicate healthy model diversity
+
+### Changed
+- `skills/pev-dual-review/SKILL.md` — rewritten from pseudocode to executable spec:
+  - Concrete Agent tool spawn pattern (same-message parallel dispatch)
+  - Complete Reviewer prompt template
+  - JSON merge logic with dedupe-by-substring
+  - Reviewer A/B differentiation rationale (Opus xhigh for arch + Sonnet high for impl correctness)
+- `commands/pev-verify.md` — `--strict` 動作詳細 section added with concrete 6-step flow
+- `agents/verifier.md` — `--strict` mode responsibilities expanded (verifier is now the parent agent that spawns A/B and merges)
+
+### Known limitations carried forward
+- Model diversity is partial: both reviewers are Claude family. True external-model diversity deferred to v2.0 (#9)
+- v0.4 logic not yet exercised in dog food; first real strict-mode run will validate the same-message parallel spawn pattern
 
 ## [0.3.0] - 2026-05-11
 

@@ -1,53 +1,100 @@
 ---
 name: pev-dual-review
-description: --strict モード専用。Reviewer A (Opus xhigh) と Reviewer B (Sonnet high) の独立2人レビュー。両者PASSで初めてship
+description: --strict モード専用。Reviewer A (Opus xhigh) と Reviewer B (Sonnet high) を同一メッセージ内で並列起動し、両者の structured JSON verdict を merge して NICE/NAUGHTY 判定。Claude単独 model alias diversity を採用、外部CLI依存なし
 ---
 
 # pev-dual-review
 
-`--strict` モードで起動される検証強化skill。santa-method の軽量版。**外部CLI依存ゼロ**、Claude単独で model alias diversity を実現する。
+`--strict` モードで起動される検証強化 skill。santa-method の軽量版。**外部CLI依存ゼロ**、Claude単独で model alias diversity を実現する。
 
 ## When to Use
 
 - `/pev <task> --strict` 指定時
-- main / release ブランチへの merge前
-- 顧客向けリリース、security-criticalな変更
-- `PEV_STRICT_MODE=true` がset されているプロジェクト
+- `/pev-verify --strict` 直接呼び出し時
+- main / release ブランチへの merge 前
+- `PEV_STRICT_MODE=true` がプロジェクトで設定済み
 
-通常タスクには使わない (token コスト2〜3倍)。
+通常タスクには使わない (token コスト 2〜3倍)。
 
 ## How It Works
 
 ### アーキテクチャ
 
-```
-                   verify (通常)
+```text
+                   /pev-verify --strict
                         │
                         ▼
               ┌─────────────────────┐
-              │ artifacts/verify.json│
+              │ verifier が判定:    │
+              │ --strict なら       │
+              │ Reviewer A/B 起動   │
               └──────────┬──────────┘
                          │
-              VERIFY PASS │ VERIFY FAIL → 通常retry loop
-                         ▼
-              ┌─────────────────────┐
-              │  --strict 有効?     │
-              └──────────┬──────────┘
-                  YES   │   NO → ship
-                         ▼
         ┌────────────────┴───────────────┐
         ▼                                ▼
    [Reviewer A]                    [Reviewer B]
    model: opus                     model: sonnet
    effort: xhigh                   effort: high
+   subagent: verifier              subagent: verifier
    独立 context                    独立 context
         │                                │
         └────────────────┬───────────────┘
                          ▼
-                   両者PASS?
-                   ├── YES → SHIP
-                   └── NO  → 全issue merge → planner retry
+                 verifier が JSON merge:
+                 - 両者PASS    → NICE   → write verify.json
+                 - いずれかFAIL → NAUGHTY → critical_issues
+                                             dedupe + merge
+                                             → planner retry
 ```
+
+### 並列起動の実装
+
+Claude Code agent (verifier) は `--strict` を検知したら、**同一メッセージ内で2つの Agent tool calls を発射する**:
+
+```text
+[verifier message content]
+
+I will spawn two independent reviewers in parallel.
+
+<Agent tool call 1>
+  description: PEV Reviewer A (Opus xhigh)
+  subagent_type: verifier
+  model: opus
+  prompt: |
+    You are an independent quality reviewer for the PEV harness.
+    You have NOT seen any other review of this output.
+
+    ## Task spec
+    {paste artifacts/plan.md}
+
+    ## Changes under review
+    {paste git diff output}
+
+    ## Rubric
+    {paste rubric (see below)}
+
+    ## Your role
+    Reviewer A. Find problems, do not approve.
+
+    ## Output
+    Return structured JSON with this exact shape:
+    {
+      "reviewer": "A",
+      "verdict": "PASS|FAIL",
+      "checks": [{"criterion": "...", "result": "...", "detail": "..."}],
+      "critical_issues": ["..."],
+      "suggestions": ["..."]
+    }
+
+<Agent tool call 2>
+  description: PEV Reviewer B (Sonnet high)
+  subagent_type: verifier
+  model: sonnet
+  prompt: |
+    [same as Reviewer A but with "Your role: Reviewer B"]
+```
+
+Claude Code が 2つの Agent tool calls を同一メッセージ内で発射すると、両者は並列実行され、context isolation も保たれる。
 
 ### Reviewer A と B の差別化
 
@@ -55,19 +102,11 @@ description: --strict モード専用。Reviewer A (Opus xhigh) と Reviewer B (
 |---|---|---|
 | model | `claude-opus-4-7` | `claude-sonnet-4-6` |
 | effort | xhigh | high |
-| tools | Read, Bash, Grep | Read, Bash, Grep |
-| focus | アーキ的妥当性 / 設計違反 | 実装の正しさ / edge cases |
+| 強み | アーキ妥当性 / 設計違反 / 微妙な抽象化エラー | 実装の正しさ / edge cases / 機械的なミス |
 
 両者は同じrubricを使うが、modelの能力差から自然に異なる blind spotを持つ。
 
-### 独立性の担保
-
-1. **並列起動**: 同一メッセージ内で2つのAgent toolを同時呼び出し
-2. **互いの結果を見せない**: subagentの context は独立
-3. **同一 rubric**: 同じ評価基準
-4. **Fresh agents each round**: retry時は agent を作り直す
-
-### Rubric (PEV標準)
+## Rubric (PEV標準)
 
 | Criterion | Pass Condition |
 |---|---|
@@ -78,72 +117,91 @@ description: --strict モード専用。Reviewer A (Opus xhigh) と Reviewer B (
 | Diff scope | plan.md にない drive-by変更がない |
 | Code clarity | reviewabilityが高い (関数名、責任分割) |
 
-プロジェクト固有rubricは `team-conventions.md` の `## Review Rubric` セクションで追加可能。
+プロジェクト固有 rubric は `team-conventions.md` の `## Review rubric` セクションに追加で書ける。`pev-team-conventions` skill が自動注入する。
 
-### Verdict gate
+## JSON Merge ロジック
 
-- Both PASS → NICE → ship
-- Either FAIL → NAUGHTY → 全issueをdedupedして planner にretry依頼
-- 最大 3 round
+verifier (親) が両 reviewer の JSON を受け取った後:
 
-## Implementation
+```text
+# 擬似コード (verifier agent が実行)
 
-```python
-# pseudocode (実体は /pev-verify --strict 内で実行)
-def dual_review(artifacts_dir, rubric):
-    reviewer_a = Agent(
-        description="PEV Reviewer A (Opus)",
-        subagent_type="verifier",
-        prompt=build_review_prompt(artifacts_dir, rubric, role="A"),
-        model="opus",
-        effort="xhigh",
-    )
-    reviewer_b = Agent(
-        description="PEV Reviewer B (Sonnet)",
-        subagent_type="verifier",
-        prompt=build_review_prompt(artifacts_dir, rubric, role="B"),
-        model="sonnet",
-        effort="high",
-    )
-    # 同一メッセージで並列起動
-    result_a, result_b = run_parallel(reviewer_a, reviewer_b)
+review_a = parse_json(reviewer_a_output)
+review_b = parse_json(reviewer_b_output)
 
-    if result_a.verdict == "PASS" and result_b.verdict == "PASS":
-        return "NICE"
-    
-    merged_issues = dedupe(result_a.issues + result_b.issues)
-    return "NAUGHTY", merged_issues
+if review_a.verdict == "PASS" and review_b.verdict == "PASS":
+    final_verdict = "NICE"
+else:
+    final_verdict = "NAUGHTY"
+
+# critical_issues を dedupe + merge
+all_issues = review_a.critical_issues + review_b.critical_issues
+merged_issues = dedupe_by_substring(all_issues)
+# (例: "JWT secret hardcoded in jwt.ts:23" と "JWT secret hardcoded" は1つにまとめる)
+
+# agreement率を計算
+common = issues_intersection(review_a.critical_issues, review_b.critical_issues)
+agreement_pct = len(common) / max(len(all_issues), 1) * 100
+
+# verify.json に reviewer_a / reviewer_b セクション追加
+write_verify_json({
+    "verdict": "PASS" if final_verdict == "NICE" else "FAIL",
+    "strict_mode": True,
+    "reviewer_a": review_a,
+    "reviewer_b": review_b,
+    "merged": {
+        "critical_issues": merged_issues,
+        "agreement_pct": agreement_pct
+    },
+    ...
+})
 ```
 
-### Reviewer prompt template
+## Verdict Gate
 
-```
+- Both PASS → NICE → ship 可
+- Either FAIL → NAUGHTY → merged critical_issues を planner に retry依頼
+- Max 3 round
+
+## Reviewer prompt template (完成版)
+
+verifier (親) が両 reviewer に渡す prompt の共通部:
+
+```text
 You are an independent quality reviewer for the PEV harness.
-You have NOT seen any other review of this output.
+You have NOT seen any other review of this output. Find problems,
+not approval.
 
 ## Task spec
-<plan.md>
+<inserted plan.md>
 
-## Changes under review
-<git diff>
+## Changes under review (git diff)
+<inserted git diff>
 
-## Verification results
-<verify.json>
+## Verification commands and results
+<inserted: build/test/lint output captured by verifier parent>
 
 ## Rubric
-<rubric>
+<inserted rubric, including team-conventions.md additions if present>
 
 ## Your role
-Reviewer [A|B]. Your job is to find problems, not to approve.
+You are Reviewer {A|B}. Your model is {opus|sonnet}, your effort
+is {xhigh|high}.
 
-## Output
-Return structured JSON:
+## Output format
+Return ONLY valid JSON with this shape:
+
 {
-  "verdict": "PASS|FAIL",
-  "checks": [{"criterion": "...", "result": "PASS|FAIL", "detail": "..."}],
-  "critical_issues": ["..."],
-  "suggestions": ["..."]
+  "reviewer": "A" | "B",
+  "verdict": "PASS" | "FAIL",
+  "checks": [
+    {"criterion": "<from rubric>", "result": "PASS|FAIL", "detail": "<evidence>"}
+  ],
+  "critical_issues": ["<blocker if any>"],
+  "suggestions": ["<non-blocking improvement>"]
 }
+
+Do not include any text outside the JSON.
 ```
 
 ## Model diversityの限界
@@ -154,40 +212,53 @@ Return structured JSON:
 - 同じ系統の hallucination パターンに陥る可能性
 
 許容トレードオフ:
+
 - ✅ 外部CLI依存ゼロ (社内ツールチェーン制約をクリア)
 - ✅ Plugin単独で完結
 - ❌ 真の独立性は妥協
 
-v2.0で MCP server経由の外部model (OpenAI/Gemini) 対応を検討。
+v2.0 (Issue #9) で MCP server経由の外部model (OpenAI/Gemini) 対応を検討。
 
 ## Examples
 
-### 典型的な NICE 結果
+### NICE (両者PASS)
 
+```json
+{
+  "verdict": "PASS",
+  "strict_mode": true,
+  "reviewer_a": { "verdict": "PASS", "critical_issues": [], ... },
+  "reviewer_b": { "verdict": "PASS", "critical_issues": [], ... },
+  "merged": { "critical_issues": [], "agreement_pct": 100 }
+}
 ```
-[Phase 3 --strict]
-Reviewer A (Opus xhigh):  PASS
-Reviewer B (Sonnet high): PASS
 
-Agreement: 100%
-Verdict: NICE → ship
+### NAUGHTY (両者が異なる issue を発見)
+
+```json
+{
+  "verdict": "FAIL",
+  "strict_mode": true,
+  "reviewer_a": {
+    "verdict": "FAIL",
+    "critical_issues": ["JWT secret hardcoded in src/auth/jwt.ts:23"]
+  },
+  "reviewer_b": {
+    "verdict": "FAIL",
+    "critical_issues": ["Missing input validation in middleware"]
+  },
+  "merged": {
+    "critical_issues": [
+      "JWT secret hardcoded in src/auth/jwt.ts:23",
+      "Missing input validation in middleware"
+    ],
+    "agreement_pct": 0
+  },
+  "next_action": "Trigger planner retry with merged critical_issues"
+}
 ```
 
-### NAUGHTY → retry の例
-
-```
-[Phase 3 --strict, round 1]
-Reviewer A (Opus xhigh):  FAIL
-  - Critical: JWT secret hardcoded in src/auth/jwt.ts:23
-Reviewer B (Sonnet high): FAIL
-  - Critical: Missing input validation in middleware
-
-Merged issues (2):
-  1. JWT secret hardcoded
-  2. Missing input validation
-
-→ planner にretry依頼 (round 2)
-```
+agreement_pct が低いほど reviewer の独立性が機能している証拠 (両方が同じ穴を見ているなら model diversity の意義が薄い)。
 
 ## 注意点
 
@@ -195,3 +266,4 @@ Merged issues (2):
 - 短いタスクには使わない (overhead比率が高すぎる)
 - rubric が緩いと rubber stamping が起きる → 定期的にrubricを引き締める
 - 3 round 超えても NAUGHTY → 人間escalate、自動continueしない
+- merged.agreement_pct == 100 が連続したら rubric の差別化が不十分 → rubric見直し
