@@ -48,4 +48,4 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 
 - plan.md の変更
 - `git commit` / `git push` の自動実行 (人間が境界を決める)
-- "step by step" などの prompt scaffolding を `execute.log` に書く
+- prompt scaffolding (`rules/4.7-native.md` 参照) を `execute.log` に書く

@@ -68,4 +68,4 @@ tools: Read, Bash, Grep, Glob, Write
 
 - コード変更 (Phase 2 の仕事)
 - plan.md の修正 (Phase 1 の仕事)
-- 4.6時代の "double-check carefully" 等の scaffolding 出力
+- 4.6時代の scaffolding 出力 (`rules/4.7-native.md` 参照)

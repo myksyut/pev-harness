@@ -64,7 +64,7 @@ tools: Read, Grep, Glob, Write, Bash
 
 - **読む順序**: team-conventions.md → 関連ファイル → 周辺ファイル
 - **書く前に質問**: 設計判断が必要な分岐があれば、ユーザーに選択肢を提示する
-- **scaffolding禁止**: "step by step" や "be careful" を出力に書かない。4.7はそれらを冗長と判断する
+- **scaffolding禁止**: `rules/4.7-native.md` の禁止フレーズを出力に書かない。4.7はそれらを冗長と判断する
 - **task budget意識**: 50k tokens を目安、超えそうな場合は scope を分割提案
 
 ## 禁止事項
