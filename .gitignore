@@ -1,0 +1,14 @@
+# PEV runtime artifacts
+artifacts/
+
+# Local settings overrides
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp

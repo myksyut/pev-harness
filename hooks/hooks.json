@@ -1,0 +1,37 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$TOOL_INPUT\" | grep -qE '(rm -rf /|rm -rf ~|git push --force.*main|git reset --hard.*origin/main)' && { echo '[PEV] Destructive command blocked by pev-harness'; exit 2; } || exit 0"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test -f artifacts/plan.md && test -f artifacts/execute.log && test ! -f artifacts/verify.json && echo '[PEV] Execute phase complete. Run /pev-verify to validate changes.' || exit 0"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test -f artifacts/.task_id && { TASK_ID=$(cat artifacts/.task_id); echo \"[PEV] In-progress task detected: $TASK_ID. Run /pev-status for details.\"; } || exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}
