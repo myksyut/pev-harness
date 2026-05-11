@@ -7,9 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v1.7+
-- v1.3 dog food findings の Low 6 件 (Issues #13-#18) — v1.6 で部分着手済
+### Planned for v1.8+
+- v1.3 dog food findings の Low 6 件 (Issues #13-#18)
 - v2.0 (Issue #9): External model support via MCP
+
+## [1.7.0] - 2026-05-11
+
+CLAUDE.md (repo root) を **plugin user 向け** から **pev-harness 開発者向け暗黙知集** に再定義。 v0.1 → v1.6 までの session で確立した dog food 駆動の spec evolution、 規約、 暗黙の前提を集約。
+
+### Background
+
+`CLAUDE.md` の auto-inject 仕様を再確認すると:
+
+- plugin user の project では plugin の CLAUDE.md は読まれない (user の project root の CLAUDE.md のみ inject)
+- pev-harness を直接開発する session (`cd ~/pev-harness && claude`) では repo root の CLAUDE.md が auto-inject される
+- つまり repo root の CLAUDE.md は **「開発者 (人 + Claude session) 専用 context」** として機能する
+
+これまで plugin user 向け文章 (install 手順 / prompt template 等) で占有していたのは誤った targeting。 plugin user 向け情報は既に [README.md](./README.md) に重複。
+
+### Changed
+- `CLAUDE.md` 完全書き換え (200 行、 11 sections):
+  1. このリポジトリは何か
+  2. 開発スタイル: dog food 駆動 spec evolution (v0.5-v1.6 実例 table)
+  3. 絶対遵守の規約 (4.7-native / Gate respect / Single source / conventional commits)
+  4. dog food fixture (sample-project 構造 / Linear test data / 手順 / reset)
+  5. CI 構成 (markdownlint rule + fail パターンと対処)
+  6. release procedure (10 step チェックリスト)
+  7. 暗黙の前提 (公式 doc とのずれ 6 項目: Playwright `.claude/agents/` / Linear `state` name OK / save_comment 制約 / 等)
+  8. tools の使い分け (TaskCreate / Background subprocess / Linear MCP / Playwright MCP / voicevox)
+  9. 失敗パターンと対処 (GitHub 5xx / stale task / dog food state / forbidden phrase)
+  10. やらないこと (scope creep 防止)
+  11. 開発者の心構え (5 原則: user 判断 / MVP / 自律境界 / scope / CI 通すまで release)
+  12. Cross-references
+
+### Removed (CLAUDE.md から削除、 README/ONBOARDING/SPEC に既に重複)
+- Plugin install 手順
+- Initial-turn prompt template (Goal/Constraints/AC)
+- "What this harness does NOT do" 一覧
+- 4.7-native 機能活用 table
+
+### Design rationale
+- v0.1-v1.6 の dog food 駆動 spec evolution が「方法論」として確立した、 これを次の Claude session (or 人間開発者) が初手で読める形に集約
+- 単なる開発手順書ではなく「**このリポジトリで以前何があったか / 何が暗黙合意か**」を含める (例: v0.5 Gate A leak → v0.6 で 3層防御 という事実、 公式 doc と実装のずれ)
+- 同じ session で確立したパターン (TaskCreate の使い時、 background subprocess の使い時、 forbidden phrase fail 対処) を documenting
 
 ## [1.6.0] - 2026-05-11
 
