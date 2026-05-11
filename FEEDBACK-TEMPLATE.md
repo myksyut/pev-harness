@@ -57,7 +57,7 @@
 - 5 tasks 中 first-pass rate (no retry): ___ / 5
 - 平均 retry数: ___
 - 平均 token consumption (推定): ___
-- `permissionMode` の各モード使用比率: default __% / auto __% / plan __%
+- `permissionMode` の各モード使用比率: `default: XX%` / `auto: XX%` / `plan: XX%`
 
 ## Overall sentiment
 
