@@ -7,8 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v2.0
-- See open Issues #7, #9 on GitHub
+### Planned for v1.4+
+- See open Issues for v1.4 (Low priority dog food findings)、 v2.0 (Issue #9)
+
+## [1.3.0] - 2026-05-11
+
+Linear integration hardening release. dog food session (28 findings) を spec に反映し、 silent corruption / fallback 欠落 / error 分類 / artifacts 命名混在を解消。 新 skill `linear-project-tracker` 追加で project ↔ issue 責務分離が完成。
+
+### Added
+- `skills/linear-project-tracker/SKILL.md` — Linear Project の child issue 進捗監視と完了判定 skill (M3)
+- `schemas/linear-sync-state.json` — `artifacts/linear/{issues|projects}/<id>/sync_state.json` の JSON Schema 固定 (H3)
+- `docs/dogfood-v1.3-report.md` — 28 件 findings 詳細レポート
+- `linear-project-workflow` に **Preflight check** 節追加 (H1): `.linear-config.yml` 存在 + team.id 整合性 + status workflow + write permission probe
+- `linear-project-workflow` に **MCP error handling** 表追加 (H2): 6 種別の error type (404/PERMISSION_DENIED/NETWORK/GRAPHQL/VALIDATION/RATE_LIMIT) × retry budget × skill 挙動
+- `linear-project-workflow` Read に **parse status enum** 追加 (M1): `FULLY_PARSED / PARTIAL_PARSE / NO_INPUT / PARSE_ERROR` + `[LINEAR_INCOMPLETE_<field>]` marker 規約
+- `pev-linear-sync` に **MCP warmup** 節追加 (M5): ToolSearch で linear MCP tools の load を skill 起動直後に必須化
+- `pev-linear-sync` に **Fallback marker 仕様** 追加: 404 inbound 失敗時の sync_state 規約
+- `pev-linear-sync` に **Warning メッセージ template** 追加: 固定文言で recap.log / agent 出力に統一
+- `pev-linear-sync` に **Fallback 後の handoff 規約** 追加: skill = artifact write、 `/pev` command = agent spawn
+- `pev-linear-sync` に **Responsibility separation** 表追加 (M5): skill vs `/pev` command の責務分担
+
+### Changed
+- `pev-linear-sync` Inbound に **parent project context 取り込み** 追加 (M4): `get_issue.projectId` を `get_project` に渡して Upper-AC を planner に inject (Phase 3 dog food で実証)
+- `linear-project-workflow` Update (C) を改訂 (H4): `save_comment` は issue 必須なので代替パス 4 段階明示 (子 issue 経由 / status_update / description embed / skip)、 `state` 引数は name 文字列で OK、 副作用 (`startedAt` 等) を sync_state に記録
+- `linear-project-workflow` artifacts 命名規約を統一 (H3): `artifacts/linear/issues/<id>/sync_state.json` と `artifacts/linear/projects/<id>/sync_state.json` の二系統に分離 (旧: UUID dir と identifier.json の混在)
+- `examples/sample-project/.linear-config.yml.example` を v1.3 schema に更新 (M2): `status_mapping` を `issue` と `project` で分離、 Issue は team workflow、 Project は固定 5 種で別管理
+
+### Verified via dog food (1 session, 約 1h16min)
+- ✅ Phase 1: linear-project-workflow Read / Write preview / Write commit / Update checkbox / Update status / Validation 全 6 sub-phase
+- ✅ Phase 2: pev-linear-sync Inbound / Gate A halt / Outbound success (TES-1 Done) / Outbound fail (TES-2 retry exhausted, Backlog 維持) / Fallback (404)
+- ✅ Phase 3: 統合シナリオ (project ↔ issue ↔ PEV pipeline)
+- ✅ Phase 4: edge cases 5 種 (config 不在 / team mismatch / status_mapping miss / parse 不能 / permission)
+- ✅ Phase 5: 観察 (token / latency / friction / agent 判断ミス頻度)
+
+### Known limitations (Low priority、 GitHub Issue 化)
+- L1-L6: state type field 活用、 side effects 記録、 AI 補完 "要確認" pattern 規約化、 parent project context inject pattern 規約化、 `plan.expectFail` flag、 `*`/`-` 両許容明示 — v1.4+ で対応
+
+### Closes
+- v1.2 で残った Linear integration の spec gap を `docs/dogfood-v1.3-report.md` 経由で comprehensive に解消
 
 ## [1.2.0] - 2026-05-11
 

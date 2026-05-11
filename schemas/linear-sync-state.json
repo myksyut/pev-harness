@@ -1,0 +1,169 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/myksyut/pev-harness/blob/main/schemas/linear-sync-state.json",
+  "title": "Linear sync_state.json schema (v1.3.0+)",
+  "description": "Standard structure for artifacts/linear/{issues|projects}/<id>/sync_state.json. All Linear skills (linear-project-workflow / linear-issue-workflow / linear-project-tracker / pev-linear-sync) write to this schema.",
+  "type": "object",
+  "oneOf": [
+    {
+      "title": "Issue-level sync_state",
+      "type": "object",
+      "required": ["entity_type", "id", "url"],
+      "properties": {
+        "entity_type": { "const": "issue" },
+        "id": { "type": "string", "description": "Linear issue identifier, e.g., TES-1" },
+        "url": { "type": "string", "format": "uri" },
+        "team_id": { "type": "string" },
+        "team_key": { "type": "string" },
+        "project_id": { "type": ["string", "null"], "description": "Parent project UUID if any" },
+        "inbound_at": { "type": ["string", "null"], "format": "date-time" },
+        "inbound_status": { "type": "string", "enum": ["ok", "failed", "skipped"] },
+        "last_outbound_at": { "type": ["string", "null"], "format": "date-time" },
+        "outbound_count": { "type": "integer", "minimum": 0 },
+        "current_status": { "type": ["string", "null"], "description": "PASS / FAIL / IN_PROGRESS / etc." },
+        "escalated_at": { "type": ["string", "null"], "format": "date-time" },
+        "error_log": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["at", "tool", "error_type", "action"],
+            "properties": {
+              "at": { "type": "string", "format": "date-time" },
+              "tool": { "type": "string" },
+              "error_type": {
+                "type": "string",
+                "enum": ["404", "PERMISSION_DENIED", "NETWORK", "TIMEOUT", "GRAPHQL_ERROR", "VALIDATION", "RATE_LIMIT"]
+              },
+              "action": { "type": "string", "description": "What the skill did in response" },
+              "message": { "type": "string" }
+            }
+          }
+        },
+        "fallback_invoked": { "type": "boolean" }
+      }
+    },
+    {
+      "title": "Project-level sync_state",
+      "type": "object",
+      "required": ["entity_type", "id", "url"],
+      "properties": {
+        "entity_type": { "const": "project" },
+        "id": { "type": "string", "description": "Linear project UUID" },
+        "url": { "type": "string", "format": "uri" },
+        "name": { "type": "string" },
+        "team": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "key": { "type": "string" },
+            "name": { "type": "string" }
+          }
+        },
+        "workspace": { "type": "string" },
+        "inbound_at": { "type": ["string", "null"], "format": "date-time" },
+        "created_via": { "type": "string", "description": "How this sync state was created (skill name + version)" },
+        "status": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "name": { "type": "string" },
+            "type": { "type": "string", "enum": ["backlog", "planned", "started", "completed", "canceled"] }
+          }
+        },
+        "target_date": { "type": ["string", "null"], "format": "date" },
+        "target_date_resolution": { "type": ["string", "null"], "enum": [null, "halfYear", "month", "quarter", "year"] },
+        "project_parse_status": {
+          "type": "string",
+          "enum": ["FULLY_PARSED", "PARTIAL_PARSE", "NO_INPUT", "PARSE_ERROR"],
+          "description": "v1.3.0+ enum (linear-project-workflow Read 品質チェック)"
+        },
+        "template_compliance": {
+          "type": "object",
+          "properties": {
+            "who": { "type": "boolean" },
+            "what": { "type": "boolean" },
+            "why": { "type": "boolean" },
+            "acceptance_criteria": { "type": "boolean" },
+            "out_of_scope": { "type": "boolean" }
+          }
+        },
+        "checkbox_updates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["at", "item_text", "from", "to"],
+            "properties": {
+              "at": { "type": "string", "format": "date-time" },
+              "item_index": { "type": "integer", "minimum": 0 },
+              "item_text": { "type": "string" },
+              "from": { "type": "string", "enum": ["[ ]", "[x]", "[X]"] },
+              "to": { "type": "string", "enum": ["[ ]", "[x]", "[X]"] },
+              "phase": { "type": "string" }
+            }
+          }
+        },
+        "comments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["at", "status"],
+            "properties": {
+              "at": { "type": "string", "format": "date-time" },
+              "status": { "type": "string", "enum": ["posted", "skipped", "failed"] },
+              "via": { "type": "string", "enum": ["child_issue", "status_update", "description_embed"], "description": "v1.3 代替パス" },
+              "target_id": { "type": "string", "description": "issue ID if via=child_issue" },
+              "body_excerpt": { "type": "string" },
+              "reason": { "type": "string", "description": "skipped/failed の理由" }
+            }
+          }
+        },
+        "status_transitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["at", "from", "to"],
+            "properties": {
+              "at": { "type": "string", "format": "date-time" },
+              "from": { "type": "object" },
+              "to": { "type": "object" },
+              "side_effects": {
+                "type": "array",
+                "items": { "type": "string", "description": "e.g., 'startedAt auto-set', 'startDate auto-set'" }
+              }
+            }
+          }
+        },
+        "tracker_runs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["at", "snapshot", "judgment"],
+            "properties": {
+              "at": { "type": "string", "format": "date-time" },
+              "snapshot": {
+                "type": "object",
+                "properties": {
+                  "total": { "type": "integer", "minimum": 0 },
+                  "completed": { "type": "integer", "minimum": 0 },
+                  "canceled": { "type": "integer", "minimum": 0 },
+                  "in_progress": { "type": "integer", "minimum": 0 },
+                  "unstarted": { "type": "integer", "minimum": 0 }
+                }
+              },
+              "judgment": { "type": "string", "enum": ["all_done", "mostly_done", "in_progress", "not_started"] },
+              "proposal": { "type": "string", "enum": ["transition_to_completed", "warning", "none"] }
+            }
+          }
+        },
+        "last_checkbox_update_at": { "type": ["string", "null"], "format": "date-time" },
+        "last_comment_at": { "type": ["string", "null"], "format": "date-time" },
+        "last_status_transition_at": { "type": ["string", "null"], "format": "date-time" },
+        "last_tracker_run_at": { "type": ["string", "null"], "format": "date-time" },
+        "error_log": {
+          "type": "array",
+          "items": { "$ref": "#/oneOf/0/properties/error_log/items" }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+# .linear-config.yml.example (v1.3.0+ schema)
+#
+# Copy this file to .linear-config.yml and fill in your values.
+# This file is read by linear-project-workflow / linear-issue-workflow /
+# linear-project-tracker / pev-linear-sync skills.
+#
+# Note: labels は yaml には書かない (skill が動的に Linear API で取得する)。
+
+workspace: my-workspace              # Linear workspace slug (URL中の <ws> 部分)
+                                     # 例: https://linear.app/my-workspace/issue/... → my-workspace
+
+team:
+  id: TEST                           # Issue identifier prefix (例: "TEST-123" の "TEST")
+  name: Test Team                    # human-readable (optional)
+
+# Status name mapping for outbound sync.
+# v1.3.0+ schema: Issue workflow と Project state を分離して管理する。
+# - Issue は team の workflow (Todo/In Progress/In Review/Done/...) を使う。
+#   yaml で書いた name を skill が Linear API で ID に解決する。
+#   未定義のとき: fallback chain ("Done" → "Completed" → "Released") を順に試行。
+# - Project state は Linear 固有の 5 種 (backlog/planned/started/completed/canceled)。
+#   skill は name 文字列を save_project の `state` 引数に直接渡す (ID 解決不要)。
+status_mapping:
+  issue:
+    done: Done                       # PEV PASS → Issue 完了 status
+    in_progress: In Progress         # executor 起動時など (optional)
+    blocked: Blocked                 # escalation 時の label/state (optional)
+  project:
+    completed: completed             # Project 完了時の state (type 名でも name でも OK)
+    started: started                 # In Progress 遷移時の state
+    # 副作用: started 遷移で startedAt / startDate が自動セット (skill が sync_state に記録)

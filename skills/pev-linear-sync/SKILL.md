@@ -25,6 +25,63 @@ Linear Issue を PEV pipeline の入出力として使う skill。 task 起票�
 
 不在時の挙動: skill は warning を出して通常 PEV flow にfallback (Linear連携をスキップ)。
 
+## MCP warmup (v1.3.0+ 必須)
+
+Linear MCP tool は deferred (initial load 時に schema 解決が必要)。 skill 起動直後に以下を実行:
+
+```text
+1. ToolSearch で linear MCP tools 必須セットを load:
+   - mcp__plugin_linear_linear__get_issue
+   - mcp__plugin_linear_linear__get_project
+   - mcp__plugin_linear_linear__save_comment
+   - mcp__plugin_linear_linear__save_issue
+   - mcp__plugin_linear_linear__list_issue_statuses
+2. load 失敗時は warning + fallback to pev-spec-template (Linear 連携 skip)
+```
+
+## MCP error handling (v1.3.0+ 必須)
+
+`linear-project-workflow` skill と **同じ error table** を共有。 ad-hoc error handling 禁止:
+
+| Error type | Skill 挙動 | Retry budget |
+|---|---|---|
+| `404 / Entity not found` | warning + fallback (issue_id.txt 作らず、 sync_state に `inbound_status: failed`) | 0 |
+| `PERMISSION_DENIED` | hard fail + preview-only mode 提案 | 0 |
+| `NETWORK / TIMEOUT` | exp backoff retry | 3 |
+| `GRAPHQL_ERROR` | error 種別 lookup → 該当 row | 0 |
+| `VALIDATION` | warning + status_mapping fallback chain | 0 |
+| `RATE_LIMIT` | exp backoff + retry | 3 |
+
+詳細は `skills/linear-project-workflow/SKILL.md` の MCP error handling 表を参照 (single source of truth)。
+
+### Fallback marker 仕様 (v1.3.0+)
+
+inbound 失敗時 (404 / network / validation 等) の合図:
+
+- `artifacts/linear/issues/<issue_id>/sync_state.json` を **作る** (新命名規約、 後述)
+  - 中身: `inbound_status: "failed"`, `error_log[0]`, `fallback_invoked: true`
+- `artifacts/linear/issue_id.txt` は **作らない** (presence が成功の合図)
+- `artifacts/linear/issue_url.txt` は元 URL を保持 (debug 用)
+
+### Warning メッセージ template (v1.3.0+ 標準)
+
+固定文言で recap.log / agent 出力に書く:
+
+```text
+[PEV] WARNING: Linear issue <ID> not found, falling back to manual spec extraction
+[PEV] WARNING: Linear MCP permission denied for <action>, switching to preview-only mode
+[PEV] WARNING: Linear MCP unavailable, operating in degraded mode
+```
+
+### Fallback 後の handoff (v1.3.0+ 規約)
+
+責務分担を明確化:
+
+- skill (`pev-linear-sync`) は fallback 状態を `sync_state.json` に書いて **return**
+- `/pev` コマンド側が `sync_state.inbound_status` を読み:
+  - `inbound_status: "failed"` なら `pev-spec-template` を起動 (manual spec collection に切替)
+  - `inbound_status: "ok"` なら通常 inbound flow を継続
+
 ## Sync directions
 
 ### Direction 1: Inbound (Linear Issue → Plan spec)
@@ -33,7 +90,10 @@ Linear Issue を PEV pipeline の入出力として使う skill。 task 起票�
 
 1. URL から Linear Issue identifier を抽出 (例: `ENG-123`)
 2. `mcp__plugin_linear_linear__get_issue` で Issue 取得
-3. Issue の以下フィールドを PEV spec にマッピング:
+3. **(v1.3+) parent project context 取り込み**: response の `projectId` が non-null なら
+   `mcp__plugin_linear_linear__get_project(query=projectId)` で parent project を取得 →
+   project の Why/What を planner に inject (Upper-AC として活用、 Phase 3 dog food で実証)
+4. Issue の以下フィールドを PEV spec にマッピング:
 
    | Linear field | PEV spec |
    |---|---|
@@ -208,12 +268,28 @@ linear\.app/[^/]+/issue/([A-Z]+-\d+)
 
 不正な URL なら error 表示、 通常 PEV flow にfallback。
 
+## Responsibility separation (v1.3.0+)
+
+skill と呼び出し側 (`/pev` command / parent agent) の責務を明文化:
+
+| 操作 | 担当 |
+|---|---|
+| Linear MCP tool 呼び出し (get_issue / save_comment / save_issue 等) | **skill** (pev-linear-sync) |
+| 引数 parse (URL → identifier) | **skill** |
+| sync_state.json への write | **skill** |
+| Fallback marker の設定 | **skill** |
+| `pev-spec-template` skill の **起動** | **`/pev` command** (skill は inbound_status を書いて return、 起動判断は呼び出し側) |
+| `planner` / `executor` / `verifier` agent の **起動** | **`/pev` command + 各 phase command** (skill は agent を spawn しない) |
+| Linear MCP tool の **warmup** (ToolSearch) | **`/pev` command** が skill 起動前に実施 |
+
+dog food (Phase 2-3) で確認された原則: **skill は state を artifacts に書いて return する。 agent spawn 等の制御フローは呼び出し側 (`/pev` command 系) が担う**。 これは関心の分離を維持して skill の reusability を高める。
+
 ## Limitations
 
-- **dog food 未実施**: 初版 v1.2.0 では実 Linear workspace での動作確認は author 環境では行わず、 spec のみ提供。 Linear MCP 利用者がフィードバックで詰める。
-- **status name は team によって異なる**: "Done" / "Completed" / "Released" のいずれかを優先するが、 マッチしない場合は status 変更を skip。
+- **dog food 実施済 (v1.3.0)**: 28 件の finding を spec に反映済み (`docs/dogfood-v1.3-report.md` 参照)。 引き続き利用者フィードバックで改善継続。
+- **status name は team によって異なる**: v1.3 で `.linear-config.yml` `status_mapping.issue` で明示、 fallback chain (`Done → Completed → Released`) を試行。
 - **複数 Linear workspace の同時操作は未対応**: 1 task = 1 issue の前提。
-- **Linear MCP の認証エラー時の挙動**: skill は warning を出して通常 PEV flow にfallback。 task は完走できる。
+- **Linear MCP の認証エラー時の挙動**: 「MCP error handling」表の `PERMISSION_DENIED` row に従う (hard fail + preview-only mode 提案)。 詳細は `linear-project-workflow` の同名 section を参照。
 
 ## Related
 

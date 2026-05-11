@@ -88,5 +88,33 @@ Linear MCP plugin がない or 認証 expired の場合:
 |---|---|---|
 | "Linear MCP not found" | plugin install / 認証なし | `@plugin_linear_linear` の install / OAuth |
 | Issue ID 抽出失敗 | URL format が想定外 | 標準形 `linear.app/<ws>/issue/<TEAM-NUM>` で再試行 |
-| status 変更されない | Done 相当の name が team に存在しない | コメントだけ投稿、status は手動変更 |
+| status 変更されない | Done 相当の name が team に存在しない | v1.3 fallback chain (`Done → Completed → Released`) を試行、 全失敗なら skip |
 | 同じ Issue に複数 PEV task が走った | binding cleanup なし | 完了後 `/pev-status --clean` で artifacts/linear/ も削除 |
+| Preflight error: "team.id mismatch" | `.linear-config.yml` の `team.id` が Linear team key と不一致 | yaml 値を Linear UI で確認、 修正 |
+| Preflight error: "config not found" + Write 操作 | `.linear-config.yml` 不在で Write 系操作 | `.linear-config.yml.example` を copy して値を埋める |
+| 404 / "Entity not found" | URL 内 issue が存在しない or archived | fallback で manual spec collection、 issue URL を確認 |
+| GraphQL "Project status updates not enabled" | workspace 設定で status update disabled | `description embed` 代替パスが自動発動、 もしくは `linear-project-workflow` Update (C) の代替パス参照 |
+
+## v1.3+ edge cases (dog food で確認済)
+
+### `.linear-config.yml` 不在シナリオ
+
+- Read 系操作: warning + degraded fallback (workspace 不在で機能制限あるが動く)
+- Write 系操作: hard fail (silent corruption リスク防止)
+- 対処: `cp .linear-config.yml.example .linear-config.yml` + 値を埋める
+
+### team.id 不一致シナリオ
+
+Preflight check (v1.3) で hard fail。 yaml 値が Linear team の `key` (例: `TES`) と一致するか確認。
+
+### status_mapping にない status name
+
+skill が `status_mapping.issue.done` を name として `list_issue_statuses` から ID 解決を試みる。 fallback chain (`Done → Completed → Released`) を順試行、 全失敗なら status 変更 skip + warning。
+
+### parse 不能な project description
+
+`linear-project-workflow` Read で parse status `NO_INPUT` (空) / `PARSE_ERROR` (markdown 破損) を判定。 `PARTIAL_PARSE` の場合は `[LINEAR_INCOMPLETE_<field>]` marker を付けて inbound 継続。
+
+### MCP permission denied (write 不可 token)
+
+Preflight permission probe で検出 (v1.3)、 hard fail + preview-only mode 提案。 token scope を見直す。
