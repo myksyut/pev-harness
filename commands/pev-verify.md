@@ -20,17 +20,72 @@ description: Run only the Verify phase. Validates changes against plan.md accept
 
 ## 実行手順 (hard-coded)
 
-1. `git diff` で変更を取得
-2. `artifacts/plan.md` の Verification strategy セクションを読む
-3. リストされたコマンドを順次実行:
-   - Build
-   - Type check
-   - Lint
-   - Tests
-4. plan.md の各 Acceptance Criteria を ✅/❌ チェック
-5. 結果を `artifacts/verify.json` に書き出す
-6. `--strict` 指定時、`pev-dual-review` skillを起動して並列でReviewer A/B実行
-7. 結果サマリを表示
+### Step 1: Pre-check
+
+```bash
+if [ ! -f artifacts/plan.md ]; then
+  echo "[PEV] artifacts/plan.md not found. Cannot verify without acceptance criteria."
+  exit 1
+fi
+if [ ! -f artifacts/.task_id ]; then
+  echo "[PEV] artifacts/.task_id missing."
+  exit 1
+fi
+if git diff --quiet HEAD; then
+  echo "[PEV] No uncommitted changes detected. Did execute phase produce changes?"
+  # 警告のみ、続行はする
+fi
+TASK_ID=$(cat artifacts/.task_id)
+echo "[PEV] Verify phase for task $TASK_ID"
+```
+
+### Step 2: Invoke verifier
+
+verifier agent (model: sonnet, effort: xhigh) を起動。`artifacts/plan.md` + `git diff` を渡す。
+
+### Step 3: Run verification commands
+
+verifier が plan.md の `## Verification strategy` セクションを読み、リストされた各コマンドを順次実行:
+
+- Build
+- Type check
+- Lint
+- Tests
+
+各コマンドの結果を `artifacts/verify.json` の `checks[]` に記録。
+
+### Step 4: Check acceptance criteria
+
+verifier が plan.md の `## Acceptance Criteria` の各項目について `met: true|false` と `evidence` を `verify.json` に書き出す。
+
+### Step 5: --strict mode (optional)
+
+```bash
+if [ "$1" = "--strict" ]; then
+  echo "[PEV] Strict mode: invoking pev-dual-review skill"
+  # pev-dual-review skill が起動:
+  #   Reviewer A: subagent_type=verifier, model=opus, effort=xhigh
+  #   Reviewer B: subagent_type=verifier, model=sonnet, effort=high
+  #   同一メッセージ内で並列起動
+  #   両方PASS → NICE / いずれかFAIL → NAUGHTY
+fi
+```
+
+### Step 6: Report
+
+```bash
+VERDICT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('artifacts/verify.json','utf8')).verdict)")
+echo "[PEV] Verify done. Verdict: $VERDICT"
+cat artifacts/verify.json | node -e "
+  const v = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+  console.log('Checks:');
+  v.checks.forEach(c => console.log('  ' + (c.result === 'PASS' ? '✅' : '❌') + ' ' + c.name));
+  console.log('Acceptance Criteria:');
+  v.acceptance_criteria.forEach(ac => console.log('  ' + (ac.met ? '✅' : '❌') + ' ' + ac.criterion));
+"
+```
+
+pev-recap が Phase 3 完了エントリを `artifacts/recap.log` に追記。
 
 ## --strict モード
 

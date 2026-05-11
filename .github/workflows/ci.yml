@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint and validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli@0.41.0
+
+      - name: Run markdownlint
+        run: |
+          markdownlint '**/*.md' \
+            --ignore node_modules \
+            --ignore artifacts \
+            --ignore '**/CHANGELOG.md' \
+            --config .markdownlint.json
+
+      - name: Validate JSON files
+        run: |
+          set -e
+          for f in .claude-plugin/plugin.json hooks/hooks.json settings.json; do
+            echo "Validating $f"
+            node -e "JSON.parse(require('fs').readFileSync('$f', 'utf8'))"
+          done
+
+      - name: Validate plugin.json schema
+        run: |
+          node -e "
+          const m = JSON.parse(require('fs').readFileSync('.claude-plugin/plugin.json', 'utf8'));
+          const required = ['name', 'version', 'description'];
+          for (const k of required) {
+            if (!m[k]) { console.error('Missing required field: ' + k); process.exit(1); }
+          }
+          console.log('plugin.json schema OK');
+          "
+
+      - name: Check for forbidden 4.6-style scaffolding
+        run: |
+          set -e
+          # Check agents/, skills/, commands/ prompts for 4.6 scaffolding phrases.
+          # rules/ are documentation of these phrases (allowed).
+          FORBIDDEN='step.by.step|double.check|verify your output|be thorough|be careful|take your time'
+          if grep -rEinH "$FORBIDDEN" agents/ skills/ commands/ 2>/dev/null; then
+            echo "ERROR: Found 4.6-style scaffolding phrases. See rules/4.7-native.md for replacements."
+            exit 1
+          fi
+          echo "No forbidden scaffolding found in prompts"
+
+      - name: Verify required files exist
+        run: |
+          set -e
+          for f in SPEC.md README.md CLAUDE.md ONBOARDING.md CHANGELOG.md \
+                   .claude-plugin/plugin.json settings.json hooks/hooks.json \
+                   agents/planner.md agents/executor.md agents/verifier.md; do
+            test -f "$f" || { echo "Missing required file: $f"; exit 1; }
+          done
+          echo "All required files present"
+
+      - name: Verify all skills have SKILL.md
+        run: |
+          set -e
+          for d in skills/*/; do
+            test -f "$d/SKILL.md" || { echo "Missing SKILL.md in $d"; exit 1; }
+          done
+          echo "All skills have SKILL.md"

@@ -17,33 +17,93 @@ PEV harnessのメインコマンド。Plan → Execute → Verify を順に実�
 
 ## 実行手順
 
-1. `pev-spec-template` skillを起動し、入力からGoal/Constraints/AC を抽出
-2. 不足要素があれば質問返ししてユーザーに補完してもらう
-3. task_id 発行:
-   ```bash
-   mkdir -p artifacts
-   TASK_ID="$(date +%s)-$(openssl rand -hex 4 2>/dev/null || echo $RANDOM)"
-   echo "$TASK_ID" > artifacts/.task_id
-   mkdir -p ~/.claude/pev/$TASK_ID
-   ```
-4. **Phase 1 (Plan)**: planner agent を起動
-   - 入力: 整形済みspec + team-conventions.md (あれば)
-   - 出力: `artifacts/plan.md`
-5. **Gate A**: `permissionMode` を判定
-   - `auto`: そのまま Phase 2 へ
-   - `default`: `cat artifacts/plan.md` を表示して停止。`/pev-execute` で続行を促す
-   - `plan`: ここで終了
-6. **Phase 2 (Execute)**: executor agent を起動
-   - `--parallel` 指定時、独立ファイルを最大3並列で
-   - 出力: コード変更 + `artifacts/execute.log`
-7. **Gate B**: Stop hookが自動でPhase 3起動
-8. **Phase 3 (Verify)**: verifier agent
-   - `--strict` 指定時、pev-dual-review が起動
-   - 出力: `artifacts/verify.json`
-9. **Retry Gate**: verify.json `verdict`:
-   - PASS → 完了、pev-recap を起動
-   - FAIL & retry<3 → Phase 1 に戻る
-   - FAIL & retry>=3 → escalate
+### Step 1: Initialize task
+
+既存タスクがある場合は確認:
+
+```bash
+if [ -f artifacts/.task_id ]; then
+  CURRENT_TASK=$(cat artifacts/.task_id)
+  echo "[PEV] Existing task in progress: $CURRENT_TASK"
+  echo "[PEV] Run '/pev-status' to see state, or '/pev-status --clean' to discard."
+  exit 1
+fi
+```
+
+新規タスク開始:
+
+```bash
+mkdir -p artifacts
+TASK_ID="$(date +%s)-$(openssl rand -hex 4 2>/dev/null || printf '%04x%04x' $RANDOM $RANDOM)"
+echo "$TASK_ID" > artifacts/.task_id
+echo "0" > artifacts/.retry_count
+mkdir -p ~/.claude/pev/$TASK_ID
+echo "[PEV] Task started: $TASK_ID"
+```
+
+### Step 2: Phase 1 — Plan
+
+`pev-spec-template` skill で入力を整形 (不足要素は質問返し)。
+整形済み spec + team-conventions.md (あれば) を planner agent に渡す。
+planner は `artifacts/plan.md` を出力する。
+
+### Step 3: Gate A — permissionMode判定
+
+```bash
+MODE=$(grep -o '"permissionMode"[[:space:]]*:[[:space:]]*"[^"]*"' .claude/settings.json 2>/dev/null | head -1 | cut -d'"' -f4)
+MODE=${MODE:-default}
+
+case "$MODE" in
+  auto)
+    echo "[PEV] Gate A: auto mode — proceeding to Phase 2"
+    ;;
+  plan)
+    echo "[PEV] Gate A: plan mode — terminating after Plan phase"
+    cat artifacts/plan.md
+    exit 0
+    ;;
+  *)
+    echo "[PEV] Gate A: default mode — please review plan.md then run /pev-execute"
+    cat artifacts/plan.md
+    exit 0
+    ;;
+esac
+```
+
+### Step 4: Phase 2 — Execute
+
+executor agent を起動 (`--parallel` 指定時は独立ファイルを最大 `PEV_PARALLEL_EXECUTOR_MAX` 並列)。
+出力: code edits + `artifacts/execute.log`。
+
+### Step 5: Gate B — Stop hook auto-trigger
+
+executor 完了時に Stop hook が発火し、`/pev-verify` を促す。
+このフロー内で連続実行する場合は直接 Phase 3 に進む。
+
+### Step 6: Phase 3 — Verify
+
+verifier agent を起動。`--strict` 指定時は `pev-dual-review` skill 経由で2人レビュー。
+出力: `artifacts/verify.json`。
+
+### Step 7: Retry Gate
+
+```bash
+VERDICT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('artifacts/verify.json','utf8')).verdict)" 2>/dev/null)
+RETRY=$(cat artifacts/.retry_count 2>/dev/null || echo 0)
+MAX=${PEV_MAX_RETRIES:-3}
+
+if [ "$VERDICT" = "PASS" ]; then
+  echo "[PEV] Verdict: PASS — task complete"
+  # pev-recap skill が recap.log に最終エントリ追記
+elif [ "$RETRY" -lt "$MAX" ]; then
+  echo $((RETRY + 1)) > artifacts/.retry_count
+  echo "[PEV] Verdict: FAIL (retry $((RETRY + 1))/$MAX) — invoking planner with diff + verify.json"
+  # planner を再起動 (loop back to Step 2)
+else
+  echo "[PEV] Verdict: FAIL after $MAX retries — ESCALATING"
+  # /pev-status --escalate を促す
+fi
+```
 
 ## 完了時の出力
 

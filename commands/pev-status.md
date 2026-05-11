@@ -92,7 +92,90 @@ Suggestions:
 3. Run /pev-status --clean and start over with refined spec
 ```
 
+## 実装
+
+### Default 表示
+
+```bash
+if [ ! -f artifacts/.task_id ]; then
+  echo "[PEV] No active task."
+  exit 0
+fi
+
+TASK_ID=$(cat artifacts/.task_id)
+RETRY=$(cat artifacts/.retry_count 2>/dev/null || echo 0)
+MAX=${PEV_MAX_RETRIES:-3}
+
+echo "[PEV Status]"
+echo ""
+echo "Task ID:    $TASK_ID"
+echo "Retry:      $RETRY / $MAX"
+echo ""
+
+echo "Artifacts:"
+for f in plan.md execute.log verify.json recap.log; do
+  if [ -f "artifacts/$f" ]; then
+    LINES=$(wc -l < "artifacts/$f" | tr -d ' ')
+    echo "  ✅ artifacts/$f         ($LINES lines)"
+  else
+    echo "  ⏳ artifacts/$f         (pending)"
+  fi
+done
+
+echo ""
+echo "Memory:     ~/.claude/pev/$TASK_ID/"
+if [ -d ~/.claude/pev/$TASK_ID ]; then
+  ls -1 ~/.claude/pev/$TASK_ID 2>/dev/null | sed 's/^/  - /'
+fi
+
+if [ -f artifacts/recap.log ]; then
+  echo ""
+  echo "Recent recap (last 5 entries):"
+  tail -n 5 artifacts/recap.log | sed 's/^/  /'
+fi
+```
+
+### --clean
+
+```bash
+TASK_ID=$(cat artifacts/.task_id 2>/dev/null)
+if [ -z "$TASK_ID" ]; then
+  echo "[PEV] No active task to clean."
+  exit 0
+fi
+echo "About to remove:"
+echo "  - artifacts/"
+echo "  - ~/.claude/pev/$TASK_ID/"
+read -p "Confirm (y/N)? " ans
+if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
+  rm -rf artifacts/
+  rm -rf ~/.claude/pev/$TASK_ID
+  echo "[PEV] Cleaned task $TASK_ID"
+fi
+```
+
+### --escalate
+
+retry 上限到達時のメッセージ表示。verify.json の `critical_issues` を抽出して人間に判断を仰ぐ。
+
+```bash
+node -e "
+  const v = JSON.parse(require('fs').readFileSync('artifacts/verify.json','utf8'));
+  console.log('[ESCALATION]');
+  console.log('Task ' + v.task_id + ' failed after ' + v.retry_count + ' retries.');
+  console.log('');
+  console.log('Unresolved issues:');
+  v.critical_issues.forEach(i => console.log('  - ' + i));
+  console.log('');
+  console.log('Suggestions:');
+  console.log('  1. Inspect artifacts/plan.md — is the plan wrong?');
+  console.log('  2. Run /pev-plan manually to revise');
+  console.log('  3. Run /pev-status --clean and start over');
+"
+```
+
 ## Implementation notes
 
-- Bashで `cat artifacts/*.json | jq ...` 程度の薄い実装
+- Bashで `cat artifacts/*.json | node -e ...` 程度の薄い実装
 - 重い処理は持たない (status表示は安価であるべき)
+- `jq` 依存を避ける (node があれば動く環境を前提)

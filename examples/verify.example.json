@@ -1,0 +1,59 @@
+{
+  "verdict": "PASS",
+  "task_id": "1715394123-a3f9c2",
+  "timestamp": "2026-05-11T14:26:42Z",
+  "checks": [
+    {
+      "name": "build",
+      "command": "pnpm build",
+      "result": "PASS",
+      "detail": "tsc compiled with no errors"
+    },
+    {
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "result": "PASS",
+      "detail": "no type errors found"
+    },
+    {
+      "name": "lint",
+      "command": "pnpm lint",
+      "result": "PASS",
+      "detail": "eslint: 0 warnings, 0 errors"
+    },
+    {
+      "name": "tests",
+      "command": "pnpm test",
+      "result": "PASS",
+      "detail": "vitest: 18/18 tests passed (incl. new /healthz test)"
+    }
+  ],
+  "acceptance_criteria": [
+    {
+      "criterion": "GET /healthz が 200 を返す",
+      "met": true,
+      "evidence": "tests/server.test.ts:18 — expect(res.status).toBe(200) → PASS"
+    },
+    {
+      "criterion": "レスポンスが {status: \"ok\"} の JSON",
+      "met": true,
+      "evidence": "tests/server.test.ts:19 — expect(res.body).toEqual({status: 'ok'}) → PASS"
+    },
+    {
+      "criterion": "tests/server.test.ts に対応するテストが追加されている",
+      "met": true,
+      "evidence": "git diff --stat: tests/server.test.ts +18/-0 (new file)"
+    },
+    {
+      "criterion": "pnpm test が全 PASS",
+      "met": true,
+      "evidence": "vitest: 18/18 passed"
+    }
+  ],
+  "critical_issues": [],
+  "suggestions": [
+    "Consider adding /readyz endpoint as a follow-up for k8s readiness probes"
+  ],
+  "retry_count": 0,
+  "strict_mode": false
+}

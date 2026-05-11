@@ -21,16 +21,55 @@ description: Run only the Execute phase. Reads artifacts/plan.md and implements 
 
 ## 実行手順
 
-1. `artifacts/plan.md` を読む
-2. File-level changes リストを解析
-3. `--parallel` 指定時:
-   - 独立ファイル群を識別 (shared依存なし)
-   - 最大 `PEV_PARALLEL_EXECUTOR_MAX` (default: 3) のexecutorを並列起動
-   - 各executor は `~/.claude/pev/{task_id}/executor-{N}.md` にmemory書き込み
-4. `--parallel` なし:
-   - 1人のexecutorが順次変更
-5. 全executor完了後、`artifacts/execute.log` に変更ファイル一覧と提案コミットメッセージを記録
-6. Stop hook が自動で `/pev-verify` を促す
+### Step 1: Pre-check
+
+```bash
+if [ ! -f artifacts/plan.md ]; then
+  echo "[PEV] artifacts/plan.md not found. Run /pev-plan first."
+  exit 1
+fi
+if [ ! -f artifacts/.task_id ]; then
+  echo "[PEV] artifacts/.task_id missing. Run /pev to start a fresh task."
+  exit 1
+fi
+TASK_ID=$(cat artifacts/.task_id)
+echo "[PEV] Execute phase for task $TASK_ID"
+```
+
+### Step 2: Parse plan
+
+`artifacts/plan.md` の `## File-level changes` セクションを読んでファイル一覧を抽出。
+
+### Step 3: Decide parallelism
+
+```bash
+PARALLEL_MAX=${PEV_PARALLEL_EXECUTOR_MAX:-3}
+# --parallel フラグがあり、独立した複数ファイルがある場合のみ並列化
+```
+
+### Step 4: Invoke executor(s)
+
+- 並列モード: 同一メッセージ内で複数 Agent tool calls を発射 (最大 `$PARALLEL_MAX`)
+- 順次モード: 1つの executor agent (model: sonnet, effort: high) を起動
+
+各executorは `~/.claude/pev/$TASK_ID/executor-N.md` にmemory書き込み。
+
+### Step 5: Aggregate output
+
+全executor完了後:
+
+```bash
+echo "[$(date -u +%FT%TZ)] Phase 2 (Execute) done" >> artifacts/execute.log
+# 各executorが書いたファイル一覧と提案commit messageを統合
+```
+
+pev-recap が Phase 2 完了エントリを `artifacts/recap.log` に追記。
+
+### Step 6: Trigger verify
+
+```bash
+echo "[PEV] Execute done. Stop hook will prompt /pev-verify, or run it manually."
+```
 
 ## Notes
 
