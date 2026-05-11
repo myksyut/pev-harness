@@ -7,8 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v0.2
-- See open Issues #1-#9 on GitHub for the full backlog
+### Planned for v0.3+
+- See open Issues #3-#9 on GitHub
+
+## [0.2.0] - 2026-05-11
+
+Functional release: Gate A actually decides on permissionMode, task lifecycle has real cleanup paths, and recap.log is no longer dependent on agent goodwill.
+
+### Added
+- `commands/pev.md` — concrete Bash for task_id init, permissionMode-aware Gate A branching, retry counter (closes #1)
+- `commands/pev-status.md` — `--gc` / `--gc --apply` modes for 30-day stale memory directory cleanup, plus `--recent` and `--escalate` (closes #2)
+- `agents/planner.md` — explicit "Memory write" directive: write key decisions and open questions to `~/.claude/pev/{TASK_ID}/notes.md`
+- `agents/executor.md` — explicit "Memory write" directive: read peer executors' memory at startup to avoid file collisions; write own progress on completion
+- SessionStart hook — surfaces stale tasks (>30 days) with `/pev-status --gc` hint
+
+### Changed
+- `hooks/hooks.json` Stop hook — now auto-appends Phase 2/3 completion entries to `artifacts/recap.log`, addressing the dog food gap where recap was relying on agent-side initiative
+- Stop hook also surfaces verdict (PASS/FAIL from verify.json) when verifier has run
+
+### Fixes
+- Dog food gap: Phase completion now leaves a durable record in recap.log without requiring agent compliance
+- Dog food gap: subagent memory directory `~/.claude/pev/{task_id}/` now has explicit write directives in agent prompts
+
+### Known limitations carried forward
+- Stop hook still cannot directly invoke `/pev-verify` (Claude Code hooks don't yet support command-triggered slash invocations); user must run `/pev-verify` manually after seeing the Stop hook message
+- `task_budget` API beta header passthrough still indirect (Issue #3)
 
 ## [0.1.1] - 2026-05-11
 

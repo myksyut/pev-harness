@@ -67,6 +67,16 @@ tools: Read, Grep, Glob, Write, Bash
 - **scaffolding禁止**: `rules/4.7-native.md` の禁止フレーズを出力に書かない。4.7はそれらを冗長と判断する
 - **task budget意識**: 50k tokens を目安、超えそうな場合は scope を分割提案
 
+## Memory write
+
+タスク開始時に `artifacts/.task_id` を読み、`~/.claude/pev/{TASK_ID}/notes.md` を作成または追記する。書く内容:
+
+- 設計上の key decisions (例: 「factory pattern を採用、理由は X」)
+- Open questions と解決方針
+- 後続 phase (executor / verifier) に伝えたい注意点
+
+簡潔に箇条書きで。1ファイル10kB以下を目安。retry時は前回の notes.md を読んで何が変わったかを追記する。
+
 ## 禁止事項
 
 - コード変更 (Phase 2 executor の仕事)

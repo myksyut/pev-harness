@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -f artifacts/plan.md && test -f artifacts/execute.log && test ! -f artifacts/verify.json && echo '[PEV] Execute phase complete. Run /pev-verify to validate changes.' || exit 0"
+            "command": "if [ -f artifacts/.task_id ] && [ -f artifacts/execute.log ] && [ ! -f artifacts/verify.json ]; then TS=$(date -u +%FT%TZ); LINES=$(wc -l < artifacts/execute.log | tr -d ' '); { echo \"[$TS] Phase 2 (Execute) completed ($LINES log entries)\"; echo \"  - Next: run /pev-verify to validate against acceptance criteria\"; echo \"\"; } >> artifacts/recap.log; echo '[PEV] Execute phase complete. Run /pev-verify to validate.'; fi; if [ -f artifacts/verify.json ]; then VERDICT=$(node -e \"console.log(JSON.parse(require('fs').readFileSync('artifacts/verify.json','utf8')).verdict||'')\" 2>/dev/null); if [ -n \"$VERDICT\" ] && ! grep -q \"Phase 3 (Verify) completed\" artifacts/recap.log 2>/dev/null; then TS=$(date -u +%FT%TZ); { echo \"[$TS] Phase 3 (Verify) completed (verdict: $VERDICT)\"; echo \"\"; } >> artifacts/recap.log; fi; fi; exit 0"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -f artifacts/.task_id && { TASK_ID=$(cat artifacts/.task_id); echo \"[PEV] In-progress task detected: $TASK_ID. Run /pev-status for details.\"; } || exit 0"
+            "command": "if [ -f artifacts/.task_id ]; then TASK_ID=$(cat artifacts/.task_id); echo \"[PEV] In-progress task detected: $TASK_ID\"; echo \"[PEV] Run /pev-status for details\"; fi; STALE=$(find ~/.claude/pev -maxdepth 1 -mindepth 1 -type d -mtime +30 2>/dev/null | wc -l | tr -d ' '); if [ \"${STALE:-0}\" -gt 0 ]; then echo \"[PEV] $STALE stale task(s) >30 days. Run /pev-status --gc\"; fi; exit 0"
           }
         ]
       }

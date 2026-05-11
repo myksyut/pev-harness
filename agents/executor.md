@@ -20,9 +20,22 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 
 1. **計画に従う**: plan.md の File-level changes 通りに変更する。drive-byリファクタ禁止
 2. **1ファイル = 1コミット境界**: 後でreviewしやすい粒度
-3. **subagent memory活用**: 並列起動された場合、`~/.claude/pev/{task_id}/executor-{N}.md` に作業ノートを書く
+3. **subagent memory活用**: 起動直後と完了時の2回、memory file を更新する (下記 Memory write 参照)
 4. **検証は別phase**: build/test/lint は verifier の仕事、ここではやらない
 5. **詰まったら停止**: 計画と現実が乖離していたら、コードを変更せずに planner に戻すよう報告
+
+## Memory write
+
+起動時:
+
+1. `artifacts/.task_id` を読んで `TASK_ID` を取得
+2. 並列起動されている場合は executor index `N` を環境変数 or 引数から取得 (デフォルト 1)
+3. `~/.claude/pev/{TASK_ID}/executor-{N}.md` を作成し、自分が担当するファイル一覧を書く
+4. 他の `~/.claude/pev/{TASK_ID}/executor-*.md` (もしあれば) を読んで、衝突する変更がないか確認
+
+完了時:
+
+- 同じ memory file に「変更したファイル + 提案 commit メッセージ + 他 executor / verifier に伝えたいこと」を追記
 
 ## 並列実行ルール
 
