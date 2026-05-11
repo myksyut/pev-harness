@@ -233,6 +233,8 @@ agent `agents/verifier.md`：
 | **pev-subagent-memory** | `~/.claude/pev/{task_id}/` 配下のmemoryディレクトリ規約 | executor並列起動時 |
 | **pev-dual-review** | santa-method軽量版。Reviewer A=Opus / B=Sonnet (model alias diversity) | `--strict` 指定時 |
 | **pev-team-conventions** | `team-conventions.md` を読み込み planner/executor に注入 | Plan/Execute起動時 |
+| **pev-bootstrap-playwright** | Playwright + agents の one-time setup (v1.4+) | `/pev-init-e2e` / E2E preflight 未setup |
+| **pev-bootstrap-project** | project 全体の初期 setup (team-conventions / .gitignore / 言語検知) (v1.9+) | `/pev-init` |
 
 ---
 
@@ -245,6 +247,9 @@ agent `agents/verifier.md`：
 | `/pev-execute` | 既存 plan.md を読んで実装 |
 | `/pev-verify` | 検証のみ実行 |
 | `/pev-status` | 現在のphase / artifacts一覧 / 残り task budget |
+| `/pev-verify-e2e` | E2E verify のみ実行 (v1.4+) |
+| `/pev-init-e2e` | Playwright bootstrap (v1.4+) |
+| `/pev-init [--dry-run] [--force]` | project 全体の初期セットアップ (v1.9+)。 team-conventions.md / .gitignore / (任意) .linear-config.yml.example 等を言語検知付きで生成 |
 
 各commandは10〜30行の薄いMarkdown。ロジックはskill側。
 
@@ -312,7 +317,8 @@ Reviewer 2人とも Claude (model alias で多様性):
 | **v1.6** | **v1.4+v1.5 dog food findings reflection** | qa_derived_checks schema 拡張 (evidence_type) / mirror compression / handoff doc / --force-auto flag / Playwright DRY pattern | ✅ released |
 | **v1.7** | **CLAUDE.md re-targeting (developer-oriented)** | repo root CLAUDE.md を開発者向け暗黙知集に書き換え、 plugin user 向けは README へ集約 | ✅ released |
 | v1.7.1 | dev-only doc を `guide/` に集約 | docs/ + CHECKLIST/ROLLOUT/FEEDBACK を guide/ へ。 cross-reference 更新 | ✅ released |
-| **v1.8** | **v1.3 + v1.7.1 dog food findings reflection (9 件)** | linear-project-workflow 4件 (#13/#14/#15/#18) / agents 3件 (#16/#20/#21) / `--expect-fail` flag (#17) / team-conventions Lint・Typecheck 明示 (#19) | (current) |
+| v1.8 | v1.3 + v1.7.1 dog food findings reflection (9 件) | linear-project-workflow 4件 (#13/#14/#15/#18) / agents 3件 (#16/#20/#21) / `--expect-fail` flag (#17) / team-conventions Lint・Typecheck 明示 (#19) | ✅ released |
+| **v1.9** | **`/pev-init` project bootstrap command** | pev-bootstrap-project skill + 言語検知 (Node/Python/Go/Rust) + team-conventions auto-populate + .gitignore append + interactive prompts + dry-run mode | (current) |
 | v2.0 | 外部model対応 (MCP server経由) | OpenAI/Gemini MCP統合 | Issue #9 |
 
 ---

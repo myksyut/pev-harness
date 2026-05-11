@@ -7,9 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v1.9+
-- v1.8 dog food findings (release 前 dog food で発見されたものがあれば)
-- v2.0 (Issue #9): External model support via MCP
+### Planned for v2.0+
+- v2.0 (Issue #9): External model support via MCP (OpenAI/Gemini)
+- v1.9 dog food findings (release 前 dog food で発見されたものがあれば)
+
+## [1.9.0] - 2026-05-12
+
+**`/pev-init` project bootstrap command** 追加。 ONBOARDING.md §2 で手動 cp + edit + gitignore append の 5 step だった project 導入手順を、 言語検知付き 1 コマンドに圧縮。
+
+### Added
+
+**`/pev-init [--dry-run] [--force]` command** (`commands/pev-init.md`):
+- 新規 project に pev-harness を導入する one-time setup を 1 コマンドで完結
+- 言語/構成 検知 (`package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml` / `playwright.config.*`) → `team-conventions.md` の `## Verification commands` 4 項目を auto-populate
+- `--dry-run`: 「実行予定 file list + 検知結果 + 質問 preview」を stdout 出力して exit、 実 I/O なし
+- `--force`: interactive prompts を skip、 default 上書き (CI / 自動化用)
+
+**`skills/pev-bootstrap-project/SKILL.md`**:
+- 既存 `pev-bootstrap-playwright` と並列の bootstrap skill family
+- 5-7 step: preflight → 言語検知 → template populate → AskUserQuestion 経由 interactive prompts → file write → 結果サマリ
+- 生成 file (default): `team-conventions.md` skeleton (v1.8 必須項目 含む) / `.gitignore` に `artifacts/` 追記
+- 生成 file (interactive yes/no): `.linear-config.yml.example` copy / `.claude/settings.local.json` 雛形 / `~/.claude/pev/team-conventions.local.md` (個人 override skeleton)
+- 既存 file 衝突: AskUserQuestion で「上書き / merge / skip」分岐、 `--force` で skip 化
+
+### Changed
+
+- `examples/team-conventions.example.md`: v1.8 で必須化した `## Verification commands` 4 項目を template に反映、 言語非依存 skeleton 化 (30 行 minimum + 「拡張 section の例」 comment)
+- `ONBOARDING.md` §2: 「プロジェクトへの導入」を `/pev-init` 1 コマンドベースに書き換え (5 step → 2 step)
+- `README.md` Quick Start: 「install → /pev-init → /pev」 の 3 step に圧縮
+- `SPEC.md` §7 (Skills): `pev-bootstrap-playwright` (v1.4 で導入されていたが未掲載) と `pev-bootstrap-project` を表に追加
+- `SPEC.md` §8 (Commands): `/pev-init` / `/pev-init-e2e` / `/pev-verify-e2e` を表に追加
+
+### Verified via dog food
+- fresh project (`/tmp/v19-init-test/`) で /pev-init を 4 シナリオ実機 invoke (Node `--dry-run` / Node `--force` 初回 / Node `--force` 再 invoke / Python `--force`)
+- 結果:
+  - **Node `--force` 初回**: ✅ 完璧。 `package.json` scripts.test=`vitest run` / scripts.lint=`eslint .` / scripts.typecheck=`tsc --noEmit` を全検知し、 `team-conventions.md` の `## Verification commands` に `Unit test: npm test` / `Lint: npm run lint` / `Typecheck: npm run typecheck` / `E2E test: 未設定` で正しく populate。 `.gitignore` 新規作成 (`artifacts/` 1 行) + `.linear-config.yml.example` copy + `.claude/settings.local.json` (`{"permissionMode": "default"}`) 雛形 すべて生成
+  - **Python `--force`**: ✅ 完璧。 `pyproject.toml` の `requires-python` / `tool.pytest` / `tool.ruff` / `tool.mypy` を検知し、 `Unit test: pytest` / `Lint: ruff check .` / `Typecheck: mypy .` / Language: Python / Runtime: Python >= 3.11 を populate
+- dog food findings (release 前に patch 済):
+  - **F1**: `--dry-run` / `--force` 後 subprocess Claude が「preview/summary 出力済み」と自然言語で返すだけで、 stdout に full preview/summary block を流していなかった → SKILL.md Step 6/7 に「assistant 最終応答テキスト = subprocess stdout として full block を必ず出力、 自然言語 summary 単独は規約違反」を明示
+  - **F3**: `--force` で再 invoke しても、 既存 file が v1.8+ template と一致する場合 idempotent skip が優先され上書きされなかった → SKILL.md Step 1 + commands/pev-init.md で `--force` が idempotent skip を bypass する仕様を明文化
+- 環境 finding (spec 修正対象外、 記録のみ):
+  - **F4**: 2 並列 subprocess 起動時、 実 task は完了済 (file 生成完了) でも subprocess が 28+ 分 hang する現象を観測。 並列 init は MCP cleanup race の疑い、 user 側では `/pev-init` を順次起動することを推奨
+
+### Design rationale
+- v1.4 で `/pev-init-e2e` + `pev-bootstrap-playwright` の pattern が確立、 v1.9 で「**bootstrap skill family**」 として一般化
+- v1.8 で `## Verification commands` を必須化した流れで、 init 時に言語検知で auto-populate することが natural な次手
+- `--dry-run` mode は SPEC.md ADR-005 「Hook-driven verification」 と同じ思想で、 destructive 操作前の preview を user に保証する
 
 ## [1.8.0] - 2026-05-12
 

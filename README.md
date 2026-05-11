@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml)
 [![GitHub stars](https://img.shields.io/github/stars/myksyut/pev-harness?style=social)](https://github.com/myksyut/pev-harness/stargazers)
-![version](https://img.shields.io/badge/version-1.1.0-blue)
+![version](https://img.shields.io/badge/version-1.9.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![claude--code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5v2.1.111-purple)
 
@@ -43,9 +43,12 @@ mkdir -p ~/.claude/plugins/repos/myksyut
 cd ~/.claude/plugins/repos/myksyut
 git clone https://github.com/myksyut/pev-harness.git
 
-# 2) Claude Code 起動して /pev-harness:pev を呼ぶ
+# 2) project に bootstrap (v1.9+、 1 コマンドで team-conventions.md + .gitignore + 言語検知)
 cd <your-project>
 claude
+> /pev-harness:pev-init
+
+# 3) 最初のタスクを実行
 > /pev-harness:pev "Add a /healthz endpoint that returns {status: 'ok'}"
 ```
 
@@ -54,8 +57,11 @@ claude
 ```bash
 git clone https://github.com/myksyut/pev-harness.git
 claude --plugin-dir ./pev-harness
+> /pev-harness:pev-init
 > /pev-harness:pev "..."
 ```
+
+`/pev-init --dry-run` で「実行予定 file list + 言語検知結果」を見てから実行する習慣を推奨。
 
 ## Required initial-turn prompt structure
 
@@ -73,10 +79,10 @@ Files: 既知の関連パス (任意)
 | 種類 | 内容 |
 |---|---|
 | **agents** (3) | planner / executor / verifier |
-| **skills** (9) | pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, skill-finder |
-| **commands** (5) | `/pev`, `/pev-plan`, `/pev-execute`, `/pev-verify`, `/pev-status` |
+| **skills** (15) | pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, pev-test-design, pev-e2e-verify, pev-bootstrap-playwright, **pev-bootstrap-project** (v1.9), pev-linear-sync, linear-project-workflow, linear-project-tracker, skill-finder |
+| **commands** (8) | `/pev`, `/pev-plan`, `/pev-execute`, `/pev-verify`, `/pev-verify-e2e`, `/pev-status`, `/pev-init-e2e`, **`/pev-init`** (v1.9) |
 | **hooks** (3) | PreToolUse (destructive cmd block) / Stop (recap auto-append) / SessionStart (task resume) |
-| **rules** (2) | `pev-conventions.md` (Gate respect 等), `4.7-native.md` (禁止フレーズリスト) |
+| **rules** (3) | `pev-conventions.md` (Gate respect 等) / `4.7-native.md` (禁止フレーズリスト) / `error-patterns.md` (エラー推測 catalog) |
 
 ## Documentation
 
@@ -114,7 +120,12 @@ Files: 既知の関連パス (任意)
 |---|---|---|
 | v0.1-v0.6 | 機能開発 (Plan/Execute/Verify pipeline 完成) | ✅ released |
 | v1.0 | Rollout package (ONBOARDING / ROLLOUT-CHECKLIST / FEEDBACK-TEMPLATE) | ✅ released |
-| **v1.1** | **OSS 化準備 (LICENSE / SECURITY / templates)** | ✅ released |
+| v1.1 | OSS 化準備 (LICENSE / SECURITY / templates) | ✅ released |
+| v1.2-v1.3 | Linear integration + hardening (28 dog food findings) | ✅ released |
+| v1.4-v1.5 | E2E verification (Playwright) + QA technique integration | ✅ released |
+| v1.6-v1.7 | dog food findings reflection + CLAUDE.md 開発者向け再定義 | ✅ released |
+| v1.8 | v1.3 + v1.7.1 dog food findings reflection (9 件) | ✅ released |
+| **v1.9** | **`/pev-init` project bootstrap command (言語検知 + auto-populate)** | ✅ released |
 | v2.0 | 外部 model 対応 (MCP server経由で OpenAI/Gemini) | [Issue #9](https://github.com/myksyut/pev-harness/issues/9) |
 
 ## Contributing

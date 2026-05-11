@@ -36,20 +36,50 @@ Aは永続、Bは検証/お試し向け。チーム展開では **A を推奨**�
 
 ## 2. プロジェクトへの導入
 
+### 推奨 (v1.9+): `/pev-init` 1 コマンド
+
 ```bash
 cd <your-project>
+claude  # Claude Code 起動
 
-# team-conventions.md を作成 (pev-team-conventions skill が自動読み込み)
-cp ~/pev-harness/examples/team-conventions.example.md ./team-conventions.md
-# 内容をプロジェクト固有に編集 (Language / Code style / Forbidden / Files to never touch)
+# session 内で 1 行
+/pev-harness:pev-init
+```
 
-# artifacts/ を gitignore に追加 (pev runtime 中間生成物)
-echo "artifacts/" >> .gitignore
+`pev-bootstrap-project` skill が以下を自動実行する:
 
-# team-conventions.md は PR レビュー対象に含めて commit
+1. **言語/構成 検知** (`package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml` / `Gemfile` / `playwright.config.*` / `cypress.config.*`)
+2. **`team-conventions.md` 生成**: 検知結果で `## Language & Stack` と `## Verification commands` (v1.8 必須項目) を auto-populate
+3. **`.gitignore` 更新**: `artifacts/` を append (idempotent、 既存があれば skip)
+4. **任意の追加 file** (AskUserQuestion で対話的に選択):
+   - `.linear-config.yml.example` (Linear 連携を将来使う場合)
+   - `.claude/settings.local.json` (permissionMode 雛形)
+   - `~/.claude/pev/team-conventions.local.md` (個人 override skeleton)
+
+flags:
+
+- `/pev-harness:pev-init --dry-run` で「実行予定 file list + 検知結果」を出力 (実 I/O なし、 内容確認用)
+- `/pev-harness:pev-init --force` で interactive prompts skip + 既存上書き default (CI / 自動化用)
+
+完了後、 user が中身を確認してから commit:
+
+```bash
 git add team-conventions.md .gitignore
 git commit -m "chore: adopt pev-harness team conventions"
 ```
+
+### 旧手順 (v1.8 以前 / 手動派の場合)
+
+```bash
+cd <your-project>
+cp ~/pev-harness/examples/team-conventions.example.md ./team-conventions.md
+# 内容をプロジェクト固有に編集 (Language / Verification commands / Code style 等)
+echo "artifacts/" >> .gitignore
+git add team-conventions.md .gitignore
+git commit -m "chore: adopt pev-harness team conventions"
+```
+
+v1.9 以降は `/pev-init` が推奨。 旧手順は手動で全 step を回したい場合や、 `team-conventions.md` を 0 から自由に書きたい場合のみ。
 
 ## 3. 最初のタスク (dog food)
 
