@@ -165,7 +165,20 @@ warning は plan.md に明示 + planner に retry を促す (Phase 1 で改善�
 3. 不足検出 → planner にfeedback (AC 拡張提案)
 4. planner が AC を改訂
 5. plan.md に "Test design analysis" section を追加 (適用した技法 + 派生観点)
+6. planner が ~/.claude/pev/{TASK_ID}/notes.md にも要旨を反映 (cross-phase channel)
 ```
+
+### planner → executor / verifier cross-phase handoff (v1.6+ documentation)
+
+dog food (v1.4+v1.5) で、 planner が `pev-subagent-memory` skill の標準 path `~/.claude/pev/{TASK_ID}/notes.md` に書いた内容を、 executor / verifier が読む handoff 経路が実機で機能することを確認。 v1.6 で正式に documented:
+
+| Channel | Content | Producer | Consumer |
+|---|---|---|---|
+| `artifacts/plan.md` の `## Test design analysis` | 6 技法の適用結果、 D1-Dn の qa_derived_checks 一覧 | planner (pev-test-design 経由) | verifier (Phase 3 で check) |
+| `~/.claude/pev/{TASK_ID}/notes.md` の "Notes for executor" / "Notes for verifier" | 派生観点の意図、 実装注意点、 verifier への check 委譲メモ | planner (pev-subagent-memory 経由) | executor / verifier |
+| `~/.claude/pev/{TASK_ID}/executor-{N}.md` | 実装中の発見 (例: input validation を HTML5 で実装) | executor | verifier |
+
+planner は **両方** に書く責務 (plan.md は authoritative spec、 notes.md は agent 間の informal handoff)。 verifier は plan.md を必ず read、 notes.md は補助として参照。
 
 ## verifier との連携 (Phase 3)
 
@@ -184,11 +197,88 @@ verify.json には:
     {"criterion": "1-4 名を入力できる", "met": true, "evidence": "..."}
   ],
   "qa_derived_checks": [
-    {"technique": "boundary", "case": "input 0", "result": "PASS", "evidence": "..."},
-    {"technique": "error_guessing", "case": "double submit", "result": "PASS", "evidence": "..."}
+    {
+      "id": "D1",
+      "technique": "boundary",
+      "case": "input 0",
+      "result": "PASS",
+      "evidence_type": "actual_execution",
+      "evidence": "playwright: input(0) → 'Out of range (1-10)' visible (tests-e2e/multiply.spec.ts:23)"
+    },
+    {
+      "id": "D8",
+      "technique": "boundary",
+      "case": "mirror of D1 (input position swapped)",
+      "result": "PASS",
+      "evidence_type": "mirror_of",
+      "mirror_of": "D1",
+      "evidence": "Compressed: same semantics as D1 (validation on either input), single test covers both via parameterization"
+    },
+    {
+      "id": "D14",
+      "technique": "decision_table",
+      "case": "row 4: both invalid",
+      "result": "PASS",
+      "evidence_type": "code_inspection",
+      "evidence": "isValid() guards `if (!isValid(a) || !isValid(b))` → first invalid short-circuits; row 4 path identical to row 2/3"
+    }
   ]
 }
 ```
+
+### qa_derived_checks schema (v1.6+)
+
+各 check は以下の構造:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Plan 内の ID (例: `D1`, `D2`)。 verifier がplan.md の "Test design analysis" section と一意対応させる |
+| `technique` | string | `equivalence_partitioning` / `boundary` / `decision_table` / `state_transition` / `error_guessing` / `checklist` |
+| `case` | string | 具体的な test case の人間可読な説明 |
+| `result` | `PASS` / `FAIL` | 判定 |
+| `evidence_type` | enum | 下記参照 (v1.6 で追加) |
+| `evidence` | string | 判定の根拠 (test ファイル行番号、 log 抜粋、 code 抜粋) |
+| `mirror_of` | string (optional) | `evidence_type=mirror_of` のときの参照先 check id |
+
+### evidence_type enum (v1.6+)
+
+| Value | 意味 | When to use |
+|---|---|---|
+| `actual_execution` | 実機で test を走らせて確認 | Playwright test、 vitest assertion 等 |
+| `code_inspection` | source code を読んで logic 上 PASS と判定 | trivial case、 mirror semantics、 short-circuit logic |
+| `logical_derivation` | 他の check 結果から論理的に導出 | 等値類の中の代表値が PASS なら、 同じ class の他値も PASS と推論 |
+| `mirror_of` | 別の check の mirror (parameter swap 等) | `mirror_of` field で参照 case を指定、 圧縮目的 |
+
+`actual_execution` が一番強い、 `mirror_of` / `logical_derivation` は token / 実行時間 節約のための圧縮手段。 verifier が selecting する基準:
+
+- AC で「必ず実機 test」 が暗示される項目 → `actual_execution`
+- 同じ semantics を別 parameter で確認 (mirror、 swapped、 等値類内) → `mirror_of` or `logical_derivation`
+- code の論理が単純で読めば自明 → `code_inspection`
+
+### Mirror compression rule (v1.6+、 finding from dog food)
+
+dog food (v1.4+v1.5、 multiply 機能) で、 境界値 mirror test (例: `(0, 5)` と `(5, 0)`) が intent 同じで重複気味と判明。 圧縮ルール:
+
+1. **同 technique 同 semantics の mirror** は **1 つを `actual_execution` で必須**、 もう片方は `mirror_of` で省略
+2. 例: `D1: (0, 5)` を実機テストし、 `D8: (5, 0)` は `mirror_of: D1` で skip
+3. ただし、 mirror 関係が **非対称** (例: 順序依存ロジック、 transaction の前後関係) のときは両方 `actual_execution`
+
+planner が plan.md の "Test design analysis" section で **mirror pair を明示** すれば、 verifier が自動で圧縮可能:
+
+```markdown
+### 2. Boundary value analysis
+
+Single-input boundary tests (mirror with the other input held at valid mid-range = 5):
+
+- `(0, 5)` / mirror `(5, 0)` — invalid-low
+- `(1, 5)` / mirror `(5, 1)` — valid-low
+- `(10, 5)` / mirror `(5, 10)` — valid-high
+- `(11, 5)` / mirror `(5, 11)` — invalid-high
+
+Mirror pairs share semantics (both inputs are validated identically). Verifier should execute one of each pair (`actual_execution`) and mark the mirror as `mirror_of`.
+```
+
+これで qa_derived_checks の数が 8 → 4 + 4 mirror references = compact になる。
 
 ## Bootstrap fallback
 

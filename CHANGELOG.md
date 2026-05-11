@@ -7,9 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v1.6+
-- v1.3 dog food findings の Low 6 件 (Issues #13-#18)
+### Planned for v1.7+
+- v1.3 dog food findings の Low 6 件 (Issues #13-#18) — v1.6 で部分着手済
 - v2.0 (Issue #9): External model support via MCP
+
+## [1.6.0] - 2026-05-11
+
+v1.4 + v1.5 combined dog food (multiply 機能、 約 5min / 103k tokens) で identify した 5 件の improvement findings を spec に反映。 sample-project は dog food 後 reset 済 (add + subtract のみ)。
+
+### Added (Findings F1-F5)
+
+**F1: qa_derived_checks schema 拡張** (pev-test-design SKILL.md):
+- `evidence_type` enum 追加: `actual_execution` / `code_inspection` / `logical_derivation` / `mirror_of`
+- 各 check に `id` (D1, D2, ...) field、 plan.md の "Test design analysis" section と一意対応
+- `mirror_of` field で別 check への参照可能 (圧縮目的)
+
+**F2: Mirror compression rule** (pev-test-design SKILL.md):
+- 境界値 mirror pair (例: `(0, 5)` ↔ `(5, 0)`) の圧縮ルール明文化
+- 同 technique 同 semantics の mirror は 1 つを `actual_execution`、 もう片方は `mirror_of` で skip
+- 非対称 (順序依存ロジック等) の場合は両方 `actual_execution` で必須
+
+**F3: planner→executor/verifier handoff documentation** (pev-test-design SKILL.md):
+- cross-phase channel 3 種を table 化:
+  - `artifacts/plan.md` の "Test design analysis" section (authoritative spec)
+  - `~/.claude/pev/{TASK_ID}/notes.md` (informal handoff)
+  - `~/.claude/pev/{TASK_ID}/executor-{N}.md` (implementation discoveries)
+- planner は plan.md + notes.md の両方に書く責務、 verifier は plan.md を必ず read
+
+**F4: `--force-auto` フラグ** (commands/pev.md):
+- permissionMode=default でも Gate A を skip して Phase 2/3 自動進行する formal channel
+- Gate A 規約 (rules/pev-conventions.md §0 Gate respect) は維持: planner 自身が override 判断は禁止、 ユーザーが explicit に flag を立てる必要
+- dog food / CI 自動化向け
+- `artifacts/recap.log` に override timestamp + original mode を記録
+
+**F5: Playwright test DRY pattern** (sample-project seed.spec.ts + pev-bootstrap-playwright SKILL.md):
+- `test.beforeEach` で console error 監視 fixture を seed に組み込み
+- `goHome(page)` 等の共通 helper 関数
+- Playwright Generator agent は seed を mirror するので、 seed に DRY pattern を仕込めば generated tests も DRY になる
+- pev-bootstrap-playwright SKILL.md に DRY pattern guidance section 追加
+
+### Changed
+- `examples/sample-project/` を dog food 後 reset (multiply 関連 全削除、 add + subtract のみに戻し)
+
+### Verified via dog food
+- v1.4 + v1.5 combined dog food (TES-4 "Add multiply button with range validation"):
+  - planner: plan.md 187 行、 "Test design analysis" section に 6 技法 + D1-D15 派生テスト
+  - executor: src/index.js / index.html / tests / 新規 multiply.spec.ts 4 files
+  - verifier: PASS (unit 8/8 + e2e 8/8 + qa_derived 15/15)
+  - Linear outbound: TES-4 Backlog → Done (14:18:07Z)
+  - 所要 5 min、 103k tokens
+- 5 件 findings を本 release で全部 spec に反映
 
 ## [1.5.0] - 2026-05-11
 

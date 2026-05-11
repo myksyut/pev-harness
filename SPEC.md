@@ -302,6 +302,7 @@ Reviewer 2人とも Claude (model alias で多様性):
 | **v1.3** | **Linear integration hardening** | 28 dog food findings 反映、 linear-project-tracker 新設 | ✅ released |
 | **v1.4** | **E2E verification (Playwright CLI)** | pev-e2e-verify + pev-bootstrap-playwright skills、 verifier に dispatch logic | ✅ released |
 | **v1.5** | **QA technique integration** | pev-test-design skill (6 QA techniques) + error-patterns catalog + qa-checklists templates | ✅ released |
+| **v1.6** | **v1.4+v1.5 dog food findings reflection** | qa_derived_checks schema 拡張 (evidence_type) / mirror compression / handoff doc / --force-auto flag / Playwright DRY pattern | ✅ released |
 | v2.0 | 外部model対応 (MCP server経由) | OpenAI/Gemini MCP統合 | Issue #9 |
 
 ---

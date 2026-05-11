@@ -14,6 +14,9 @@ PEV harnessのメインコマンド。Plan → Execute → Verify を順に実�
 /pev <task> --parallel               # 独立ファイル変更を並列実行
 /pev <linear-issue-url>              # Linear Issueから自動展開 (v1.2+)
 /pev <linear-issue-url> --strict     # 上記 + dual review
+/pev <task> --e2e                    # E2E verify を強制起動 (v1.4+)
+/pev <task> --no-e2e                 # E2E verify を強制 skip (v1.4+)
+/pev <task> --force-auto             # permissionMode default でも Gate A を skip して Phase 2/3 自動進行 (v1.6+)
 ```
 
 ## Linear URL 検出 (v1.2 で追加)
@@ -76,30 +79,49 @@ MODE=$(grep -oh '"permissionMode"[[:space:]]*:[[:space:]]*"[^"]*"' \
        | head -1 | cut -d'"' -f4)
 MODE=${MODE:-default}
 
-case "$MODE" in
-  auto)
-    echo "[PEV] Gate A: auto mode — proceeding to Phase 2"
-    # → Step 4 (Phase 2 Execute) へ自動進行
-    ;;
-  plan)
-    echo "[PEV] Gate A: plan mode — STOP. Plan phase complete. Pipeline terminated."
-    cat artifacts/plan.md
-    exit 0
-    ;;
-  default|*)
-    echo "[PEV] Gate A: default mode — STOP. Plan phase complete."
-    echo "[PEV] DO NOT auto-proceed to Phase 2. Review plan.md and run /pev-execute to continue."
-    cat artifacts/plan.md
-    exit 0
-    ;;
-esac
+# v1.6+ : --force-auto フラグで explicit override
+# user が「default mode だが今回だけ自動進行したい」 ケース (dog food / CI 自動化 等) に使う。
+# Gate A 規約 (default mode は停止) を守りつつ、 明示的な user override channel を提供。
+FORCE_AUTO=false
+[[ "$*" == *"--force-auto"* ]] && FORCE_AUTO=true
+
+if [ "$FORCE_AUTO" = "true" ]; then
+  echo "[PEV] Gate A: --force-auto detected — overriding permissionMode=$MODE, proceeding to Phase 2"
+  echo "[$(date -u +%FT%TZ)] Gate A overridden by --force-auto (original mode: $MODE)" >> artifacts/recap.log
+  # → Step 4 (Phase 2 Execute) へ進行
+else
+  case "$MODE" in
+    auto)
+      echo "[PEV] Gate A: auto mode — proceeding to Phase 2"
+      # → Step 4 (Phase 2 Execute) へ自動進行
+      ;;
+    plan)
+      echo "[PEV] Gate A: plan mode — STOP. Plan phase complete. Pipeline terminated."
+      cat artifacts/plan.md
+      exit 0
+      ;;
+    default|*)
+      echo "[PEV] Gate A: default mode — STOP. Plan phase complete."
+      echo "[PEV] DO NOT auto-proceed to Phase 2. Review plan.md and run /pev-execute to continue."
+      echo "[PEV] (Explicit override available: re-run with --force-auto flag.)"
+      cat artifacts/plan.md
+      exit 0
+      ;;
+  esac
+fi
 ```
 
 **executor 起動条件 (Step 4 へ進む条件)**:
 
-- `permissionMode == "auto"` のみ。それ以外 (default / plan / 未設定) では **必ず exit 0** で停止する
-- agent が「ユーザー意図」を理由に Step 4 へ進むことは禁止
-- ユーザーが続行したい時は明示的に `/pev-execute` を打つか、`permissionMode` を `auto` に変更する
+- `permissionMode == "auto"` または `--force-auto` フラグ指定。 それ以外 (default / plan / 未設定 かつ flag なし) では **必ず exit 0** で停止する
+- agent が「ユーザー意図」を理由に Step 4 へ進むことは禁止 (rules/pev-conventions.md §0 Gate respect)
+- ユーザーが続行したい時は (a) `/pev-execute` を打つ、 (b) `permissionMode` を `auto` に変更、 (c) `--force-auto` フラグで explicit override (v1.6+)
+
+### `--force-auto` の使い分け (v1.6+)
+
+- **適切**: dog food / regression test、 CI 自動化、 信頼できる軽微タスク
+- **不適切**: production-impacting な変更、 first-time skill 利用、 user が結果を見ずに進める手抜き
+- 規約: planner 自身が override を判断するのは引き続き禁止。 ユーザー (or 上位 command) が **explicit に flag を立てる** ことが必須。 dog food log (v1.4+v1.5、 finding 4) で発覚した「prompt 自然言語での transgress」 を formal channel に置き換える。
 
 ### Step 4 — Phase 2 (Execute)
 

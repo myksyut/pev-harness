@@ -93,6 +93,42 @@ test('homepage loads', async ({ page }) => {
 
 プロジェクトの特性に応じて template を微調整 (e.g., login flow 必須なら seed test に含める)。
 
+### DRY pattern (v1.6+、 dog food finding)
+
+dog food (v1.4+v1.5、 multiply 機能) で、 各 test の `page.on('console', ...)` 等の boilerplate (5-6 行) が repeat される問題が判明。 Playwright Generator agent は seed.spec.ts を mirror するので、 **seed に DRY pattern を仕込む** と generated tests も DRY になる。
+
+推奨 seed test pattern (sample-project の seed.spec.ts 参照):
+
+```ts
+import { test, expect, type Page, type ConsoleMessage } from '@playwright/test';
+
+// Fixture: console error を全 test で監視
+const consoleErrors: string[] = [];
+
+test.beforeEach(async ({ page }) => {
+  consoleErrors.length = 0;
+  page.on('console', (msg: ConsoleMessage) => {
+    if (msg.type() === 'error') consoleErrors.push(msg.text());
+  });
+  page.on('pageerror', (err: Error) => {
+    consoleErrors.push(`pageerror: ${err.message}`);
+  });
+});
+
+// Helper: 共通 navigation
+async function goHome(page: Page) {
+  await page.goto('/');
+  await expect(page.locator('h1')).toBeVisible();
+}
+
+test('homepage loads', async ({ page }) => {
+  await goHome(page);
+  // ...
+});
+```
+
+Playwright Generator が新規 spec を書くとき、 `goHome(page)` のような既存 helper を **再利用** することが期待される。 重複 boilerplate を避ける。
+
 ### Step 5: Playwright agents 初期化
 
 ```bash
