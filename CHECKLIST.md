@@ -10,8 +10,9 @@
 
 - リポジトリ: <https://github.com/myksyut/pev-harness> (private)
 - ローカル: `~/pev-harness/`
-- バージョン: v0.1.0 (初期 skeleton + 周辺整備)
-- ファイル数: 約 36 (Claude生成、source-of-truth は SPEC.md)
+- バージョン: v0.1.1 (初期 skeleton + 周辺整備 + dog food検証 + skill-finder追加)
+- ファイル数: 約 44 (Claude生成、source-of-truth は SPEC.md)
+- skills: **9個** (pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, **skill-finder**)
 
 ---
 
@@ -146,9 +147,33 @@ push後、 https://github.com/myksyut/pev-harness/actions で初回CI結果を�
 
 ## 10. dog food 試走
 
-実際に動かして確認するチェックリスト:
+### 10-0. 自動実施済み (v0.1.1, headless実行)
 
-### 10-A. 起動確認
+`claude --plugin-dir ~/pev-harness --print '/pev-harness:pev "Implement add(a,b)..."'` を `examples/sample-project/` で実行した結果:
+
+- ✅ **Phase 1 (Plan)**: `artifacts/plan.md` 高品質生成
+  - Goal / Constraints / Acceptance Criteria 全部
+  - team-conventions.md を参照 ("Follow team-conventions.md")
+  - **Estimated task budget: ~2k tokens** (pev-task-budget skill 機能確認)
+  - 独自で **Non-goals** セクション追加 (planner judgement働いた)
+- ✅ **Phase 2 (Execute)**: `src/index.js` が `return a + b;` に正しく書き換えられた + `execute.log` 記録
+- ✅ **Acceptance Criteria 達成**: `npx vitest run` で 2/2 tests passed
+- ⚠️ **Phase 3 (Verify) は手動実行が必要**: `verify.json` 自動生成されず (Stop hook が headless環境で発火しなかった)
+- ⚠️ **recap.log なし** (pev-recap skillの自動起動が効いていない、Issue #4)
+- ⚠️ **subagent memory 空** (`~/.claude/pev/{task_id}/` が空、Issue #2と関連)
+
+確認できた事実: **agentレベルの動作は完全に意図通り**、ただし周辺自動化 (hooks / recap書き込み / memory書き込み) は v0.2-v0.3 でフィックス必要。
+
+実行成果物 (確認用):
+- `examples/sample-project/artifacts/plan.md` (1658 bytes、高品質)
+- `examples/sample-project/artifacts/execute.log` (120 bytes)
+- `examples/sample-project/src/index.js` (executor成果)
+
+### 10-1. 手動 dog food 試走 (オプション)
+
+別端末で実際に動かして確認するチェックリスト:
+
+#### 10-1A. 起動確認
 
 ```bash
 cd ~/pev-harness/examples/sample-project
@@ -159,7 +184,7 @@ claude --plugin-dir ~/pev-harness
 - [ ] Claude Code が起動して `pev-harness` plugin を認識する (`/plugins list` で確認)
 - [ ] `/help` で `/pev-harness:pev` 等が表示される
 
-### 10-B. /pev-plan 単独
+#### 10-1B. /pev-plan 単独
 
 ```
 /pev-harness:pev-plan "Implement add(a, b) to return a + b in src/index.js, add edge case tests"
@@ -173,7 +198,7 @@ claude --plugin-dir ~/pev-harness
 - [ ] `~/.claude/pev/{task_id}/` ディレクトリが作られる
 - [ ] `artifacts/recap.log` に Phase 1 エントリ追記
 
-### 10-C. /pev-execute 単独
+#### 10-1C. /pev-execute 単独
 
 ```
 /pev-harness:pev-execute
@@ -187,7 +212,7 @@ claude --plugin-dir ~/pev-harness
 - [ ] `artifacts/execute.log` 追記
 - [ ] Stop hook で `/pev-harness:pev-verify` 促し表示
 
-### 10-D. /pev-verify 単独
+#### 10-1D. /pev-verify 単独
 
 ```
 /pev-harness:pev-verify
@@ -199,7 +224,7 @@ claude --plugin-dir ~/pev-harness
 - [ ] `artifacts/verify.json` に verdict + checks + acceptance_criteria が書かれる
 - [ ] PASS なら完了表示、FAIL ならretry誘導
 
-### 10-E. /pev フル (auto mode)
+#### 10-1E. /pev フル (auto mode)
 
 ```bash
 # 個人settings.local.jsonでpermissionMode=autoに切替
@@ -213,7 +238,7 @@ claude --plugin-dir ~/pev-harness
 - [ ] 全phaseが連続実行される
 - [ ] 最終的に PASS で artifacts/recap.log に完了エントリ
 
-### 10-F. --strict モード
+#### 10-1F. --strict モード
 
 ```
 /pev-harness:pev-verify --strict
@@ -228,14 +253,15 @@ claude --plugin-dir ~/pev-harness
 
 ## 11. 既知の懸念点
 
-これらは v0.2 以降の Issue 化候補:
+dog food (10-0) で確認できたものを更新:
 
-- [ ] Claude Code が commands 内の Bashブロックを「ガイド」と「実行コード」のどちらに解釈するか未検証
-- [ ] `task_budget` の API beta header passthrough が Claude Code v2.1.x で完全動作するか未確認
-- [ ] hooks/hooks.json の `deny-pattern` type は擬似コード。Claude Codeで実際にこの形式がサポートされるか要確認
-- [ ] Skill命名スペース: `/pev-harness:pev` か `/pev:pev` か実機確認
-- [ ] examples/sample-project/ で `npm install` を走らせる必要があるが、dog food時に毎回必要かどうか確認
-- [ ] artifacts/ がプロジェクトの `.gitignore` に入っていないと、dog food対象プロジェクトを汚す懸念
+- ✅ **解消**: Skill 名前空間は `/pev-harness:pev` で正しく動作
+- ✅ **解消**: agent frontmatter で `effort: xhigh` が公式サポートされている (v0.1.1で追加済み)
+- ⚠️ **要対応 (Issue #4)**: Stop hook が headless 環境で発火しない → Phase 2 → Phase 3 自動移行が確実でない
+- ⚠️ **要対応 (Issue #4)**: recap.log の自動書き込みが効いていない
+- ⚠️ **要対応 (Issue #2)**: subagent memory `~/.claude/pev/{task_id}/` への書き込みが行われていない
+- ⚠️ **未検証**: `task_budget` の API beta header passthrough → planner が "Estimated task budget" を出している事実から少なくとも skill 認識はOK、実 API へのpassthrough は要追加検証 (Issue #3)
+- ⚠️ **未検証**: hooks/hooks.json の `deny-pattern` type は擬似コード → 実際のClaude Code hook schema要確認
 
 ---
 

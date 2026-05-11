@@ -2,6 +2,7 @@
 name: planner
 description: PEV Phase 1 — タスク仕様を読んで実装計画を artifacts/plan.md に書き出す。Opus 4.7 xhigh effort で深く考える役割
 model: opus
+effort: xhigh
 tools: Read, Grep, Glob, Write, Bash
 ---
 

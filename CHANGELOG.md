@@ -7,13 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added (planned for v0.2)
-- Auto Mode integration: `permissionMode` detection in `/pev` for Gate A bypass
-- task_id tracking with `~/.claude/pev/{task_id}/` memory directory standardization
-- Stop hook auto-invocation of `/pev-verify`
+### Planned for v0.2
+- See open Issues #1-#9 on GitHub for the full backlog
 
-### Changed (planned)
-- `commands/pev*.md` to embed actual Bash logic (currently descriptive only)
+## [0.1.1] - 2026-05-11
+
+Patch release: CI fix, agent frontmatter improvements, skill-finder addition, dog food validation.
+
+### Added
+- `skills/skill-finder/SKILL.md` — meta-skill for evaluating external skills before adoption (adapted from mizchi/skills)
+- `examples/dog-food-evidence/` — concrete artifacts from automated dog food run (plan.md + execute.log)
+- `effort` field on all 3 agents (planner: xhigh, executor: high, verifier: xhigh) — confirmed officially supported in Claude Code v2.1.x
+
+### Changed
+- `commands/pev*.md` — simplified, removed embedded Bash blocks (deferred to v0.2 with Issue links)
+- `.markdownlint.json` — disabled noisy rules (MD040/MD031/MD032/MD022/MD034) for documentation-heavy repo
+- `examples/sample-project/src/index.js` — restored TODO state after dog food (kept as recurring test fixture)
+- `.gitignore` — added `node_modules/` and `package-lock.json` for examples/sample-project
+
+### Fixed
+- CI workflow now passes (markdownlint rules tuned)
+
+### Confirmed via dog food
+- ✅ Phase 1 (Plan) generates high-quality plan.md with team-conventions.md awareness
+- ✅ Phase 2 (Execute) successfully implements minimal changes
+- ✅ Acceptance Criteria checked via real test execution (vitest 2/2 PASS)
+- ⚠️ Stop hook auto-trigger of verify did not fire in headless mode → Issue #4
+- ⚠️ recap.log auto-write missing → Issue #4
+- ⚠️ subagent memory directory empty → Issue #2
 
 ## [0.1.0] - 2026-05-11
 

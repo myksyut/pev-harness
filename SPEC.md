@@ -2,7 +2,7 @@
 
 Claude Opus 4.7時代のコーディングハーネス。Plan-Execute-Verify (PEV) 3-phase pipelineを核に、4.7のnative機能（xhigh effort, adaptive thinking, task budget, auto mode）を前提として設計する。
 
-- **対象**: チーム内共有 (社内)
+- **対象**: チーム内共有
 - **配布**: Claude Code plugin単独
 - **設計哲学**: ミニマル削ぎ落とし。core skill 8個、agent 3個、command 5個、hook 3個のみ。
 

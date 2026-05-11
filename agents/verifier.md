@@ -2,6 +2,7 @@
 name: verifier
 description: PEV Phase 3 — 変更が plan.md の Acceptance Criteria を満たすか検証。FAIL なら planner にリトライ依頼
 model: sonnet
+effort: xhigh
 tools: Read, Bash, Grep, Glob, Write
 ---
 

@@ -2,6 +2,7 @@
 name: executor
 description: PEV Phase 2 — artifacts/plan.md を読んでコード変更を実施。並列起動可能 (max 3)
 model: sonnet
+effort: high
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 

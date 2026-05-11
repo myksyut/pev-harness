@@ -4,6 +4,10 @@ artifacts/
 # Local settings overrides
 .claude/settings.local.json
 
+# Node.js (for examples/sample-project)
+node_modules/
+package-lock.json
+
 # OS
 .DS_Store
 Thumbs.db
