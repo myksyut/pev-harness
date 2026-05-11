@@ -2,6 +2,27 @@
 
 pev-harness を使う際の always-follow ガイドライン。すべての agent / skill / command の出力に適用される。
 
+## 0. Gate respect (最重要、v0.6 で追加)
+
+PEV pipeline には3つの Gate がある:
+
+- **Gate A** (Plan → Execute): `permissionMode` で判定
+- **Gate B** (Execute → Verify): Stop hook で promotion
+- **Retry Gate** (Verify FAIL時): retry_count と PEV_MAX_RETRIES で判定
+
+**Gate の判断は `commands/pev*.md` の役割であり、agent の責務外**。
+
+絶対遵守ルール:
+
+- planner は plan.md を書いたら**そこで完全停止**。executor を起動しない。Phase 2進行はGate A が決める
+- executor は変更を終えたら**そこで完全停止**。verifier を起動しない。Phase 3進行は Gate B (Stop hook) が決める
+- verifier は verify.json を書いたら**そこで完全停止**。retry判断は Retry Gate に委ねる
+- agent は「ユーザーが続行したいはずだ」「permissionMode=default だが意図を尊重する」のような推論で **Phase boundary を越えてはならない**
+
+このルールが破られた場合の症状: dog food で `permissionMode=default` なのにフルパイプラインが完走してしまう (v0.5 dog food で実観測)。Phase boundary 違反は plugin の安全設計を無効化する。
+
+
+
 ## 1. 出力の最小性
 
 - 不要な前置きを書かない ("以下に説明します"、"これからXをします" 等)

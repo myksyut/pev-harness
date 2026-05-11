@@ -50,7 +50,9 @@ echo "[PEV] Task started: $TASK_ID"
 
 `pev-spec-template` skill で入力整形 → planner agent (model: opus, effort: xhigh) を起動 → `artifacts/plan.md` 出力。
 
-### Step 3 — Gate A (permissionMode判定)
+### Step 3 — Gate A (permissionMode判定、**絶対遵守**)
+
+**規約**: Gate A の判断は `/pev` コマンド (この Step 3) の責任。planner agent は plan.md を書き終えたらそこで完全停止する。「ユーザーが続行したいはず」のような推論で executor を勝手に起動してはならない (rules/pev-conventions.md "Gate respect" 参照)。
 
 ```bash
 # .claude/settings.json または settings.local.json から permissionMode を読む
@@ -62,20 +64,27 @@ MODE=${MODE:-default}
 case "$MODE" in
   auto)
     echo "[PEV] Gate A: auto mode — proceeding to Phase 2"
-    # → Step 4 へ進む
+    # → Step 4 (Phase 2 Execute) へ自動進行
     ;;
   plan)
-    echo "[PEV] Gate A: plan mode — terminating after Plan phase"
+    echo "[PEV] Gate A: plan mode — STOP. Plan phase complete. Pipeline terminated."
     cat artifacts/plan.md
     exit 0
     ;;
-  *)
-    echo "[PEV] Gate A: default mode — review plan.md and run /pev-execute"
+  default|*)
+    echo "[PEV] Gate A: default mode — STOP. Plan phase complete."
+    echo "[PEV] DO NOT auto-proceed to Phase 2. Review plan.md and run /pev-execute to continue."
     cat artifacts/plan.md
     exit 0
     ;;
 esac
 ```
+
+**executor 起動条件 (Step 4 へ進む条件)**:
+
+- `permissionMode == "auto"` のみ。それ以外 (default / plan / 未設定) では **必ず exit 0** で停止する
+- agent が「ユーザー意図」を理由に Step 4 へ進むことは禁止
+- ユーザーが続行したい時は明示的に `/pev-execute` を打つか、`permissionMode` を `auto` に変更する
 
 ### Step 4 — Phase 2 (Execute)
 

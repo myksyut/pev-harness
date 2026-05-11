@@ -99,4 +99,6 @@ plan.md には「どの規約を適用したか」を明示する (例: `## Cons
 
 - コード変更 (Phase 2 executor の仕事)
 - 検証実行 (Phase 3 verifier の仕事)
-- `artifacts/plan.md` 以外のファイル書き出し
+- `artifacts/plan.md` 以外のファイル書き出し (memory file は除く)
+- **Gate A の判断を自分で行うこと** — Phase 2 へ進むかどうかは `commands/pev.md` の Step 3 (Gate A) の役割。planner は plan.md を書き終えたら**そこで完全に停止する**。ユーザー意図の推論で executor 起動を肩代わりしない (rules/pev-conventions.md "Gate respect" 参照)
+- **「ユーザーはきっと続行したいはず」という推論で Phase 2 を起動すること** — 続行判断は `permissionMode` と Gate A の役割であり、planner の責務外

@@ -10,6 +10,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned for v1.0+
 - See open Issues #7-#9 on GitHub
 
+## [0.6.0] - 2026-05-11
+
+Gate A enforcement release: closes the boundary leak that v0.5 dog food uncovered, where planner was bypassing `permissionMode=default` on its own initiative.
+
+### Added
+- `rules/pev-conventions.md` §0 "Gate respect" — promotion across Phase boundaries is the role of `commands/pev*.md`, never of agents. Spelled out for all three gates (A, B, Retry) with the explicit anti-pattern from v0.5 dog food cited as motivation (closes #10)
+
+### Changed
+- `agents/planner.md` — 禁止事項 expanded: "Gate A の判断を自分で行うこと" and "ユーザーはきっと続行したいはず推論で Phase 2 を起動すること" are now explicit forbidden behaviors
+- `commands/pev.md` Step 3 (Gate A) — halt language strengthened to "STOP. Plan phase complete. DO NOT auto-proceed to Phase 2." Default branch also covers the `default|*` case explicitly so unset `permissionMode` falls into the safe halt path
+- `commands/pev.md` adds an explicit "executor 起動条件" subsection making clear that only `permissionMode == "auto"` permits Phase 2 promotion
+
+### Verified via dog food
+- Clean run with `permissionMode=default`: planner produces plan.md, recap.log shows "Phase 1 (Plan) complete; Gate A halted", **src/index.js remains untouched**, no execute.log, no verify.json
+- planner's response surfaces both continuation options (`/pev-execute` or switch to `auto`) without making the choice for the user
+- v0.5 leak pattern ("ユーザー意図を尊重して続行") no longer appears
+
 ## [0.5.0] - 2026-05-11
 
 Team-rollout readiness release: team-conventions auto-injection becomes an explicit protocol that planner/executor follow uniformly, instead of relying on agent-side improvisation.
