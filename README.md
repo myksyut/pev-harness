@@ -1,6 +1,13 @@
 # pev-harness
 
+[![CI](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml)
+![version](https://img.shields.io/badge/version-1.0.0-blue)
+![status](https://img.shields.io/badge/status-production--ready-green)
+![claude--code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5v2.1.111-purple)
+
 Claude Opus 4.7時代のコーディングハーネス。**Plan → Execute → Verify** の3-phase pipelineを強制し、4.7のnative機能を最大活用する Claude Code plugin。
+
+**v1.0 production-ready** (2026-05-11). 社内チーム展開準備完了。詳細は [ONBOARDING.md](./ONBOARDING.md) / [ROLLOUT-CHECKLIST.md](./ROLLOUT-CHECKLIST.md)。
 
 ## なぜ作ったか
 

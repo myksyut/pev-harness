@@ -7,8 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v1.0+
-- See open Issues #7-#9 on GitHub
+### Planned for v1.1+
+- See open Issues #8-#9 on GitHub
+
+## [1.0.0] - 2026-05-11
+
+Production-ready release. Internal team rollout preparation complete. v0.1 → v0.6 functional development closes here; v1.0 packages it for use by other teams.
+
+### Added
+- `ROLLOUT-CHECKLIST.md` — per-team installation tracking template (pre-rollout / project preparation / first task / post-rollout feedback)
+- `FEEDBACK-TEMPLATE.md` — structured 5-task feedback collection form including quantitative observations (first-pass rate, retry count, sentiment 1-5)
+- README badges (CI status, version, status, Claude Code min version)
+- README v1.0 production-ready callout pointing at ONBOARDING + ROLLOUT-CHECKLIST
+
+### Changed
+- `ONBOARDING.md` — expanded to 10 sections including:
+  - 個人インストール (永続 / 一時利用 の2モード)
+  - プロジェクトへの導入 with concrete bash steps
+  - 6-row FAQ / troubleshooting table covering v0.5→v0.6 Gate A leak symptoms
+  - v1.0 known limitations enumerated explicitly
+  - フィードバック方法 + ロールアウト管理者向け cross-reference
+- `SPEC.md` §11 ロードマップ — Status column added, v0.1-v0.6 marked released, v1.0 marked "released, rollout pending"
+
+### Rollout open question (Issue #7 stays open)
+- Actual 3-team rollout is human-driven work and will be tracked in Issue #7 with comments rather than closed here
+- 5-task feedback minimum per team
+- v1.1 priorities will be set from collected feedback
 
 ## [0.6.0] - 2026-05-11
 

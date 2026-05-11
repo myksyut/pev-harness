@@ -288,16 +288,17 @@ Reviewer 2人とも Claude (model alias で多様性):
 
 ## 11. ロードマップ
 
-| Version | スコープ | 完了基準 |
-|---|---|---|
-| v0.1 | skeleton + 3 agents + /pev | minimal flowが動く |
-| v0.2 | hooks + Auto Mode連携 | permissionMode判定でGate A制御 |
-| v0.3 | pev-task-budget + pev-recap | 4.7 beta header利用 |
-| v0.4 | pev-dual-review (Claude single, model alias) | A=Opus / B=Sonnet 並列実行 |
-| v0.5 | pev-team-conventions + ONBOARDING | チーム展開準備 |
-| **v1.0** | README完成 + 社内3チーム展開 | フィードバック反映 |
-| v1.1 | **pev-linear-sync skill** | Linear Issue ↔ artifacts 双方向同期 |
-| v2.0 | 外部model対応 (MCP server経由) | OpenAI/Gemini MCP統合 |
+| Version | スコープ | 完了基準 | Status |
+|---|---|---|---|
+| v0.1 | skeleton + 3 agents + /pev | minimal flowが動く | ✅ released |
+| v0.2 | Gate A logic + task lifecycle + recap auto-append | permissionMode判定でGate A制御 | ✅ released |
+| v0.3 | verifier Memory write + task_budget rewrite | 全agentでmemory write、task_budget honest spec | ✅ released |
+| v0.4 | pev-dual-review (Claude single, model alias) | A=Opus / B=Sonnet 並列実行 | ✅ released |
+| v0.5 | pev-team-conventions auto-injection | チーム規約自動注入 | ✅ released |
+| v0.6 | Gate A enforcement (3層防御) | planner が Gate A を bypass しない | ✅ released |
+| **v1.0** | ロールアウト準備完了 (ONBOARDING / ROLLOUT-CHECKLIST / FEEDBACK-TEMPLATE) | **3 チーム展開 + フィードバック収集 (Issue #7 open)** | ✅ released, rollout pending |
+| v1.1 | **pev-linear-sync skill** | Linear Issue ↔ artifacts 双方向同期 | Issue #8 |
+| v2.0 | 外部model対応 (MCP server経由) | OpenAI/Gemini MCP統合 | Issue #9 |
 
 ---
 
