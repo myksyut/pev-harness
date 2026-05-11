@@ -129,4 +129,4 @@ Acceptance: GET /healthz returns 200 + correct JSON, test added."
 
 ## 10. ロールアウト管理者向け (Organization-internal)
 
-組織内で複数チームに展開する場合は [ROLLOUT-CHECKLIST.md](./ROLLOUT-CHECKLIST.md) と [FEEDBACK-TEMPLATE.md](./FEEDBACK-TEMPLATE.md) を使う。これらは organization-internal deployment 向けで、個人 OSS user は無視してOK。
+組織内で複数チームに展開する場合は [guide/ROLLOUT-CHECKLIST.md](./guide/ROLLOUT-CHECKLIST.md) と [guide/FEEDBACK-TEMPLATE.md](./guide/FEEDBACK-TEMPLATE.md) を使う。これらは organization-internal deployment 向けで、個人 OSS user は無視してOK。

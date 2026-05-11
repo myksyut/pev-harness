@@ -92,7 +92,14 @@ pev-harness/
 │   └── hooks.json                         # 3 hook
 ├── rules/
 │   ├── pev-conventions.md
-│   └── 4.7-native.md
+│   ├── 4.7-native.md
+│   └── error-patterns.md
+├── guide/                                  # 開発者向け internal doc
+│   ├── CHECKLIST.md
+│   ├── ROLLOUT-CHECKLIST.md
+│   ├── FEEDBACK-TEMPLATE.md
+│   ├── dogfood-v1.3-report.md
+│   └── TEST-PLAN-linear-v1.3.md
 ├── settings.json
 ├── CLAUDE.md
 ├── README.md
@@ -304,6 +311,7 @@ Reviewer 2人とも Claude (model alias で多様性):
 | **v1.5** | **QA technique integration** | pev-test-design skill (6 QA techniques) + error-patterns catalog + qa-checklists templates | ✅ released |
 | **v1.6** | **v1.4+v1.5 dog food findings reflection** | qa_derived_checks schema 拡張 (evidence_type) / mirror compression / handoff doc / --force-auto flag / Playwright DRY pattern | ✅ released |
 | **v1.7** | **CLAUDE.md re-targeting (developer-oriented)** | repo root CLAUDE.md を開発者向け暗黙知集に書き換え、 plugin user 向けは README へ集約 | ✅ released |
+| v1.7.1 | dev-only doc を `guide/` に集約 | docs/ + CHECKLIST/ROLLOUT/FEEDBACK を guide/ へ。 cross-reference 更新 | ✅ released |
 | v2.0 | 外部model対応 (MCP server経由) | OpenAI/Gemini MCP統合 | Issue #9 |
 
 ---

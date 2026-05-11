@@ -11,6 +11,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - v1.3 dog food findings の Low 6 件 (Issues #13-#18)
 - v2.0 (Issue #9): External model support via MCP
 
+## [1.7.1] - 2026-05-11
+
+開発者向け internal doc を `guide/` ディレクトリに集約。 root の見通しを改善し、 plugin runtime component (`rules/`) と開発時 reference の境界を明確化。
+
+### Changed
+- 以下の dev-only doc を `guide/` 配下に移動 (`git mv` で履歴保持):
+  - `docs/dogfood-v1.3-report.md` → `guide/dogfood-v1.3-report.md`
+  - `docs/TEST-PLAN-linear-v1.3.md` → `guide/TEST-PLAN-linear-v1.3.md`
+  - `CHECKLIST.md` → `guide/CHECKLIST.md`
+  - `ROLLOUT-CHECKLIST.md` → `guide/ROLLOUT-CHECKLIST.md`
+  - `FEEDBACK-TEMPLATE.md` → `guide/FEEDBACK-TEMPLATE.md`
+- 空になった `docs/` ディレクトリを削除
+- cross-reference を 7 file で更新: `CLAUDE.md` §11 / `ONBOARDING.md` §10 / `SPEC.md` 構造図 / `guide/CHECKLIST.md` 自己参照 / `examples/sample-project/CLAUDE.md` / `examples/sample-project/README.md` / `skills/pev-linear-sync/SKILL.md`
+- `SPEC.md` 構造図に `rules/error-patterns.md` (v1.5 で追加されたが図に未反映だった) を追記
+
+### Kept at root
+- `rules/` — plugin.json `components.rules` に登録された **plugin runtime component**。 agents/skills/commands から runtime 参照されるため root 維持
+- `README.md` / `ONBOARDING.md` / `CHANGELOG.md` / `LICENSE` / `SECURITY.md` / `CONTRIBUTING.md` / `SPEC.md` / `CLAUDE.md` — 公開向け or CI required file
+
+### Design rationale
+- v1.7.0 で `CLAUDE.md` を開発者向け context に再定義した流れの延長
+- root が 10 file 超で見通しが悪化 → 開発時のみ参照する checklist/template/dogfood-report 系を `guide/` に集約
+- `rules/` は dual purpose (dev からも runtime からも参照) だが、 plugin.json で components 登録されているため移動せず
+
 ## [1.7.0] - 2026-05-11
 
 CLAUDE.md (repo root) を **plugin user 向け** から **pev-harness 開発者向け暗黙知集** に再定義。 v0.1 → v1.6 までの session で確立した dog food 駆動の spec evolution、 規約、 暗黙の前提を集約。

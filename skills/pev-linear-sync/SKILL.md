@@ -286,7 +286,7 @@ dog food (Phase 2-3) で確認された原則: **skill は state を artifacts �
 
 ## Limitations
 
-- **dog food 実施済 (v1.3.0)**: 28 件の finding を spec に反映済み (`docs/dogfood-v1.3-report.md` 参照)。 引き続き利用者フィードバックで改善継続。
+- **dog food 実施済 (v1.3.0)**: 28 件の finding を spec に反映済み (`guide/dogfood-v1.3-report.md` 参照)。 引き続き利用者フィードバックで改善継続。
 - **status name は team によって異なる**: v1.3 で `.linear-config.yml` `status_mapping.issue` で明示、 fallback chain (`Done → Completed → Released`) を試行。
 - **複数 Linear workspace の同時操作は未対応**: 1 task = 1 issue の前提。
 - **Linear MCP の認証エラー時の挙動**: 「MCP error handling」表の `PERMISSION_DENIED` row に従う (hard fail + preview-only mode 提案)。 詳細は `linear-project-workflow` の同名 section を参照。

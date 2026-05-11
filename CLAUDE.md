@@ -251,10 +251,11 @@ rm -rf artifacts/ playwright-report/ test-results/
 - 仕様: [SPEC.md](./SPEC.md) (12章 + ADR 5 件)
 - 履歴: [CHANGELOG.md](./CHANGELOG.md) (Keep a Changelog format)
 - 公開向け: [README.md](./README.md)
-- 社内展開: [ONBOARDING.md](./ONBOARDING.md) + [ROLLOUT-CHECKLIST.md](./ROLLOUT-CHECKLIST.md)
+- 社内展開: [ONBOARDING.md](./ONBOARDING.md) + [guide/ROLLOUT-CHECKLIST.md](./guide/ROLLOUT-CHECKLIST.md) + [guide/FEEDBACK-TEMPLATE.md](./guide/FEEDBACK-TEMPLATE.md)
 - 脆弱性: [SECURITY.md](./SECURITY.md)
 - 規約: [rules/pev-conventions.md](./rules/pev-conventions.md) (Gate respect 等) + [rules/4.7-native.md](./rules/4.7-native.md) (禁止フレーズ) + [rules/error-patterns.md](./rules/error-patterns.md) (エラー推測 catalog)
-- dog food レポート: [docs/dogfood-v1.3-report.md](./docs/dogfood-v1.3-report.md) / [docs/TEST-PLAN-linear-v1.3.md](./docs/TEST-PLAN-linear-v1.3.md)
+- dog food レポート: [guide/dogfood-v1.3-report.md](./guide/dogfood-v1.3-report.md) / [guide/TEST-PLAN-linear-v1.3.md](./guide/TEST-PLAN-linear-v1.3.md)
+- 開発 checklist: [guide/CHECKLIST.md](./guide/CHECKLIST.md)
 - Issue 一覧: <https://github.com/myksyut/pev-harness/issues>
 
 ---

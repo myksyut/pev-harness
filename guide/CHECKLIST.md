@@ -32,9 +32,10 @@ cd ~/pev-harness && find . -type f -not -path './.git/*' -not -path './node_modu
 - [ ] `skills/*/SKILL.md` — 8 files
 - [ ] `commands/*.md` — 5 files
 - [ ] `hooks/hooks.json` — 3 hooks
-- [ ] `rules/*.md` — 2 files (pev-conventions, 4.7-native)
+- [ ] `rules/*.md` — 3 files (pev-conventions, 4.7-native, error-patterns)
 - [ ] `examples/` — 9 files (各 phase の example artifact + sample-project)
-- [ ] root: `SPEC.md` / `README.md` / `CLAUDE.md` / `ONBOARDING.md` / `CHANGELOG.md` / `CONTRIBUTING.md` / `CHECKLIST.md` (このファイル) / `settings.json`
+- [ ] `guide/` — `CHECKLIST.md` (このファイル) / `ROLLOUT-CHECKLIST.md` / `FEEDBACK-TEMPLATE.md` / `dogfood-v1.3-report.md` / `TEST-PLAN-linear-v1.3.md`
+- [ ] root: `SPEC.md` / `README.md` / `CLAUDE.md` / `ONBOARDING.md` / `CHANGELOG.md` / `CONTRIBUTING.md` / `SECURITY.md` / `LICENSE` / `settings.json`
 
 ---
 

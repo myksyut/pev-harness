@@ -88,7 +88,7 @@ git checkout -- src/index.js tests/index.test.js index.html tests-e2e/
 
 ## Linear連携 (v1.2+)
 
-`.linear-config.yml` が `examples/sample-project/` 配下にあれば Linear MCP plugin 経由で issue/project と sync 可能。 詳細は `~/pev-harness/docs/TEST-PLAN-linear-v1.3.md` 参照。
+`.linear-config.yml` が `examples/sample-project/` 配下にあれば Linear MCP plugin 経由で issue/project と sync 可能。 詳細は `~/pev-harness/guide/TEST-PLAN-linear-v1.3.md` 参照。
 
 ## E2E configuration notes
 
