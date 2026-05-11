@@ -102,7 +102,7 @@ AC 内に以下の **keyword** を検知したら、 `pev-e2e-verify` skill を 
    - 各観点 (同値分割の代表値 / 境界値 / デシジョンテーブル / 状態遷移 / エラー推測 / チェックリスト) を AC 同様に check
    - verify.json の `qa_derived_checks[]` に結果を記録 (technique / case / result / evidence)
    - 派生観点の失敗は AC 失敗と同じ重み (verdict=FAIL の判定材料)
-4. unit + E2E の結果を統合して `artifacts/verify.json` に記録
+5. unit + E2E + QA-derived の結果を統合して `artifacts/verify.json` に記録
 
 ```json
 {
