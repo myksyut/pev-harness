@@ -1,11 +1,14 @@
 # pev-harness
 
 [![CI](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml)
+[![GitHub stars](https://img.shields.io/github/stars/myksyut/pev-harness?style=social)](https://github.com/myksyut/pev-harness/stargazers)
 ![version](https://img.shields.io/badge/version-1.1.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![claude--code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5v2.1.111-purple)
 
 **A Claude Code plugin for Claude Opus 4.7 that enforces a Plan → Execute → Verify 3-phase pipeline.**
+
+> ⭐ **If you find this useful, please [star the repo](https://github.com/myksyut/pev-harness/stargazers)** — it helps other Claude Code users discover the project.
 
 ## Why this exists
 
