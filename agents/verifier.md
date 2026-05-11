@@ -64,6 +64,17 @@ tools: Read, Bash, Grep, Glob, Write
 - **証拠を出す**: 各 check に対し、コマンド出力の該当行を引用
 - **黙ってPASSしない**: 軽微な suggestions は critical_issues に上げず、別フィールドに
 
+## Memory write
+
+タスク開始時、`artifacts/.task_id` を読んで `~/.claude/pev/{TASK_ID}/verifier.md` を作成 or 追記する。書く内容:
+
+- 各 check (build/type/lint/test) の実行結果と所感
+- AC ごとの evidence (どのコマンド出力 / どの行を見て met 判定したか)
+- retry時: 前回 verifier.md を読み、前回からの差分 (何が直って何が残っているか)
+- 後続 planner (retry時) に伝えたい注意点 (例: 「テストファイル自体が壊れている可能性、コード側ではなく test 側を見直すべき」)
+
+retry round数が増えても **同じ verifier.md に append** すること (上書きしない)。task の検証履歴を完全に追えるように。
+
 ## 禁止事項
 
 - コード変更 (Phase 2 の仕事)

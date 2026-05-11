@@ -1,85 +1,92 @@
 ---
 name: pev-task-budget
-description: Opus 4.7 の task_budget (beta) API を活用して phase 別にトークン予算を設定し、長時間 agentic loop の自己制御を有効化
+description: 各 phase に「使ってよいトークンの目安」を渡し、長時間 agentic loop の自己制御を有効化。Claude Code v2.1.x では agent prompt 経由の暫定運用、v2.0+ で真の task_budget API passthrough へ移行
 ---
 
 # pev-task-budget
 
-各phaseに「使ってよいtokenの目安」を渡す。モデル自身がカウントダウンを見て優先順位調整・グレースフル終了する。
+各 phase に「使ってよいトークンの目安」を渡す。モデル自身がカウントダウンを意識して優先順位調整やグレースフル終了する。
 
 ## When to Use
 
-- Plan/Execute/Verify の各phase起動時
+- Plan / Execute / Verify の各 phase 起動時 (自動)
 - 長時間タスク (1時間以上推定) の前
-- task_budget beta header をAPI呼び出しに付与する場面
+- token コスト超過の懸念があるタスク
 
-## How It Works
-
-### Phase別推奨予算
+## Phase 別推奨予算
 
 | Phase | 予算 (tokens) | 理由 |
 |---|---|---|
 | Plan | 50k | コードを広く読む、最低でも 20k 必要 |
-| Execute (per executor) | 100k | 実装+周辺ファイル参照を含む |
+| Execute (per executor) | 100k | 実装 + 周辺ファイル参照 |
 | Verify | 30k | build/test 実行ログを取り込む |
 | Dual Review (each reviewer) | 30k | 検証のみ |
 
-合計目安: 1タスクあたり **180k〜400k tokens** (並列executor3個含む)
+合計目安: 1タスクあたり **180k〜400k tokens** (並列 executor 3個含む)。
 
-`PEV_TASK_BUDGET` 環境変数でグローバル上限を変更可能 (default: 100000)。
+`PEV_TASK_BUDGET` 環境変数でグローバル上限 (default: 100000)。
 
-### task_budget API の使い方
+## 実装 (Claude Code v2.1.x 現実)
 
-Claude Code が内部的に Messages API を呼ぶ際、beta header を付与:
+Claude Code v2.1.x では Messages API の `task-budgets-2026-03-13` beta header の plugin 側からの passthrough は完全対応していない。pev-harness の暫定運用は以下の2層:
 
-```python
-response = client.beta.messages.create(
-    model="claude-opus-4-7",
-    max_tokens=128000,
-    output_config={
-        "effort": "xhigh",
-        "task_budget": {"type": "tokens", "total": 50000},
-    },
-    messages=[...],
-    betas=["task-budgets-2026-03-13"],
-)
+### Layer 1: agent prompt 内の budget hint (現状動作確認済み)
+
+planner / executor / verifier の prompt 内で `## Estimated task budget` セクションを必須にする。dog food で planner が "Estimated task budget: ~2k tokens" を出すことを確認済み。
+
+各 agent はこの hint を自己制約として使う。例:
+
+- "50k tokens 以上のコードを読まない"
+- "100k tokens 超過の見込みなら scope を分割して回答"
+
+### Layer 2: 環境変数による beta header 有効化 (ユーザー側設定)
+
+Claude Code を起動する前に環境変数で有効化:
+
+```bash
+export ANTHROPIC_BETA="task-budgets-2026-03-13"
+claude --plugin-dir ~/pev-harness
 ```
 
-Claude Code側で `task_budget` を渡すには、現状はagentの description / promptで明示的に「target tokens: 50k」と伝えるのが現実的 (Claude Code v2.1.x でAPI passthroughが整備されるまでの暫定)。
+これで Claude Code 内部の API 呼び出しに beta header が付与される (Claude Code が対応していれば)。
 
-### task_id 単位でのトラッキング
+## task_id 単位のトラッキング
 
-```
-~/.claude/pev/{task_id}/budget.json
+`~/.claude/pev/{task_id}/budget.json` に各 phase の予算と消費量を記録:
+
+```json
 {
   "total": 100000,
   "phases": {
-    "plan": {"target": 50000, "used": 47200},
-    "execute": {"target": 100000, "used": 88500},
-    "verify": {"target": 30000, "used": 12300}
+    "plan":    { "target": 50000,  "used": 47200 },
+    "execute": { "target": 100000, "used": 88500 },
+    "verify":  { "target": 30000,  "used": 12300 }
   },
   "exhausted": false
 }
 ```
 
-### Budget exhausted 時の挙動
+`used` は agent が自己申告で書き込む (現状の Claude Code は plugin に正確な token使用量を渡さない)。v2.0 で真の API 連携実現時に置換予定。
+
+## Budget exhausted 時の挙動
 
 `used > target * 1.2` (20%超過) 時:
 
-- 警告メッセージ表示
-- pipeline はそのまま継続するが、recap.log に「budget超過」を記録
-- 3回連続で budget 超過するタスクはpipelineが警告を上げる
+- agent 内で警告を recap.log に追記
+- pipeline はそのまま継続 (hard cap ではない)
+- 3 回連続で予算超過するタスクは `/pev-status` が警告を上げる
 
 ## Examples
 
-### Plan phase 起動時の呼び出し
+### planner agent prompt 内での自己制約
 
-```bash
-echo "Target tokens for this plan phase: 50000" >> artifacts/.budget_hint
-# planner agentを起動 (Read時にbudget_hintを参照)
+```text
+Target task budget: 50000 tokens.
+
+If you find yourself approaching this budget while reading
+the codebase, stop reading and write the plan with what you
+have. Mark sections as "needs follow-up" rather than continuing.
 ```
-
-planner agent はこの hint を読み、「50k以上のコードを読まないように」自己制約する。
 
 ### 長時間タスク用の予算拡張
 
@@ -87,19 +94,20 @@ planner agent はこの hint を読み、「50k以上のコードを読まない
 PEV_TASK_BUDGET=500000 /pev "Refactor entire authentication system"
 ```
 
-この場合、各phaseの予算が以下に拡張:
+各 phase の予算が以下に拡張:
+
 - Plan: 250k
-- Execute: 500k (並列3並走で1.5M)
+- Execute: 500k (並列3並走で 1.5M)
 - Verify: 150k
 
-## Limitations
+## Limitations & roadmap
 
-- Claude Code v2.1.x ではAPI beta header の passthrough が完全ではない
-- 現状は agent の prompt 内で予算ヒントを明示するのが信頼性高い
-- 真の self-regulation は v0.3 で task_budget API直接利用版に置き換え予定
+- **v0.x (現状)**: Layer 1 (agent prompt) のみ確実動作。ANTHROPIC_BETA は Claude Code側の対応次第
+- **v2.0 (#9 別件)**: MCP server経由で外部 model も支える際、task_budget API beta header を確実に passthrough できる仕組みを整える
 
 ## 注意点
 
 - 予算は **suggestion であり hard cap ではない** (Anthropic公式)
-- 厳格な上限が必要な場合は `max_tokens` を使う (これはhard cap)
-- 過度に厳しい予算は hallucination を増やすため、推奨値±20% を維持
+- 厳格な上限が必要な場合は `max_tokens` を使う (これは hard cap)
+- 過度に厳しい予算は hallucination を増やすため、推奨値±20%を維持
+- recap.log への自己申告 (used トークン数) は誤差±15%程度を想定

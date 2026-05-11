@@ -7,8 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v0.3+
-- See open Issues #3-#9 on GitHub
+### Planned for v0.4+
+- See open Issues #5-#9 on GitHub
+
+## [0.3.0] - 2026-05-11
+
+Quality release: verifier now writes durable memory, task_budget skill rewritten for Claude Code v2.1.x reality. Verified end-to-end via second dog food run.
+
+### Added
+- `agents/verifier.md` — explicit "Memory write" directive: write per-check evidence and AC verification reasoning to `~/.claude/pev/{TASK_ID}/verifier.md`. Retry rounds append rather than overwrite, preserving the full verification history (closes #4)
+
+### Changed
+- `skills/pev-task-budget/SKILL.md` — completely rewritten to reflect Claude Code v2.1.x reality:
+  - Layer 1: agent prompt embedded "Estimated task budget" (dog food confirmed working)
+  - Layer 2: `ANTHROPIC_BETA=task-budgets-2026-03-13` env var for users who want API beta header
+  - Honest limitation notes about v0.x partial passthrough
+  - v2.0+ roadmap link via #9 for true MCP-server-based external model support
+  - (closes #3)
+
+### Verified via dog food (v0.2 features now confirmed)
+- ✅ Gate A (permissionMode=default) halts after Phase 1 as designed
+- ✅ planner Memory write produces structured `~/.claude/pev/{TASK_ID}/notes.md` with Key decisions / Notes for executor / Notes for verifier / Open questions sections
+- ✅ Stop hook auto-appends Phase completion entries to `recap.log`
+- ✅ team-conventions.md content automatically included in plan.md Constraints section
+
+### Known limitations carried forward
+- Stop hook still cannot invoke `/pev-verify` slash command — user-triggered (limitation of Claude Code hook system)
+- Phase 2/3 dog food validation pending — requires `permissionMode=auto` or manual `/pev-execute` continuation
 
 ## [0.2.0] - 2026-05-11
 
