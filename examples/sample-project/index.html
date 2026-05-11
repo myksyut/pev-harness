@@ -1,33 +1,168 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PEV harness sample</title>
+  <title>PEV harness sample — event signup</title>
   <style>
-    body { font-family: system-ui, sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; }
-    h1 { color: #333; }
-    button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; margin-right: 0.5rem; }
-    #result { margin-top: 1rem; padding: 1rem; background: #f0f0f0; border-radius: 4px; min-height: 1.5em; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      padding: 2rem 1rem;
+      max-width: 560px;
+      margin: 0 auto;
+      color: #1f2937;
+      background: #f9fafb;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    .lead { color: #6b7280; margin-top: 0; margin-bottom: 1.5rem; }
+    form {
+      background: #ffffff;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .field { margin-bottom: 1rem; }
+    label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; }
+    .required-mark { color: #dc2626; margin-left: 0.25rem; }
+    input[type="text"], input[type="email"], input[type="tel"], select {
+      width: 100%;
+      padding: 0.5rem 0.6rem;
+      font-size: 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      box-sizing: border-box;
+      background: #ffffff;
+    }
+    input:focus, select:focus { outline: 2px solid #2563eb; outline-offset: -1px; border-color: #2563eb; }
+    .agreement { display: flex; align-items: center; gap: 0.5rem; }
+    .agreement label { display: inline; font-weight: 400; }
+    .error {
+      color: #dc2626;
+      font-size: 0.85rem;
+      margin-top: 0.25rem;
+      min-height: 1.1em;
+    }
+    button#submit-btn {
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button#submit-btn:disabled { background: #93c5fd; cursor: not-allowed; }
+    button#submit-btn:hover:not(:disabled) { background: #1d4ed8; }
+    #success {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      background: #d1fae5;
+      color: #065f46;
+      border-radius: 4px;
+      border-left: 4px solid #10b981;
+    }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
-  <h1>PEV harness sample</h1>
-  <p>Minimal fixture for E2E verification dog food.</p>
+  <h1>イベント参加申し込み</h1>
+  <p class="lead">PEV harness sample — 申し込みフォーム fixture (dog food 用)</p>
 
-  <div>
-    <button id="add-btn">Add 2 + 3</button>
-    <button id="sub-btn">Subtract 5 - 3</button>
-  </div>
-  <div id="result"></div>
+  <form id="signup-form" novalidate>
+    <div class="field">
+      <label for="name">氏名<span class="required-mark" aria-hidden="true">*</span></label>
+      <input id="name" name="name" type="text" autocomplete="name" required aria-required="true" aria-describedby="name-error">
+      <div id="name-error" class="error" role="alert" aria-live="polite"></div>
+    </div>
+
+    <div class="field">
+      <label for="email">メールアドレス<span class="required-mark" aria-hidden="true">*</span></label>
+      <input id="email" name="email" type="email" autocomplete="email" required aria-required="true" aria-describedby="email-error">
+      <div id="email-error" class="error" role="alert" aria-live="polite"></div>
+    </div>
+
+    <div class="field">
+      <label for="phone">電話番号 (任意)</label>
+      <input id="phone" name="phone" type="tel" autocomplete="tel" aria-describedby="phone-error" placeholder="090-1234-5678">
+      <div id="phone-error" class="error" role="alert" aria-live="polite"></div>
+    </div>
+
+    <div class="field">
+      <label for="plan">参加プラン<span class="required-mark" aria-hidden="true">*</span></label>
+      <select id="plan" name="plan" required aria-required="true" aria-describedby="plan-error">
+        <option value="">選択してください</option>
+        <option value="standard">スタンダード</option>
+        <option value="premium">プレミアム</option>
+        <option value="student">学生</option>
+      </select>
+      <div id="plan-error" class="error" role="alert" aria-live="polite"></div>
+    </div>
+
+    <div class="field agreement">
+      <input id="agreement" name="agreement" type="checkbox" aria-describedby="agreement-error">
+      <label for="agreement">利用規約に同意します<span class="required-mark" aria-hidden="true">*</span></label>
+    </div>
+    <div id="agreement-error" class="error" role="alert" aria-live="polite"></div>
+
+    <button id="submit-btn" type="submit">申し込む</button>
+  </form>
+
+  <div id="success" role="status" aria-live="polite" hidden></div>
 
   <script type="module">
-    import { add, subtract } from './src/index.js';
-    document.getElementById('add-btn').addEventListener('click', () => {
-      document.getElementById('result').textContent = `add(2, 3) = ${add(2, 3)}`;
+    import { buildSubmitHandler } from './src/form.js';
+
+    const form = document.getElementById('signup-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const success = document.getElementById('success');
+
+    const fields = ['name', 'email', 'phone', 'plan', 'agreement'];
+
+    function getFormData() {
+      return {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        plan: document.getElementById('plan').value,
+        agreement: document.getElementById('agreement').checked,
+      };
+    }
+
+    function setErrors(errors) {
+      for (const f of fields) {
+        const el = document.getElementById(`${f}-error`);
+        if (!el) continue;
+        el.textContent = errors[f] ?? '';
+      }
+    }
+
+    function setSubmitting(flag) {
+      submitBtn.disabled = flag;
+      submitBtn.textContent = flag ? '送信中…' : '申し込む';
+    }
+
+    function onSuccess(entry) {
+      success.hidden = false;
+      success.textContent = `申し込みを受け付けました (${entry.name} 様)`;
+      form.reset();
+      setErrors({ name: null, email: null, phone: null, plan: null, agreement: null });
+    }
+
+    const handleSubmit = buildSubmitHandler({
+      getFormData,
+      setErrors,
+      setSubmitting,
+      onSuccess,
+      storage: window.localStorage,
+      delayMs: 300,
     });
-    document.getElementById('sub-btn').addEventListener('click', () => {
-      document.getElementById('result').textContent = `subtract(5, 3) = ${subtract(5, 3)}`;
+
+    form.addEventListener('submit', handleSubmit);
+
+    // Hide success message as soon as the user starts editing again.
+    form.addEventListener('input', () => {
+      if (!success.hidden) success.hidden = true;
     });
   </script>
 </body>

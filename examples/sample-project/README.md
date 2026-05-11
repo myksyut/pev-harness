@@ -1,92 +1,83 @@
 # Sample Project for pev-harness
 
-最小サンプル。 pev-harness を dog food するための「壊れていい」プロジェクト。 v1.4 から **unit test (vitest) + E2E test (Playwright)** の両方を fixture として備える。
+pev-harness の dog food fixture。 v1.7.1 から **イベント参加申し込みフォーム** をモチーフに、 実務でよくある複雑度 (フォーム validation / 二重送信防止 / LocalStorage 永続化 / accessibility / 状態遷移) を持つ。 plan/execute/verify の各 phase が exercise されるサイズに保ちつつ、 単純な計算関数より「実機の気持ち」が出る形にした。
 
 ## 構造
 
 ```text
 sample-project/
 ├── README.md                    (このファイル)
+├── CLAUDE.md                    (sample-project の domain 説明)
 ├── package.json                 (vitest + @playwright/test + http-server)
-├── vitest.config.js             (unit と E2E の scope 分離)
-├── playwright.config.ts         (Playwright config、 webServer 設定)
-├── index.html                   (E2E 用 minimal page、 add/subtract ボタン)
+├── vitest.config.js             (unit のみ scope、 tests-e2e は exclude)
+├── playwright.config.ts         (webServer auto-start で http-server :8080)
+├── index.html                   (申し込みフォーム UI、 accessible)
 ├── src/
-│   └── index.js                 (add + subtract の実装、 dog food 開始時に reset 可)
+│   ├── validation.js            (純関数: validateName/Email/Phone/Plan/Agreement)
+│   └── form.js                  (submit handler / LocalStorage / 二重送信防止)
 ├── tests/
-│   └── index.test.js            (vitest、 unit test)
+│   ├── validation.test.js       (境界値網羅)
+│   └── form.test.js             (mock storage + fake timer)
 ├── tests-e2e/
-│   └── seed.spec.ts             (Playwright、 seed test 3 件)
+│   └── seed.spec.ts             (Playwright: 正常 / 必須欠落 / format / 二重送信)
 ├── .claude/
-│   └── agents/                  (Playwright init-agents で自動生成)
-│       ├── playwright-test-planner.md
-│       ├── playwright-test-generator.md
-│       └── playwright-test-healer.md
-├── .mcp.json                    (playwright-test MCP server 設定、 init-agents で自動生成)
-├── specs/                       (Playwright Planner agent の出力先、 init-agents で生成)
-├── team-conventions.md          (sample-project 用の規約)
-└── .gitignore                   (artifacts/ / node_modules / playwright-report 除外)
+│   └── agents/                  (Playwright init-agents で生成済)
+├── .mcp.json                    (playwright-test MCP server)
+├── specs/                       (Playwright Planner 出力先)
+├── team-conventions.md          (sample-project 用の実務規約)
+└── .gitignore                   (artifacts/ / node_modules / playwright-report)
 ```
 
-## How to dog food
-
-### Setup (1 度だけ)
+## Setup (1 度だけ)
 
 ```bash
 cd ~/pev-harness/examples/sample-project
 npm install
-npx playwright install chromium       # browser binary
-# init-agents は既に repo にコミット済みなので不要
+npx playwright install chromium
 ```
 
-### Unit test dog food (v0.1-v0.6 style)
+## How to dog food
+
+### A. baseline (現状の form を変えない)
 
 ```bash
-# src/index.js を TODO 状態に reset
-cat > src/index.js << 'EOF'
-export function add(a, b) {
-  throw new Error('not implemented');
-}
-EOF
+npm test                # vitest (validation + form の unit tests)
+npx playwright test     # Playwright E2E (5 件)
+```
 
-# pev-harness で起動
+両方 green であることを確認してから dog food task を流す。
+
+### B. PEV を回す (feature 追加 dog food)
+
+```bash
 claude --plugin-dir ~/pev-harness
 
 # セッション内で
-> /pev-harness:pev "Implement add(a, b) in src/index.js to return a + b. Tests should pass."
+> /pev-harness:pev "電話番号フィールドを必須項目化してください。AC: (1) 電話番号未入力で submit すると 'phone-error' に '電話番号は必須です' と表示される (2) 既存の 10/11 桁の format validation はそのまま (3) tests/validation.test.js / tests-e2e/seed.spec.ts が更新され全 test PASS する。"
 ```
 
-期待: planner → executor (add 実装) → verifier (vitest 4/4 PASS) → 完了。
+期待:
 
-### E2E test dog food (v1.4+ style)
-
-```bash
-# src/index.js は実装済 state (add + subtract)
-# pev-harness で起動
-claude --plugin-dir ~/pev-harness
-
-# セッション内で (UI 系 keyword を AC に入れる)
-> /pev-harness:pev "Add a multiply button to index.html that displays multiply(2, 3) = 6 when clicked. The button must be visible and clicking it shows the result."
-```
-
-期待: planner → executor (index.html 拡張 + multiply 実装) → verifier (unit test PASS + AC に "button" "clicking" 検知 → E2E auto-dispatch → Playwright test生成 → 実行) → 完了。
+- planner → 既存 `validatePhone` の任意項目→必須項目への変更 + test 追加を plan
+- executor → src/validation.js 修正 + test 修正 + E2E spec 修正
+- verifier → vitest + (UI keyword を AC が含むので) E2E auto-dispatch → 全 pass
 
 ### Direct test commands
 
 ```bash
-npm test                              # vitest only (unit)
-npx playwright test                   # Playwright only (E2E)
+npm test                              # vitest only
+npx playwright test                   # Playwright only
 npm test && npx playwright test       # 両方
 ```
 
-## クリーンアップ
+## クリーンアップ (dog food 後)
 
 ```bash
 rm -rf artifacts/ playwright-report/ test-results/
-git checkout -- src/index.js tests/index.test.js index.html tests-e2e/
+git checkout -- src/ tests/ tests-e2e/ index.html
 ```
 
-## Linear連携 (v1.2+)
+## Linear 連携 (v1.2+)
 
 `.linear-config.yml` が `examples/sample-project/` 配下にあれば Linear MCP plugin 経由で issue/project と sync 可能。 詳細は `~/pev-harness/guide/TEST-PLAN-linear-v1.3.md` 参照。
 
