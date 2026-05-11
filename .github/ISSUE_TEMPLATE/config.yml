@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/myksyut/pev-harness/security/advisories/new
+    about: セキュリティ脆弱性は public Issue にせず Security Advisory で報告
+  - name: Questions / discussion
+    url: https://github.com/myksyut/pev-harness/discussions
+    about: 質問・アイデア・議論は Discussion で

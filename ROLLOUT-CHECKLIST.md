@@ -1,5 +1,7 @@
 # Rollout Checklist (per-team)
 
+> **Note**: This document is for **organization-internal deployment** tracking. Individual OSS users don't need this — just follow [ONBOARDING.md](./ONBOARDING.md).
+
 各チームへの導入時、ロールアウト管理者がチェック。Issue #7 (v1.0) のAC達成を追跡するため。
 
 ## Team: ___________

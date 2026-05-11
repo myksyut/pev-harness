@@ -1,0 +1,8 @@
+# Default owner — all PRs auto-assigned to @myksyut for review
+* @myksyut
+
+# Security-sensitive paths (extra attention required)
+/.github/workflows/  @myksyut
+/SECURITY.md         @myksyut
+/hooks/              @myksyut
+/rules/              @myksyut

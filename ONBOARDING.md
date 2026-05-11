@@ -122,10 +122,11 @@ Acceptance: GET /healthz returns 200 + correct JSON, test added."
 
 ## 9. フィードバック方法
 
-- Slack: #pev-harness (社内、未設置なら立てる)
-- GitHub Issue: <https://github.com/myksyut/pev-harness/issues> (private repo)
-- フィードバックフォーマット: `FEEDBACK-TEMPLATE.md` 参照
+- [GitHub Discussions](https://github.com/myksyut/pev-harness/discussions) — questions / ideas / show & tell
+- [GitHub Issues](https://github.com/myksyut/pev-harness/issues) — bug reports / feature requests (templates あり)
+- [Security Advisories](https://github.com/myksyut/pev-harness/security/advisories/new) — 脆弱性は public 報告せず private 報告
+- Organization 内 deployment の場合: 各組織の内部チャネル (Slack/Teams) + 上記 GitHub channels
 
-## 10. ロールアウト管理者向け
+## 10. ロールアウト管理者向け (Organization-internal)
 
-チーム単位の導入時は `ROLLOUT-CHECKLIST.md` を使う。
+組織内で複数チームに展開する場合は [ROLLOUT-CHECKLIST.md](./ROLLOUT-CHECKLIST.md) と [FEEDBACK-TEMPLATE.md](./FEEDBACK-TEMPLATE.md) を使う。これらは organization-internal deployment 向けで、個人 OSS user は無視してOK。

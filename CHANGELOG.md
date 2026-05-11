@@ -7,8 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v1.1+
-- See open Issues #8-#9 on GitHub
+### Planned for v1.2+
+- See open Issues #7-#9 on GitHub
+
+## [1.1.0] - 2026-05-11
+
+OSS readiness release. MVP-level defenses to make the repository safe and welcoming for public distribution. Goal: stars-friendly + minimal viable protection, then iterate.
+
+### Added
+- `LICENSE` — MIT (was already declared in `.claude-plugin/plugin.json`, now ships as a file)
+- `SECURITY.md` — vulnerability disclosure policy with SLA, threat model, scope/out-of-scope, GitHub Security Advisory channel
+- `.github/CODEOWNERS` — default and security-sensitive path ownership for auto-assigned reviews
+- `.github/dependabot.yml` — weekly GitHub Actions dependency updates (CI侵入防止の基礎)
+- `.github/PULL_REQUEST_TEMPLATE.md` — PEV-aware PR template with dog food evidence checklist and 4.6 scaffolding check
+- `.github/ISSUE_TEMPLATE/bug_report.yml` — structured bug report template (version / phase / artifacts snapshot)
+- `.github/ISSUE_TEMPLATE/feature_request.yml` — feature request with explicit "considered alternatives" prompt
+- `.github/ISSUE_TEMPLATE/config.yml` — routes security to Advisory, questions to Discussions, blocks blank issues
+
+### Changed
+- `.github/workflows/ci.yml` — added `permissions: contents: read` at workflow and job level, plus `timeout-minutes: 5` to limit hijack blast radius
+- `README.md` — rewritten for OSS audience with "Why this exists" / "What it does" / "Quick start" structure, license + claude-code badges, threat model callout, public Issues/Discussions links
+- `ONBOARDING.md` §9-§10 — generalized "Slack 社内" references to GitHub Discussions / Issues; ROLLOUT-CHECKLIST and FEEDBACK-TEMPLATE marked as organization-internal
+- `ROLLOUT-CHECKLIST.md` + `FEEDBACK-TEMPLATE.md` — header note added: "for organization-internal deployment, individual OSS users don't need this"
+- `CHECKLIST.md` §13 — transfer suggestion generalized (was emuni-kyoto-specific)
+
+### Verified
+- git history audit: no secrets / no organization-internal email leakage (single contributor with personal gmail)
+- Working tree audit: no `password=`, `secret=`, `api_key=`, or private key patterns
+
+### Pre-public-release checklist for the human
+
+Visibility flip from private to public is not automated. The human owner should:
+
+1. Final manual diff review of `git log --all` and working tree once more
+2. `gh repo edit myksyut/pev-harness --visibility public --accept-visibility-change-consequences`
+3. Enable Discussions: `gh api repos/myksyut/pev-harness --method PATCH -f has_discussions=true`
+4. Set up branch protection on `main` (GUI or `gh api`): require PR + CI green + 1 approving review
+5. Verify Dependabot has access to update PRs (Settings → Security → Dependabot)
 
 ## [1.0.0] - 2026-05-11
 

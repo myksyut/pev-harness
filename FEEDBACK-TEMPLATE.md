@@ -1,5 +1,7 @@
 # Feedback Template
 
+> **Note**: This template is for **organization-internal deployment** feedback aggregation (3 teams use the same form, results compared). Individual OSS users can use the standard [Issue templates](.github/ISSUE_TEMPLATE/) instead.
+
 各チームが5タスク完了後、このテンプレで feedback を書く。GitHub Issue として起票 (title: `[feedback] <team-name>`)。
 
 ---

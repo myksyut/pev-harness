@@ -283,25 +283,16 @@ GitHub Issues に登録済み (9件、`gh issue list` で確認):
 
 ---
 
-## 13. transferの選択肢
+## 13. Ownership transfer (任意)
 
-将来 emuni-kyoto org に移したい場合:
+別 organization に移したい場合は `gh repo transfer <owner>/pev-harness <new-org>` で可能。 transfer 後はローカル remote URL の更新が必要 (`git remote set-url origin ...`)。
 
-```bash
-gh repo transfer myksyut/pev-harness emuni-kyoto
-```
-
-その後、ローカルのremote URLを更新:
-
-```bash
-cd ~/pev-harness
-git remote set-url origin https://github.com/emuni-kyoto/pev-harness.git
-```
+OSS contributor 観点では transfer 時に URL change が起きるので、 README / docs / バッジ URL の grep & update を忘れずに。
 
 ---
 
 ## 確認後のフィードバック方法
 
-- 軽い指摘: チャットでまとめて伝える
+- 軽い指摘: GitHub Discussion または直接連絡
 - 構造的な変更が必要: 該当 Issue にコメント、または新規 Issue 作成
 - 設計判断レベルの変更: SPEC.md §12 に新規 ADR として追加してから実装

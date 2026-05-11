@@ -1,0 +1,86 @@
+name: Bug report
+description: agent / skill / command / hook が想定外の挙動を示した
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug! pev-harness の品質改善に協力ありがとうございます。
+
+        セキュリティ脆弱性は **SECURITY.md** の手順で private に報告してください (このフォームではなく)。
+
+  - type: input
+    id: version
+    attributes:
+      label: pev-harness version
+      description: "`git describe --tags` または `.claude-plugin/plugin.json` の `version`"
+      placeholder: "v1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: claude_code_version
+    attributes:
+      label: Claude Code version
+      description: "`claude --version`"
+      placeholder: "v2.1.138"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: 何が起こったか
+      description: 期待した動作 vs 実際の動作
+      placeholder: |
+        Expected: Gate A で Phase 1 後に停止
+        Actual: executor が起動して src/ が変更された
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 再現手順
+      description: 最小限の再現手順 (コマンド・入力プロンプト含む)
+      placeholder: |
+        1. `cd examples/sample-project`
+        2. `claude --plugin-dir ~/pev-harness --print '/pev-harness:pev "..."'`
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: artifacts/ + memory snapshot
+      description: 可能なら `artifacts/plan.md`, `verify.json`, `~/.claude/pev/{TASK_ID}/*.md` のスナップショット
+      placeholder: |
+        artifacts/plan.md:
+        ```
+        ...
+        ```
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: 影響を受けた phase
+      multiple: true
+      options:
+        - Phase 1 (planner)
+        - Phase 2 (executor)
+        - Phase 3 (verifier)
+        - Gate A (permissionMode)
+        - Gate B (Stop hook)
+        - Retry Gate
+        - --strict (dual-review)
+        - Skills (specify in description)
+        - Hooks
+        - Other
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: その他
+      description: OS / shell / 関連 Issue 等
