@@ -7,8 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v0.5+
-- See open Issues #6-#9 on GitHub
+### Planned for v1.0+
+- See open Issues #7-#9 on GitHub
+
+## [0.5.0] - 2026-05-11
+
+Team-rollout readiness release: team-conventions auto-injection becomes an explicit protocol that planner/executor follow uniformly, instead of relying on agent-side improvisation.
+
+### Added
+- `pev-team-conventions` injection protocol — read order, target sections, fallback behavior, all spelled out as a regulation rather than a hope (closes #6)
+- Personal override path `~/.claude/pev/team-conventions.local.md` for individual additions that don't belong in team-wide rules
+- Per-section utilization mapping (Language & Stack → planner Constraints; Code style → executor; Review rubric → verifier --strict; etc.)
+
+### Changed
+- `skills/pev-team-conventions/SKILL.md` — rewritten as protocol spec with read order, injection position (`# Your task` 直前), per-section targets, and absent-file behavior
+- `agents/planner.md` — gains explicit "Team conventions loading" section: planner now reads conventions in fixed order and integrates per-section into plan.md, plus must declare in plan.md which conventions were applied
+- `agents/executor.md` — gains the same loading section, with utilization mapped to its specific operations (Code style → Edit/Write; Forbidden → don't emit; Files to never touch → bounce back to planner; Commit policy → execute.log format)
+
+### Notes
+- Behavior observed organically in v0.1/v0.2 dog food runs (planner pulled team-conventions.md into Constraints unbidden). v0.5 codifies what was working, so all three phase agents do it uniformly
+- Same-skill/same-pattern hardcoding is avoided — projects supply their own conventions, the skill just enforces how they're loaded
 
 ## [0.4.0] - 2026-05-11
 

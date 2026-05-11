@@ -1,140 +1,138 @@
 ---
 name: pev-team-conventions
-description: プロジェクトルートの team-conventions.md を読み込み、planner/executor のpromptに自動注入。チーム規約をsource of truth化
+description: team-conventions.md と ~/.claude/pev/team-conventions.local.md を読み込んで planner/executor の prompt に自動注入。プロジェクト規約を agent動作の Single Source of Truth にする
 ---
 
 # pev-team-conventions
 
-`team-conventions.md` を「チームのcoding規約のsingle source of truth」とし、PEV pipelineが自動でpromptに注入する仕組み。
+team-conventions.md を**チーム規約の Source of Truth** とし、PEV pipeline が起動時に自動でpromptに注入する仕組み。dog food で「planner が team-conventions.md を自然に参照する」挙動を確認済み (v0.1, v0.2)。v0.5 はこれを明示的な protocol として整える。
 
 ## When to Use
 
-- planner / executor 起動時 (自動)
-- 新しいチームメンバーがpluginを導入した時
+- planner / executor 起動時 (自動、毎回)
+- 新しいチームメンバーが pev-harness を導入した時
 - 既存プロジェクトに pev-harness を導入する時
 
-## How It Works
+## Injection 規約 (v0.5 protocol)
 
-### team-conventions.md の場所と構造
+### 読み込み優先順位
 
-プロジェクトルート直下に `team-conventions.md` を置く:
+agent (planner / executor) は起動時に**この順序で**規約ファイルを探す:
 
-```markdown
-# Team Conventions
+1. `~/.claude/pev/team-conventions.local.md` (個人 override、最優先)
+2. `<project_root>/team-conventions.md` (チーム共有)
+3. なし (デフォルト動作)
 
-## Language & Stack
-- TypeScript strict mode必須
-- Node.js >=20
-- Package manager: pnpm
+`<project_root>` は `git rev-parse --show-toplevel` で決まる。git管理外なら `cwd`。
 
-## Code style
-- Prefer named exports over default exports
-- File naming: kebab-case
-- Test files: *.test.ts (vitest)
+複数見つかった場合、**両方を**読み込み、`local.md` のセクションが project側 と被ったら local 優先。
 
-## Commit policy
-- Conventional commits (feat:/fix:/chore:/...)
-- 1 file change = 1 commit (small PR culture)
+### Injection 位置
 
-## Review rubric (--strict)
-- Security: OWASP Top 10
-- Performance: avoid N+1 queries in src/api/*
-- Accessibility: WCAG 2.1 AA for src/components/*
+agent prompt の **冒頭**、`# Your task` の直前に以下フォーマットで挿入:
 
-## Forbidden
-- console.log in production code (use logger)
-- any type without // FIXME comment
-```
+```text
+# Team Conventions (auto-injected by pev-team-conventions skill)
 
-### 注入方法
+<team-conventions.local.md 内容 — もしあれば>
 
-planner / executor が起動する際、このskillがpromptの先頭に:
+<team-conventions.md 内容 — もしあれば>
 
-```
-# Team Conventions (from team-conventions.md)
-<file contents>
+---
 
 # Your task
-<original prompt>
+<本来の planner / executor 入力>
 ```
 
-を組み立てる。これにより agent は常に規約を意識した出力を生成する。
+不在時:
 
-### セクション別の利用
+```text
+# Team Conventions
+(none found — operating on PEV defaults)
 
-| セクション | 主に利用するagent |
+---
+
+# Your task
+...
+```
+
+### Section ごとの利用先
+
+team-conventions.md の構造化された section を、PEV pipeline 内で**どこに反映するか**:
+
+| Section | 反映先 |
 |---|---|
-| Language & Stack | planner (依存判断)、executor (実装) |
-| Code style | executor |
-| Commit policy | executor (execute.logの提案文) |
-| Review rubric | verifier (pev-dual-review使用時) |
-| Forbidden | planner (避ける) / verifier (検出) |
+| `## Language & Stack` | planner: 依存判断、Constraints セクションの基礎 |
+| `## Code style` | executor: 実装時の規約 |
+| `## Commit policy` | executor: execute.log の「proposed commit message」フォーマット |
+| `## Review rubric` | verifier (--strict時): rubric の追加項目として |
+| `## Forbidden` | planner (避ける) + verifier (検出して fail) |
+| `## Files to never touch` | planner + executor: 該当ファイル変更を refuse |
 
-### 不在時の挙動
+## planner / executor 側の責務
 
-`team-conventions.md` が存在しない場合:
+各 agent は **自分で** team-conventions を読む。skill の役割は「**読み込み protocol を規約として固定**」し、各 agent が同じ順序・同じ位置で読むよう保証すること。
 
-- 通知メッセージのみ: `[PEV] No team-conventions.md found. Operating without team rules.`
-- pipeline はそのまま継続
-- 一般的なベストプラクティスのみで動作
+具体的には:
 
-### local override
-
-個人ごとに上書きしたい場合:
-
-```bash
-~/.claude/pev/team-conventions.local.md
-```
-
-これがあれば team-conventions.md より優先される (ただし非推奨、チーム不整合のリスク)。
+1. agent prompt 内に `## Team conventions loading` セクションを置く (planner.md / executor.md 参照)
+2. agent は起動直後、上記優先順位でファイルを探して読む
+3. 読み込んだ内容を Constraints / Code style / etc. に**統合**する
+4. プロンプト出力 (plan.md, execute.log) に**どの規約を適用したか**を明示する (verifier や human reviewer のため)
 
 ## Examples
 
-### 規約ありプロジェクトでの動作
+### Project でのセットアップ
 
-team-conventions.md:
+```bash
+# 既存プロジェクトに pev-harness を導入する時
+cd <your-project>
+cp ~/pev-harness/examples/team-conventions.example.md ./team-conventions.md
+# → 内容をプロジェクト固有に編集
+git add team-conventions.md
+git commit -m "chore: add team-conventions for pev-harness"
+```
+
+### 個人 override
+
+```bash
+# 「自分のtaskでは追加で X も守りたい」のような個人ルール
+cat > ~/.claude/pev/team-conventions.local.md << 'EOF'
+# Personal additions to team conventions
+
+## Forbidden (personal)
+- TODO comments without an assignee
+- Function bodies over 50 lines (extract helper)
+EOF
+```
+
+### dog food evidence (v0.1, v0.2 ともに確認済み)
+
+planner が `team-conventions.md` の `## Language & Stack` を読んで plan.md の `## Constraints` に自動反映:
+
 ```markdown
-## Forbidden
-- any type without // FIXME
+## Constraints
+- JavaScript ESM, Node >= 20      ← team-conventions から
+- Named exports only              ← team-conventions から
+- 2-space indent, semicolons      ← team-conventions から
+- No console.log                  ← team-conventions から
+- No TypeScript migration         ← team-conventions から
 ```
 
-実行:
-```
-/pev "Parse user input as JSON"
-```
-
-planner の plan.md に自動的に:
-```
-## Constraints (from team-conventions.md)
-- No `any` type without // FIXME comment
-
-## File-level changes
-- [ ] src/parser.ts: Parse with explicit type `Record<string, unknown>` (not any)
-```
-
-### Review rubric の活用
-
-team-conventions.md:
-```markdown
-## Review rubric (--strict)
-- All API endpoints must have OpenAPI annotation
-```
-
-`/pev --strict` 時、verifier は dual-reviewのrubricに自動で:
-```
-| API endpoint OpenAPI | All public endpoints have @openapi annotation |
-```
-を追加してチェックする。
+v0.5 では、この自然発生していた挙動が **protocol として規約化** されたので、各 agent が同じ順序で読み、同じ書式で plan.md / execute.log に反映するようになる。
 
 ## メンテナンス指針
 
-- team-conventions.md はPRレビューに含める
-- 規約変更時は CHANGELOG に記録
+- team-conventions.md は PR レビュー対象に含める
+- 規約変更時は CHANGELOG (プロジェクト側) に記録
 - 過度に長くしない (1ページ以内目安)
 - 「やるな」より「こうしろ」を書く (positive instruction)
+- 個人 override (`~/.claude/pev/team-conventions.local.md`) はチーム不整合のリスクなので、長期化するなら project 側に昇格すべき
 
 ## 注意点
 
-- プロジェクト固有ルールはここに集約する (skill側にhardcodeしない)
-- バイナリ的な好み (semicolon有無等) は formatter で強制し、conventions には書かない
-- secret / API keyを書かない (gitに入る前提)
+- プロジェクト固有ルールはここに集約する (skill / agent prompt にhardcodeしない)
+- バイナリ的な好み (semicolon 有無等) は formatter で強制し、conventions には書かない
+- secret / API key を書かない (git に入る前提)
+- 個人 override は `~/.claude/pev/team-conventions.local.md` 固定パス (他のパスは読まない、規約をシンプルに)
+- pev-team-conventions skill 自体には team-conventions.md の中身を hard-code しない (project-agnostic を保つ)

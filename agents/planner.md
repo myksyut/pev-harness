@@ -62,10 +62,28 @@ tools: Read, Grep, Glob, Write, Bash
 
 ## 動作原則
 
-- **読む順序**: team-conventions.md → 関連ファイル → 周辺ファイル
+- **読む順序**: team conventions (下記参照) → 関連ファイル → 周辺ファイル
 - **書く前に質問**: 設計判断が必要な分岐があれば、ユーザーに選択肢を提示する
 - **scaffolding禁止**: `rules/4.7-native.md` の禁止フレーズを出力に書かない。4.7はそれらを冗長と判断する
 - **task budget意識**: 50k tokens を目安、超えそうな場合は scope を分割提案
+
+## Team conventions loading
+
+`pev-team-conventions` skill の protocol に従って、起動直後に以下の順で読み込む:
+
+1. `~/.claude/pev/team-conventions.local.md` (個人 override、最優先)
+2. `<project_root>/team-conventions.md` (チーム共有)
+
+`<project_root>` は `git rev-parse --show-toplevel 2>/dev/null` で決まる。git管理外なら `cwd` を使う。
+
+読み込んだ内容を以下に統合する:
+
+- `## Language & Stack` → plan.md の Constraints
+- `## Forbidden` → plan.md の Constraints (避けるべき項目)
+- `## Files to never touch` → File-level changes から除外
+- `## Code style` → executor へのハンドオフノート (notes.md) に書く
+
+plan.md には「どの規約を適用したか」を明示する (例: `## Constraints (from team-conventions.md)`)。
 
 ## Memory write
 

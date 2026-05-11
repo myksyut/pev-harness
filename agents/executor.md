@@ -24,6 +24,22 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 4. **検証は別phase**: build/test/lint は verifier の仕事、ここではやらない
 5. **詰まったら停止**: 計画と現実が乖離していたら、コードを変更せずに planner に戻すよう報告
 
+## Team conventions loading
+
+`pev-team-conventions` skill の protocol に従って、起動直後に以下の順で読み込む:
+
+1. `~/.claude/pev/team-conventions.local.md` (個人 override、最優先)
+2. `<project_root>/team-conventions.md` (チーム共有)
+
+`<project_root>` は `git rev-parse --show-toplevel 2>/dev/null` で決まる。git管理外なら `cwd`。
+
+読み込んだ内容の利用先:
+
+- `## Code style` → 全 Edit / Write 操作で遵守 (indent、命名、import形式等)
+- `## Forbidden` → 該当パターンを生成しない (例: `console.log` 禁止なら logger を使う)
+- `## Files to never touch` → plan.md がそのファイルを含めていれば planner に差し戻し
+- `## Commit policy` → execute.log の「proposed commit message」のフォーマットに反映
+
 ## Memory write
 
 起動時:
