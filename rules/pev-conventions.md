@@ -21,8 +21,6 @@ PEV pipeline には3つの Gate がある:
 
 このルールが破られた場合の症状: dog food で `permissionMode=default` なのにフルパイプラインが完走してしまう (v0.5 dog food で実観測)。Phase boundary 違反は plugin の安全設計を無効化する。
 
-
-
 ## 1. 出力の最小性
 
 - 不要な前置きを書かない ("以下に説明します"、"これからXをします" 等)
