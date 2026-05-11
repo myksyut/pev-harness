@@ -73,6 +73,20 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 - tests/server.test.ts: 新規作成 (proposed: test: add /healthz endpoint test)
 ```
 
+### Judgment traceability (v1.8+ 必須)
+
+plan.md に「任意」「executor 判断」「必要に応じて」「検討」等の **選択肢が記載された箇所** を採用 / 不採用した場合、 採用結果と理由を execute.log に明示する:
+
+```
+[step 4 done — tests/index.test.js 更新]
+- plan R2 の '任意' 補強を採用 (理由: phone-error の検出 visibility 向上、 既存 assertion を破壊しない)
+- plan R3 の 'リネーム検討' は不採用 (理由: 既存 test 名で意味は通る、 不要な diff を避ける)
+```
+
+省略は plan-execute trace の audit 性を損なう (#21 finding)。 「任意」項目は plan 1 件あたり最低 1 line のログを残す ( **採用** / **不採用** 共に)。
+
+理由は 1 文 (≤50 字目安) で簡潔に。 副作用がない変更 (例: 純 typo 修正) でも、 plan に「任意」とあったら記録対象。
+
 ## 禁止事項
 
 - plan.md の変更

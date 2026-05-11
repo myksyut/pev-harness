@@ -66,24 +66,70 @@ verifier は plan.md の Acceptance Criteria を読んで、 UI / E2E test が�
 
 ### Auto-dispatch (default)
 
-AC 内に以下の **keyword** を検知したら、 `pev-e2e-verify` skill を auto-dispatch する:
+AC 内に以下の **canonical keyword** を検知したら、 `pev-e2e-verify` skill を auto-dispatch する。
 
-- 動作系: `click` / `clicks` / `navigate` / `navigates` / `redirect` / `redirects` / `submit` / `submits` / `goes to`
-- 表示系: `page` / `screen` / `displayed` / `visible` / `hidden` / `shows` / `appears`
-- UI要素: `button` / `form` / `dialog` / `modal` / `dropdown` / `menu` / `toast` / `badge`
-- アクセシビリティ系: `accessible` / `ARIA` / `keyboard` / `tab order`
-- QA 技法 trigger (v1.5+、 pev-test-design 同時起動):
-  - 数値・範囲系: `1〜N`、 `between A and B`、 `min/max`、 `limit`、 `range`、 `人数`、 `件数`
-  - 状態系: `状態`、 `権限`、 `permission`、 `role`、 `enabled/disabled`、 `active/inactive`
-  - 多条件系: `or`、 `and`、 `かつ`、 `または`、 `if`、 `when`
-  - 失敗系: `error`、 `失敗`、 `timeout`、 `retry`、 `rollback`
+**v1.8+: 同義語膨張防止のため keyword は canonical 1 件に正規化、 dispatch_reason に記録するのは canonical 名のみ** (synonyms は match 用、 ログには出さない)。
 
-検知ロジック: case-insensitive、 日本語版 (例: "クリック" / "表示される" / "遷移") も近似マッチ。
+| Canonical | Synonyms (match 対象、 ログには出さない) | 分類 |
+|---|---|---|
+| `click` | `clicks`、 クリック | 動作 |
+| `navigate` | `navigates`、 `redirect`、 `redirects`、 `goes to`、 遷移 | 動作 |
+| `submit` | `submits`、 送信、 申し込む | 動作 |
+| `visible` | `shows`、 `appears`、 `displayed`、 表示される | 表示 |
+| `hidden` | 非表示、 消える | 表示 |
+| `page` | `screen`、 画面 | UI 文脈 |
+| `button` | (なし) | UI 要素 |
+| `form` | フォーム | UI 要素 |
+| `dialog` | `modal`、 ダイアログ、 モーダル | UI 要素 |
+| `dropdown` | `menu`、 メニュー、 ドロップダウン | UI 要素 |
+| `toast` | `badge`、 トースト、 通知バッジ | UI 要素 |
+| `accessible` | `ARIA`、 アクセシブル | a11y |
+| `keyboard` | `tab order`、 キーボード、 タブ順 | a11y |
+
+QA 技法 trigger (v1.5+、 pev-test-design 同時起動、 canonical 化済):
+
+| Canonical | Synonyms | 分類 |
+|---|---|---|
+| `range` | `1〜N`、 `between A and B`、 `min/max`、 `limit`、 人数、 件数 | 境界値・同値分割 |
+| `state` | 状態、 enabled、 disabled、 active、 inactive | 状態遷移 |
+| `permission` | 権限、 role | 権限 |
+| `condition` | `or`、 `and`、 かつ、 または、 `if`、 `when` | デシジョン |
+| `error` | `failure`、 失敗、 timeout、 retry、 rollback | エラー推測 |
+
+検知ロジック: case-insensitive、 日本語版も近似マッチ。 マッチしたら synonym ではなく **canonical 名** で記録する。
 
 ### Explicit override
 
 - `--e2e`: keyword 検知に関わらず必ず pev-e2e-verify 起動
 - `--no-e2e`: keyword 検知しても pev-e2e-verify を skip (unit のみで verdict 判定)
+
+### Dispatch reason confidence (v1.8+)
+
+`verify.json.e2e.dispatch_reason` (および `qa_derived_checks[]` 由来の reason) は confidence 2 段階で記録:
+
+| Confidence | Trigger | 形式 |
+|---|---|---|
+| **high** | explicit override (`--e2e` / `--no-e2e`)、 plan.md に `e2e: required` 記載、 ユーザー明示指示 | `"confidence": "high"` + 由来 (例: `--e2e flag`) |
+| **low** | keyword auto-detect (AC 本文の canonical match) | `"confidence": "low"` + matched canonical の配列 |
+
+例:
+
+```json
+"dispatch_reason": {
+  "confidence": "low",
+  "matched_canonical": ["visible", "button"],
+  "ac_indices": [0, 2]
+}
+```
+
+```json
+"dispatch_reason": {
+  "confidence": "high",
+  "source": "--e2e flag"
+}
+```
+
+理由: dog food (#20 finding) で同義語が verbose hit して dispatch_reason が説明力を失っていた。 canonical 化 + confidence 分離で「なぜ E2E が走ったか」を 1 行で読めるようにする。
 
 ### Skill 起動順序
 
@@ -113,7 +159,7 @@ AC 内に以下の **keyword** を検知したら、 `pev-e2e-verify` skill を 
     {"technique": "boundary", "case": "input 0", "result": "PASS", "evidence": "..."},
     {"technique": "error_guessing", "case": "double submit", "result": "PASS", "evidence": "..."}
   ],
-  "dispatch_reason": "keyword 'click' detected in AC[2]" | "--e2e flag" | "skipped (--no-e2e)" | "qa-trigger 'range' in AC[0]"
+  "dispatch_reason": { "confidence": "low|high", "matched_canonical": ["..."], "ac_indices": [0,2] } | { "confidence": "high", "source": "--e2e flag" } | { "confidence": "high", "source": "--no-e2e flag", "skipped": true }
 }
 ```
 

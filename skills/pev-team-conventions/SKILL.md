@@ -64,10 +64,33 @@ team-conventions.md の構造化された section を、PEV pipeline 内で**ど
 |---|---|
 | `## Language & Stack` | planner: 依存判断、Constraints セクションの基礎 |
 | `## Code style` | executor: 実装時の規約 |
+| `## Verification commands` (v1.8+ 必須) | planner: plan.md の Verification strategy / verifier: 該当 check 実行 |
 | `## Commit policy` | executor: execute.log の「proposed commit message」フォーマット |
 | `## Review rubric` | verifier (--strict時): rubric の追加項目として |
 | `## Forbidden` | planner (避ける) + verifier (検出して fail) |
 | `## Files to never touch` | planner + executor: 該当ファイル変更を refuse |
+
+### Verification commands (v1.8+ 必須項目)
+
+PEV pipeline の verifier は 4 種類の check (Unit test / E2E test / Lint / Typecheck) を実行する。 team-conventions.md には **必ず以下の項目を明示**する。 「無い」場合も `未設定` と明記する (skill が探して見つからないコストを削減):
+
+```markdown
+## Verification commands
+
+- Unit test: `npm test`        (or `未設定` if none)
+- E2E test:  `npx playwright test`  (or `未設定`)
+- Lint:      `npx eslint .`    (or `未設定`)
+- Typecheck: `tsc --noEmit`    (or `未設定`)
+```
+
+**規約**:
+
+- 4 項目すべて記載必須 (省略不可、 「無い」場合は `未設定` を明記)
+- 既存 `## Test 規約` section と統合可。 ただし上記 4 keys は必ずいずれかの場所に存在
+- verifier はこの section を読んで、 `未設定` の check を **skip 扱いで PASS** と判定する (warning なし)
+- 記述なし (key 自体が missing) の場合、 verifier は推論 (file 探索 + `npm run` 列挙) する fallback 動作だが、 v1.8+ では **template 違反として warning** を出す
+
+理由 (#19 finding): v1.7.1 dog food で verifier が `npx eslint` を探して見つからない → スキップ という推論を毎回行っていた。 team-conventions に「未設定」を明示すれば推論不要で短絡判定できる。
 
 ## planner / executor 側の責務
 

@@ -17,6 +17,7 @@ PEV harnessのメインコマンド。Plan → Execute → Verify を順に実�
 /pev <task> --e2e                    # E2E verify を強制起動 (v1.4+)
 /pev <task> --no-e2e                 # E2E verify を強制 skip (v1.4+)
 /pev <task> --force-auto             # permissionMode default でも Gate A を skip して Phase 2/3 自動進行 (v1.6+)
+/pev <task> --expect-fail            # FAIL 想定タスク (dog food fixture / regression)、 retry loop を skip して即 escalate path (v1.8+)
 ```
 
 ## Linear URL 検出 (v1.2 で追加)
@@ -144,13 +145,34 @@ VERDICT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('artifacts/
 RETRY=$(cat artifacts/.retry_count 2>/dev/null || echo 0)
 MAX=${PEV_MAX_RETRIES:-3}
 
+# v1.8+ : --expect-fail フラグで retry loop を skip
+# user が「このタスクは FAIL することを想定済 (dog food fixture / regression test)」を
+# 明示するためのフォーマル channel。 retry に時間と token を費やさず即 escalate path に流す
+EXPECT_FAIL=false
+[[ "$*" == *"--expect-fail"* ]] && EXPECT_FAIL=true
+
+# plan.md に `expectFail: true` メタが書かれている場合も同等扱い (planner 側で書き出す補助記法)
+if [ "$EXPECT_FAIL" = "false" ] && grep -qE '^\s*expectFail:\s*true\s*$' artifacts/plan.md 2>/dev/null; then
+  EXPECT_FAIL=true
+  echo "[PEV] expectFail detected in plan.md (treating as --expect-fail)"
+fi
+
 case "$VERDICT" in
   PASS)
-    echo "[PEV] Verdict: PASS — task complete"
-    echo "[$(date -u +%FT%TZ)] Task complete (verdict: PASS, retries: $RETRY)" >> artifacts/recap.log
+    if [ "$EXPECT_FAIL" = "true" ]; then
+      echo "[PEV] Verdict: PASS but --expect-fail was set — UNEXPECTED PASS (fixture intent broke?)"
+      echo "[$(date -u +%FT%TZ)] Unexpected PASS under --expect-fail (review fixture / spec drift)" >> artifacts/recap.log
+    else
+      echo "[PEV] Verdict: PASS — task complete"
+      echo "[$(date -u +%FT%TZ)] Task complete (verdict: PASS, retries: $RETRY)" >> artifacts/recap.log
+    fi
     ;;
   FAIL)
-    if [ "$RETRY" -lt "$MAX" ]; then
+    if [ "$EXPECT_FAIL" = "true" ]; then
+      echo "[PEV] Verdict: FAIL as expected (--expect-fail) — skipping retry, going to escalate path"
+      echo "[$(date -u +%FT%TZ)] Expected FAIL recorded (retries skipped under --expect-fail)" >> artifacts/recap.log
+      echo "[PEV] Run /pev-status --escalate"
+    elif [ "$RETRY" -lt "$MAX" ]; then
       echo $((RETRY + 1)) > artifacts/.retry_count
       echo "[PEV] Verdict: FAIL — retry $((RETRY + 1))/$MAX, re-invoking planner"
       # → Step 2 へループ
@@ -161,3 +183,10 @@ case "$VERDICT" in
     ;;
 esac
 ```
+
+### `--expect-fail` の使い分け (v1.8+)
+
+- **適切**: dog food fixture で意図的に retry-exhaust シナリオを exercise したいケース、 regression test で「FAIL が現状の正解」と確定しているケース、 negative test fixture
+- **不適切**: 実装中の通常タスク (本来 retry で直る可能性を奪う)、 unknown error の調査
+- 規約: `--expect-fail` は **意図的 FAIL の宣言** であり、 retry を skip することによる時間 / token 節約を目的にする。 PASS した場合は「想定外」として recap.log に warning を残す (fixture intent 崩壊 or spec drift の signal)
+- 配置先 spec: `skills/pev-pipeline/SKILL.md` の Gate / Retry section

@@ -50,6 +50,13 @@
   - console error / pageerror は `beforeEach` で監視 (seed.spec.ts に DRY fixture あり)
   - 状態遷移を assert (form input → click → success message visible + form reset)
 
+## Verification commands
+
+- Unit test: `npm test` (vitest、 `tests/` のみ scope)
+- E2E test: `npx playwright test` (`tests-e2e/` 配下)
+- Lint: 未設定 (このプロジェクトでは lint チェックなし)
+- Typecheck: 未設定 (JS ESM 固定、 TypeScript 化はしない)
+
 ## Commit policy
 
 - Conventional commits

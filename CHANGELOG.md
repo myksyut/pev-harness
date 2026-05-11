@@ -7,9 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v1.8+
-- v1.3 dog food findings の Low 6 件 (Issues #13-#18)
+### Planned for v1.9+
+- v1.8 dog food findings (release 前 dog food で発見されたものがあれば)
 - v2.0 (Issue #9): External model support via MCP
+
+## [1.8.0] - 2026-05-12
+
+v1.3 dog food Low 6 件 (#13-#18) と v1.7.1 dog food 3 件 (#19-#21) の合計 **9 findings 反映 release**。 Linear-workflow / agents 3 体 / pipeline flag / team-conventions template を横断的に強化し、 dog food 駆動の spec evolution を 1 release で消化。
+
+### Added
+
+**`--expect-fail` flag (#17)** — dog food / regression fixture 用:
+- `commands/pev.md` に `--expect-fail` CLI flag 追加: retry loop を skip して即 escalate path に流す
+- `skills/pev-pipeline/SKILL.md` に意味 / 挙動 / use case を spec 化
+- `artifacts/recap.log` に override 記録
+
+**parent project context injection (#16)** — `agents/planner.md`:
+- Linear-sourced input section に directive 追加: `artifacts/linear/issues/<id>/sync_state.json.project_id` が非 null の場合に parent project の Why/What を Upper-AC として明示利用
+- v1.3 で pev-linear-sync Inbound に取り込みステップを追加した後、 planner 側 directive が未整備だった分を補完
+
+### Changed
+
+**linear-project-workflow 強化 (4 件)** — `skills/linear-project-workflow/SKILL.md` + `schemas/linear-sync-state.json`:
+- **#13 (L1)**: `.linear-config.yml` に `status_mapping.use_type: true` option を追加し、 Linear state object の `type` field (`backlog`/`planned`/`started`/`completed`/`canceled`) 優先 lookup を可能化 → ロケール (英 "In Progress" / 日 "進行中") に依存しない判定
+- **#14 (L2)**: Update (C) で `started` 遷移時の `startedAt` / `startDate` を `side_effects[]` に必ず記録する規約を明文化、 `schemas/linear-sync-state.json` も schema 側で明示
+- **#15 (L3)**: Write (B) で「AI が補完・推定した箇所」を `| 項目 | 元の自然文 | AI が推定した内容 | 確認したいこと |` table 形式で必ず提示する必須化
+- **#18 (L6)**: Project description の list bullet は `-` / `*` 両許容、 parse 時に正規化する旨を明示 (false positive 警告防止)
+
+**verifier の E2E auto-dispatch 改善 (#20)** — `agents/verifier.md`:
+- 同義語 (`shows` / `displayed` / `visible`) を canonical 1 件に正規化、 `verify.json.e2e_test.dispatch_reason` の hit 数膨張を防止
+- dispatch_reason を `keyword (low confidence)` / `explicit (high confidence)` の 2 段階で記録
+
+**executor 判断 traceability (#21)** — `agents/executor.md`:
+- execute.log 規約に「plan の『任意』『executor 判断』『必要に応じて』を採用した場合、 採用した選択肢と理由を明示」を追加
+- plan ↔ execute 間の意思決定 audit trail を強化
+
+**team-conventions template に Lint / Typecheck 明示 (#19)** — `skills/pev-team-conventions/SKILL.md`:
+- template の必須項目に `Lint: <command> または 未設定` / `Typecheck: <command> または 未設定` を追加
+- verifier が「lint コマンドを探して見つからない → スキップ」を推論する coast を削減
+- `examples/sample-project/team-conventions.md` も Lint: 未設定 / Typecheck: 未設定 を反映
+
+### Verified via dog food
+- 新 fixture (event signup form) で /pev フルパイプを実機 invoke (task: plan radio + 重複申込防止 + confirmation 画面)
+- 結果: **AC 7/7 PASS** (retry 1)、 vitest 33/33 + Playwright 9/9、 所要 約 15 min
+- v1.8 改修動作確認:
+  - `#20` `dispatch_reason: { confidence: "low", matched_canonical: ["visible", "hidden", "button", "form", "page", "navigate"], ac_indices: [...] }` で同義語膨張なし (v1.7.1 の 9 keyword verbose 出力と比較して明確に圧縮)
+  - `#19` `checks.lint.detail: "Lint not configured per team-conventions.md — skip."` で team-conventions.md `Verification commands` section を読んだ短絡判定 (推論不要)
+  - `#21` `execute.log` の `[judgment traceability]` section が初回 Phase 2 で 4 件、 retry 1 Phase 2 で 3 件、 plan の「任意」「採用」を全て理由付き記録
+  - `#16` Linear-sourced task ではないため `project_id` null、 plan.md に `## Upper-AC` section 省略 (spec の負例として正常動作)
+  - `qa_derived_checks` (v1.5+) が boundary / state / error / condition 技法で全 PASS
+- 新 finding: なし (v1.8 改修すべて期待通り動作)
+
+### Issues closed
+- #13 / #14 / #15 / #16 / #17 / #18 / #19 / #20 / #21
 
 ## [1.7.1] - 2026-05-11
 

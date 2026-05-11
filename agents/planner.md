@@ -36,6 +36,33 @@ tools: Read, Grep, Glob, Write, Bash
 
 Linear から得た Constraints が team-conventions.md と矛盾する場合、 team-conventions を優先 (project rule は Linear Issue より strong)、 plan.md の Risks セクションに「Linear Issue の指示 X は team-conventions に従って Y にした」と記録する。
 
+#### Parent project context injection (v1.8+ directive)
+
+`artifacts/linear/issues/<id>/sync_state.json` の `project_id` が非 null の場合、 該当 Linear Project の Why / What / 上位 完了条件 を **Upper-AC として明示利用** する。
+
+具体的な手順:
+
+1. `artifacts/linear/projects/<project_id>/sync_state.json` から project の Why / What / 完了条件 を読む (pev-linear-sync Inbound が事前 fetch 済)
+2. plan.md に専用 section を追加:
+
+   ```markdown
+   ## Upper-AC (from parent Linear Project)
+
+   - **Project**: [Project-Name](https://linear.app/.../project/...)
+   - **Why** (project context): <project.Why をそのまま引用>
+   - **Upper completion criteria** (project 完了条件):
+     - <checkbox 項目 1>
+     - <checkbox 項目 2>
+
+   現在の Issue は上記 Upper-AC のうち以下に貢献する:
+   - <この Issue が達成する項目>
+   ```
+
+3. Issue 自身の Acceptance Criteria は、 Upper-AC の **下位レイヤ** として書く (Upper-AC を矛盾なく支える形で詳細化)
+4. project_id が null の場合は本 section を **省略** (空の section は出力しない)
+
+**意図**: project の Why/What を Upper-AC として明示することで、 plan.md 単独で「なぜこの Issue をやるのか」が読める。 v1.3 で pev-linear-sync Inbound は project 取り込みを開始したが、 planner 側 directive が未整備で plan.md が project context を活用できていなかった。 v1.8 で正式化。
+
 ## 出力契約
 
 `artifacts/plan.md` を以下の構造で書き出す:

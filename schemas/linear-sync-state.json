@@ -4,6 +4,20 @@
   "title": "Linear sync_state.json schema (v1.3.0+)",
   "description": "Standard structure for artifacts/linear/{issues|projects}/<id>/sync_state.json. All Linear skills (linear-project-workflow / linear-issue-workflow / linear-project-tracker / pev-linear-sync) write to this schema.",
   "type": "object",
+  "$defs": {
+    "sideEffect": {
+      "type": "object",
+      "description": "v1.8+ — Structured side effect record for status transitions. Replaces v1.3 string form.",
+      "required": ["at", "transition", "field", "value", "source"],
+      "properties": {
+        "at": { "type": "string", "format": "date-time" },
+        "transition": { "type": "string", "description": "e.g., 'backlog→started', 'started→completed'" },
+        "field": { "type": "string", "description": "e.g., 'startedAt', 'startDate', 'completedAt', 'canceledAt'" },
+        "value": { "type": ["string", "null"], "description": "Observed value from Linear API response" },
+        "source": { "type": "string", "enum": ["linear-api-response"], "description": "Origin of the observation" }
+      }
+    }
+  },
   "oneOf": [
     {
       "title": "Issue-level sync_state",
@@ -39,7 +53,24 @@
             }
           }
         },
-        "fallback_invoked": { "type": "boolean" }
+        "fallback_invoked": { "type": "boolean" },
+        "status_transitions": {
+          "type": "array",
+          "description": "v1.8+ — Issue-level status transitions with side effects (mirrors project-level structure)",
+          "items": {
+            "type": "object",
+            "required": ["at", "from", "to"],
+            "properties": {
+              "at": { "type": "string", "format": "date-time" },
+              "from": { "type": "object" },
+              "to": { "type": "object" },
+              "side_effects": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/sideEffect" }
+              }
+            }
+          }
+        }
       }
     },
     {
@@ -128,7 +159,8 @@
               "to": { "type": "object" },
               "side_effects": {
                 "type": "array",
-                "items": { "type": "string", "description": "e.g., 'startedAt auto-set', 'startDate auto-set'" }
+                "description": "v1.8+ — required for any status transition that mutates timestamps. Always record observed field deltas from API response.",
+                "items": { "$ref": "#/$defs/sideEffect" }
               }
             }
           }

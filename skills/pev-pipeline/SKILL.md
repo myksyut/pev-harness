@@ -99,6 +99,29 @@ verify.json の `verdict == "FAIL"` かつ retry count < 3 の時:
 
 3回を超えた場合: `/pev-status --escalate` でメッセージ表示、自動継続しない。
 
+### --expect-fail flag (v1.8+)
+
+retry loop を skip して即 escalate path に流すための **明示宣言** flag。 dog food fixture / regression test 用途で、 「このタスクは FAIL を想定している」 ことを formal に表明する。
+
+| Trigger | 挙動 |
+|---|---|
+| `/pev <task> --expect-fail` (CLI flag) | `verdict=FAIL` でも retry せず即 escalate、 `recap.log` に `Expected FAIL recorded` を記録 |
+| `plan.md` 内 (planner 補助記法) | plan.md の任意行に `expectFail: true` を含めると CLI flag と同等扱い |
+| `verdict=PASS` だった場合 | `Unexpected PASS under --expect-fail` を recap.log に記録 (fixture intent 崩壊 / spec drift の signal) |
+
+**use case**:
+
+- dog food fixture (例: TES-2 retry-exhaust シナリオ) で「FAIL が想定挙動」のタスクを exercise する時。 retry を回さないことで token と時間を節約
+- regression test fixture で「FAIL が現状の正解」 を捕捉する時 (例: 直すべき bug がまだ残っている前提の test)
+- negative test fixture
+
+**規約**:
+
+- `--expect-fail` は **意図的 FAIL の宣言**。 retry skip は副作用であり、 main intent は「想定 FAIL を明示する」こと
+- 通常タスク (実装中で retry で直る可能性がある) には付けない。 retry の機会を奪う
+- planner 自身が `expectFail: true` を勝手に書き出すのは禁止。 ユーザー (or 上位 command) が flag を立てた場合に限り planner が plan.md に echo する形が許容
+- 関連 flag (`--force-auto`) との併用は許容: Gate A skip + retry skip で fully unattended な dog food / CI 自動化が可能
+
 ## Examples
 
 ユーザー入力:

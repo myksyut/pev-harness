@@ -41,6 +41,7 @@ skill 起動直後、 以下の preflight を実行する。 不整合があれ�
    - `mcp__plugin_linear_linear__list_issue_statuses(team=yaml.team.id)` で取得
    - yaml の `status_mapping.issue.*` 値が Linear に存在しない場合は warning
    - Project state は固定 5 種 (`backlog / planned / started / completed / canceled`) なので別管理
+   - `.linear-config.yml` で `status_mapping.use_type: true` (任意、 default `false`) が指定されている場合、 status name ではなく state object の `type` field (locale-independent) を優先 lookup する。 詳細は下記 「Status lookup mode (v1.8+)」 参照
 
 4. **(Write 系のみ) workspace permission probe**
    - 軽微な API call (例: `list_projects` limit=1) で write 権限の sanity check
@@ -62,6 +63,44 @@ Linear MCP tool が返しうる error 種別と skill 挙動:
 | `RATE_LIMIT` | Linear API rate limit | exp backoff + retry | 3 |
 
 **規約**: ad-hoc error handling は禁止。 全 MCP tool 呼び出しは上表に従う。 fallback の発火時は `sync_state.json` の `error_log[]` に記録 (`{at, tool, error_type, action}`)。
+
+## Status lookup mode (v1.8+)
+
+Linear API の state object は `name` (locale-dependent) と `type` (locale-independent enum) の 2 field を持つ。 例:
+
+```yaml
+# 英 workspace
+{ name: "In Progress", type: "started" }
+# 日 workspace
+{ name: "進行中",     type: "started" }
+```
+
+`.linear-config.yml` の `status_mapping` には 2 つの lookup mode がある:
+
+| Mode | yaml 設定 | 挙動 |
+|---|---|---|
+| **name-based** (default) | `use_type: false` または未指定 | `status_mapping.issue.in_progress: "In Progress"` のような name 文字列で lookup。 v1.3 までと同じ |
+| **type-based** (v1.8+) | `use_type: true` | `status_mapping.issue.in_progress: "started"` のような type enum で lookup。 ロケール非依存 |
+
+**type enum 一覧** (Issue / Project 共通):
+
+- `backlog` — まだ着手していない、 優先度未確定
+- `unstarted` — 着手可能だが未着手 (Linear 用語 "Todo")
+- `started` — 着手中 (Linear 用語 "In Progress" / "進行中")
+- `completed` — 完了 (Linear 用語 "Done" / "完了")
+- `canceled` — 中止・破棄
+
+**運用ガイド**:
+
+- 多国籍 team、 workspace 言語切替リスクのある環境では `use_type: true` 推奨
+- 単一言語 workspace で「Released」「Shipped」のような custom name を使う team は `use_type: false` (name-based) のまま、 fallback chain (`Released → Done → Completed`) で吸収
+- mode 切替時は `mcp__plugin_linear_linear__list_issue_statuses` で実際の `(name, type)` pair を確認してから yaml 更新
+
+**type-based 時の挙動**:
+
+1. `list_issue_statuses` で取得した state 配列から `type === yaml.status_mapping.issue.<key>` で match
+2. 同一 type の state が複数ある場合 (Linear で許容) は **最初の 1 件** を採用、 sync_state.json の `notes[]` に「複数候補から first match を採用」を記録
+3. type が存在しない場合は VALIDATION error として fallback chain (yaml.status_mapping.fallback) 試行
 
 ## Linear data model
 
@@ -122,6 +161,17 @@ Linear Project の description に以下の構造を使う:
 - **完了条件**: **必須セクション**、 最低 2 項目、 全項目 `- [ ]` 形式 (checkbox markdown)
 - **スコープ外**: 任意セクションだが、 空なら `- なし` を明示する
 
+**List bullet 正規化 (v1.8+)**:
+完了条件 / スコープ外 等の list bullet は markdown 的に `-` / `*` どちらも valid。
+Linear 側で description を保存すると `-` → `*` (または逆) に正規化されるケースがある
+(workspace 設定や client によって差分発生)。
+
+- skill 規約: **両許容**、 parse 時に内部で `-` に正規化してから処理
+- write 時の preview / draft は `-` 形式で統一表記
+- read 時に `*` が混在していても warning を出さない (false positive 防止)
+- 「正規化前 description と正規化後 description の文字列 diff」 を理由に skill が
+  rewrite 提案するのは **禁止** (空 diff として扱う)
+
 ## AI agent operations
 
 ### (A) Read — project を読む
@@ -163,16 +213,43 @@ dog food (Phase 1-6 + Phase 4-4) で parse status の暗黙挙動が混乱を生
 1. ユーザー要求から Who / What / Why を identify
    不足なら質問返し (例: "誰のためですか?")
 2. Template に従って draft description を構築
-3. ★ ユーザーに preview を見せて承認待ち
+3. ★ AI 補完箇所 confirmation table を出力 (v1.8+ 必須)
+   ユーザー要求にない情報を AI が推定・補完した箇所を以下 table 形式で
+   全て列挙する。 table が空 (= 100% ユーザー入力) でも空 row として明示
+4. ★ ユーザーに preview を見せて承認待ち
    (Gate respect — AI 単独で project 作成は禁止、 必ず human-in-the-loop)
-4. 承認後 mcp__plugin_linear_linear__save_project で create
-5. project ID 返却、 次は issue 分解 (linear-issue-workflow に handoff)
+   preview には step 3 の table も含める
+5. 承認後 mcp__plugin_linear_linear__save_project で create
+6. project ID 返却、 次は issue 分解 (linear-issue-workflow に handoff)
 ```
+
+**AI 補完箇所 confirmation table の形式 (v1.8+ 必須)**:
+
+```markdown
+### AI が補完・推定した箇所
+
+| 項目 | 元の自然文 | AI が推定した内容 | 確認したいこと |
+|---|---|---|---|
+| Who | "全エンジニアが対象" | "Engineering チーム (約 12 名)、 特に backend developer 6 名" | 人数感は合っていますか? 別 audience を含めるべきですか? |
+| 完了条件[2] | (なし、 自然文に言及なし) | "deploy 結果が Slack #eng-deploy に通知される" | この通知チャネルで合っていますか? |
+| スコープ外[1] | (なし) | "production deploy への適用" | 別 project で扱う想定で OK ですか? |
+```
+
+- table が空 (全 field が user 入力からそのまま) でも、 `(なし、 全 field user 入力)`
+  を 1 row として記載 (省略不可)
+- 列順序固定: `項目 / 元の自然文 / AI が推定した内容 / 確認したいこと`
+- 「元の自然文」 column は対応する自然文断片を引用、 該当なしなら `(なし)`
+- 「確認したいこと」は ユーザーが Yes/No or 短文で答えられる粒度の質問形式
+
+dog food (Phase 1-2) で skill が自発的にこの table を出した挙動が
+非常に valuable だったため、 v1.8 で **必須化**。 ユーザーが AI 推定箇所を
+点検できる audit point になる。
 
 Write 時の品質チェック:
 
 - 5 fields 全て埋まっているか
 - Field 制約 (文字数、 動詞含有、 checkbox 形式) を満たすか
+- AI 補完箇所 table が出力されているか (v1.8+)
 - 不適合があれば re-draft (修正版を再 preview)
 
 ### (C) Update — project を更新する
@@ -198,8 +275,16 @@ Write 時の品質チェック:
      (ID 解決不要、 dog food で実証済み)
    - linear-project-tracker と協調 (重複OK、 ただし sync_state.json で
      「最後の遷移」を記録して二重遷移を避ける)
-   - 副作用: `started` 状態への遷移で `startedAt` / `startDate` が自動セット
-     → sync_state.json の side_effects[] に記録
+   - **副作用記録は必須 (v1.8+)**: 遷移直後の `save_project` / `save_issue` response から
+     以下 field を読み取り、 変動があれば **必ず** sync_state.json の `side_effects[]`
+     に記録する:
+     - `started` 遷移: `startedAt` / `startDate` (Linear API が自動セット)
+     - `completed` 遷移: `completedAt`
+     - `canceled` 遷移: `canceledAt`
+     - その他: API response に含まれる timestamps の差分
+   - side_effects entry の形式: `{at, transition: "<from>→<to>", field, value, source: "linear-api-response"}`
+   - 記録省略は silent corruption (後の同期で diff が説明できなくなる) の原因。
+     skill 全体規約として「Status 遷移 = side_effects 記録 1 set」をペアで扱う
 4. artifacts/linear/projects/<project_id>/sync_state.json (v1.3 命名規約) に記録:
    - 命名: `artifacts/linear/projects/<project_id>/sync_state.json`
      (issue は `artifacts/linear/issues/<issue_id>/sync_state.json`)
