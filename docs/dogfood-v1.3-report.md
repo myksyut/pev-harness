@@ -34,7 +34,7 @@ Phase 1-5 全 sub-phases を実機で完走し、 **28 件の skill spec gap** �
 |---|---|---|---|
 | H1 | Preflight check 不在 → silent corruption リスク (`.linear-config.yml` 不在 / team.id 不一致 / status workflow 未確認) | P4-1, P4-2, P4-3 | `linear-project-workflow` に Preflight 節追加 (4 step) |
 | H2 | MCP error 分類表 + fallback 規約が不在 (404 / PERMISSION_DENIED / GraphQL errors[] / RATE_LIMIT 等の挙動定義なし) | P2-5, P4-5 | 6 種別 error × skill 挙動 × retry budget の表を `linear-project-workflow` + `pev-linear-sync` に追加 |
-| H3 | `artifacts/linear/` 命名規約混在 (UUID dir / identifier.json)、 `sync_state.json` schema 未定義 | P2-3 | `artifacts/linear/{issues|projects}/<id>/sync_state.json` に統一、 `schemas/linear-sync-state.json` で JSON Schema 固定 |
+| H3 | `artifacts/linear/` 命名規約混在 (UUID dir / identifier.json)、 `sync_state.json` schema 未定義 | P2-3 | `artifacts/linear/issues/` と `artifacts/linear/projects/` の二系統に統一、 `schemas/linear-sync-state.json` で JSON Schema 固定 |
 | H4 | `save_comment` (issue 必須) と `save_status_update` (workspace 設定依存) で project 直接 comment 不可 | P1-4 | `linear-project-workflow` Update (C) に 4 段階代替パス (子 issue 経由 → status_update → description embed → skip) |
 
 ### 🟡 Medium priority (5 件 — v1.3 で反映済み)
@@ -56,7 +56,7 @@ Phase 1-5 全 sub-phases を実機で完走し、 **28 件の skill spec gap** �
 | L3 | AI 補完箇所の "要確認" 提示 pattern (Phase 1-2) が valuable で規約化候補 | P1-2 | `linear-project-workflow` Write spec に「AI が補完した箇所の確認 table」を必須化 |
 | L4 | parent project context inject pattern を planner 規約に昇格 | P3 | `agents/planner.md` に「Linear-sourced input セクション」拡張、 Upper-AC として project context を活用 |
 | L5 | `plan.expectFail: true` harness flag (dog food fixture 用) | P2-4 | retry-loop を skip して即 escalate path を test できる flag |
-| L6 | スコープ外で `* ` / `- ` 両許容を明示 (Linear が markdown 正規化する場合あり) | P1-1 | spec で「両許容、 parse 時は正規化」と一行明記 |
+| L6 | スコープ外で `*` / `-` 両許容を明示 (Linear が markdown 正規化する場合あり) | P1-1 | spec で「両許容、 parse 時は正規化」と一行明記 |
 
 ### 🟢 確認できた良挙動 (実機実証)
 

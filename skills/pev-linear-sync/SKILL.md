@@ -103,7 +103,7 @@ inbound 失敗時 (404 / network / validation 等) の合図:
    | `priority` | Estimated task budget の調整 (Urgent: +50%, Low: -30%) |
    | `assignee` | recap.log の actor 表示用 |
 
-4. `artifacts/linear/` ディレクトリを作成:
+5. `artifacts/linear/` ディレクトリを作成:
 
    ```text
    artifacts/linear/
@@ -112,7 +112,7 @@ inbound 失敗時 (404 / network / validation 等) の合図:
    └── sync_state.json       # inbound_at / last_outbound_at / status
    ```
 
-5. 通常 PEV flow (planner起動) に流す。 planner は spec template を team-conventions.md と組み合わせて plan.md を生成。
+6. 通常 PEV flow (planner起動) に流す。 planner は spec template を team-conventions.md と組み合わせて plan.md を生成。
 
 ### Direction 2: Outbound success (PASS verdict)
 
