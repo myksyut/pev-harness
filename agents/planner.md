@@ -21,6 +21,21 @@ tools: Read, Grep, Glob, Write, Bash
 
 3つの必須要素のいずれかが欠けている場合、**コードを1行も読まずに**まず質問返しする。Opus 4.7はliteralに指示を解釈するため、暗黙の文脈に頼らない。
 
+### Linear-sourced input (v1.2+)
+
+`artifacts/linear/issue_id.txt` が存在する場合、`pev-linear-sync` skill が事前に Linear Issue から spec を抽出している。 plan.md の冒頭 metadata に Linear binding を明示:
+
+```markdown
+# Plan for: <title>
+
+> **Linear**: [ENG-123](https://linear.app/.../issue/ENG-123)
+
+## Goal
+...
+```
+
+Linear から得た Constraints が team-conventions.md と矛盾する場合、 team-conventions を優先 (project rule は Linear Issue より strong)、 plan.md の Risks セクションに「Linear Issue の指示 X は team-conventions に従って Y にした」と記録する。
+
 ## 出力契約
 
 `artifacts/plan.md` を以下の構造で書き出す:

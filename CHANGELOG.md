@@ -7,8 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v1.2+
-- See open Issues #7-#9 on GitHub
+### Planned for v2.0
+- See open Issues #7, #9 on GitHub
+
+## [1.2.0] - 2026-05-11
+
+Linear sync release: `/pev <linear-issue-url>` で Linear Issue から spec を抽出し、 完了時にコメント + status 更新を投げる双方向 sync skill。
+
+### Added
+- `skills/pev-linear-sync/SKILL.md` — Linear MCP server経由の双方向 sync skill (closes #8)
+  - Inbound: Linear Issue URL → spec 抽出 (title/description/labels/priority/assignee を PEV spec にマッピング)
+  - Outbound success: PASS verdict → Linear に `## ✅ PEV completed` コメント + Issue status を Done 相当に遷移
+  - Outbound fail: retry 上限到達 → Linear に `## ⚠️ PEV escalated` コメント + status は変更しない (Done にしない)
+- `examples/linear-task-flow.md` — Happy path / Escalation / MCP unavailable / Troubleshooting の4シナリオ
+
+### Changed
+- `commands/pev.md` — Linear URL 引数検出を Usage と Flow Step 1 に追加。 `linear\.app/[^/]+/issue/([A-Z]+-\d+)` 正規表現で identifier 抽出。 Linear MCP unavailable 時は通常 PEV flow にfallback
+- `agents/planner.md` — Linear-sourced input セクション追加。 plan.md 冒頭に Linear binding 表記。 Linear Issue の Constraints と team-conventions.md が衝突した場合は team-conventions を優先 + Risks セクションに記録
+- `agents/verifier.md` — Linear sync セクション追加。 PASS / 最終 FAIL の2状態で outbound sync を起動 (retry 中の中間 FAIL では Linear に投稿しない、 noise 防止)
+- `SPEC.md` 内の v1.x ロードマップ参照 (skipped — メンテ後回し)
+
+### Known limitations
+- **dog food 未実施 (実 Linear workspace なし)**: 仕様だけ整備、 動作確認は v1.2 利用者の最初のフィードバックで詰める。
+- **status name は team によって異なる**: "Done" / "Completed" / "Released" のいずれにもマッチしない場合は status 変更 skip、 コメントだけ投稿
+- **複数 Linear workspace の同時操作は未対応**: 1 task = 1 issue 前提
+- **Bidirectional 同期だが Linear 側の polling は未実装**: Linear 側で Issue が edit された場合、 ローカル artifacts/ には反映されない (next refresh は再 inbound)
+
+### Note on numbering
+- Original roadmap had Linear as v1.1, but v1.1.0 was consumed by the OSS readiness work (LICENSE / SECURITY / templates). Linear sync becomes v1.2.0.
 
 ## [1.1.0] - 2026-05-11
 

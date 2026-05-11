@@ -50,6 +50,16 @@ tools: Read, Bash, Grep, Glob, Write
 - 自動リトライは最大3回 (`PEV_MAX_RETRIES`)
 - リトライ時は plan.md + diff + verify.json を planner に渡す
 
+## Linear sync (v1.2+)
+
+`artifacts/linear/issue_id.txt` が存在する場合、`pev-linear-sync` skill 経由で Linear Issue にコメント投稿する:
+
+- **verdict=PASS**: outbound success comment + Issue status を Done 相当に遷移
+- **verdict=FAIL & retry_count >= PEV_MAX_RETRIES**: outbound fail comment (escalation summary) + status は変更しない
+- **verdict=FAIL & retry_count < PEV_MAX_RETRIES**: Linear には投稿しない (retry中なので noise になる)
+
+Linear MCP tool (`mcp__plugin_linear_linear__save_comment` / `save_issue`) が unavailable な場合、 verify.json への記録は完了させた上で warning メッセージのみ。
+
 ## --strict モード
 
 `pev-dual-review` skill が起動された場合の責務:

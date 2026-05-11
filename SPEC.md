@@ -296,8 +296,9 @@ Reviewer 2人とも Claude (model alias で多様性):
 | v0.4 | pev-dual-review (Claude single, model alias) | A=Opus / B=Sonnet 並列実行 | ✅ released |
 | v0.5 | pev-team-conventions auto-injection | チーム規約自動注入 | ✅ released |
 | v0.6 | Gate A enforcement (3層防御) | planner が Gate A を bypass しない | ✅ released |
-| **v1.0** | ロールアウト準備完了 (ONBOARDING / ROLLOUT-CHECKLIST / FEEDBACK-TEMPLATE) | **3 チーム展開 + フィードバック収集 (Issue #7 open)** | ✅ released, rollout pending |
-| v1.1 | **pev-linear-sync skill** | Linear Issue ↔ artifacts 双方向同期 | Issue #8 |
+| **v1.0** | ロールアウト準備完了 (ONBOARDING / ROLLOUT-CHECKLIST / FEEDBACK-TEMPLATE) | **3 signals 収集 (Issue #7 open)** | ✅ released, signals pending |
+| v1.1 | OSS readiness (LICENSE / SECURITY / templates / public flip) | private → public 完了 | ✅ released |
+| **v1.2** | **pev-linear-sync skill** | Linear Issue ↔ artifacts 双方向同期 | ✅ released |
 | v2.0 | 外部model対応 (MCP server経由) | OpenAI/Gemini MCP統合 | Issue #9 |
 
 ---

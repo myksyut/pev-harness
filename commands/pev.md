@@ -10,14 +10,29 @@ PEV harnessのメインコマンド。Plan → Execute → Verify を順に実�
 
 ```text
 /pev <task description>
-/pev <task> --strict       # dual review有効化
-/pev <task> --parallel     # 独立ファイル変更を並列実行
-/pev <linear-issue-url>    # (v1.x) Linear Issueから自動展開
+/pev <task> --strict                 # dual review有効化
+/pev <task> --parallel               # 独立ファイル変更を並列実行
+/pev <linear-issue-url>              # Linear Issueから自動展開 (v1.2+)
+/pev <linear-issue-url> --strict     # 上記 + dual review
 ```
+
+## Linear URL 検出 (v1.2 で追加)
+
+引数が以下の正規表現にマッチする場合、`pev-linear-sync` skill (inbound) が起動して Linear Issue → spec を構築する:
+
+```regex
+linear\.app/[^/]+/issue/([A-Z]+-\d+)
+```
+
+抽出した identifier (例: `ENG-123`) を `artifacts/linear/issue_id.txt` に保存。`pev-spec-template` をスキップして直接 planner に Linear-sourced spec を渡す。
+
+Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済みであることが前提。 不在時は warning を出して通常 flow にfallback。
 
 ## フロー
 
-1. `pev-spec-template` skill で入力を整形 (Goal/Constraints/AC不足なら質問返し)
+1. **引数判定**:
+   - Linear URL → `pev-linear-sync` inbound + plan
+   - 自然文 → `pev-spec-template` で Goal/Constraints/AC 整形 (不足要素は質問返し)
 2. **Phase 1 (Plan)**: planner agent → `artifacts/plan.md`
 3. **Gate A**: `permissionMode` 判定で auto / 停止 / 終了 を分岐
 4. **Phase 2 (Execute)**: executor agent → コード変更 + `artifacts/execute.log`
