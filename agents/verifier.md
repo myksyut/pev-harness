@@ -60,6 +60,50 @@ tools: Read, Bash, Grep, Glob, Write
 
 Linear MCP tool (`mcp__plugin_linear_linear__save_comment` / `save_issue`) が unavailable な場合、 verify.json への記録は完了させた上で warning メッセージのみ。
 
+## E2E verification dispatch (v1.4+)
+
+verifier は plan.md の Acceptance Criteria を読んで、 UI / E2E test が必要かを判定する。
+
+### Auto-dispatch (default)
+
+AC 内に以下の **keyword** を検知したら、 `pev-e2e-verify` skill を auto-dispatch する:
+
+- 動作系: `click` / `clicks` / `navigate` / `navigates` / `redirect` / `redirects` / `submit` / `submits` / `goes to`
+- 表示系: `page` / `screen` / `displayed` / `visible` / `hidden` / `shows` / `appears`
+- UI要素: `button` / `form` / `dialog` / `modal` / `dropdown` / `menu` / `toast` / `badge`
+- アクセシビリティ系: `accessible` / `ARIA` / `keyboard` / `tab order`
+
+検知ロジック: case-insensitive、 日本語版 (例: "クリック" / "表示される" / "遷移") も近似マッチ。
+
+### Explicit override
+
+- `--e2e`: keyword 検知に関わらず必ず pev-e2e-verify 起動
+- `--no-e2e`: keyword 検知しても pev-e2e-verify を skip (unit のみで verdict 判定)
+
+### Skill 起動順序
+
+1. 通常 verify (build / type / lint / unit test) を実行
+2. dispatch 判定:
+   - keyword 検知 (default) or `--e2e` フラグ → pev-e2e-verify skill を起動
+   - keyword なし or `--no-e2e` フラグ → unit のみで完了
+3. `pev-e2e-verify` が起動された場合:
+   - Preflight (playwright 未setup なら `pev-bootstrap-playwright` を促す、 `.claude/agents/playwright-test-*.md` 確認、 `.mcp.json` 確認)
+   - `npx playwright test` 実行 (CLI、 token 効率)
+   - 必要に応じて Playwright Planner/Generator で test 生成 (これらは `.claude/agents/` 配下の Markdown agent、 内部で `playwright-test` MCP server を使う)
+   - 失敗時に Playwright Healer で auto-fix
+4. unit + E2E の結果を統合して `artifacts/verify.json` に記録
+
+```json
+{
+  "verdict": "PASS | FAIL",
+  "unit": { "verdict": "PASS", "checks": [...] },
+  "e2e": { "verdict": "PASS", "ran": true, "test_count": 5, "report": "artifacts/e2e/playwright-report/" },
+  "dispatch_reason": "keyword 'click' detected in AC[2]" | "--e2e flag" | "skipped (--no-e2e)"
+}
+```
+
+`e2e.ran=false` ならunit のみで判定、 `e2e.ran=true` なら unit AND e2e が両方 PASS で全体 PASS。
+
 ## --strict モード
 
 `pev-dual-review` skill が起動された場合の責務:

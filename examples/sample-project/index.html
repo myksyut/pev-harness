@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PEV harness sample</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; }
+    h1 { color: #333; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; cursor: pointer; margin-right: 0.5rem; }
+    #result { margin-top: 1rem; padding: 1rem; background: #f0f0f0; border-radius: 4px; min-height: 1.5em; }
+  </style>
+</head>
+<body>
+  <h1>PEV harness sample</h1>
+  <p>Minimal fixture for E2E verification dog food.</p>
+
+  <div>
+    <button id="add-btn">Add 2 + 3</button>
+    <button id="sub-btn">Subtract 5 - 3</button>
+  </div>
+  <div id="result"></div>
+
+  <script type="module">
+    import { add, subtract } from './src/index.js';
+    document.getElementById('add-btn').addEventListener('click', () => {
+      document.getElementById('result').textContent = `add(2, 3) = ${add(2, 3)}`;
+    });
+    document.getElementById('sub-btn').addEventListener('click', () => {
+      document.getElementById('result').textContent = `subtract(5, 3) = ${subtract(5, 3)}`;
+    });
+  </script>
+</body>
+</html>

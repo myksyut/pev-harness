@@ -299,6 +299,8 @@ Reviewer 2人とも Claude (model alias で多様性):
 | **v1.0** | ロールアウト準備完了 (ONBOARDING / ROLLOUT-CHECKLIST / FEEDBACK-TEMPLATE) | **3 signals 収集 (Issue #7 open)** | ✅ released, signals pending |
 | v1.1 | OSS readiness (LICENSE / SECURITY / templates / public flip) | private → public 完了 | ✅ released |
 | **v1.2** | **pev-linear-sync skill** | Linear Issue ↔ artifacts 双方向同期 | ✅ released |
+| **v1.3** | **Linear integration hardening** | 28 dog food findings 反映、 linear-project-tracker 新設 | ✅ released |
+| **v1.4** | **E2E verification (Playwright CLI)** | pev-e2e-verify + pev-bootstrap-playwright skills、 verifier に dispatch logic | ✅ released |
 | v2.0 | 外部model対応 (MCP server経由) | OpenAI/Gemini MCP統合 | Issue #9 |
 
 ---

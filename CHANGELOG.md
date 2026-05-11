@@ -7,8 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v1.4+
-- See open Issues for v1.4 (Low priority dog food findings)、 v2.0 (Issue #9)
+### Planned for v1.5+
+- v1.3 dog food findings の Low 6 件 (Issues #13-#18) を順次反映
+- v2.0 (Issue #9): External model support via MCP
+
+## [1.4.0] - 2026-05-11
+
+E2E verification release. Playwright CLI ベースの E2E verify を `verifier` agent に dispatch logic で統合、 Playwright が出荷する `playwright-test` agents (planner/generator/healer) を reference して test 生成・修復は委譲する設計。
+
+### Added
+- `skills/pev-e2e-verify/SKILL.md` — Playwright CLI で E2E test 実行、 AC keyword 検知 + --e2e フラグで dispatch、 artifacts/e2e/ に結果保存。 token 効率のため MCP ではなく CLI を採用 (~75% コンテキスト節約、 公式推奨)
+- `skills/pev-bootstrap-playwright/SKILL.md` — 新規プロジェクトの Playwright 5-step setup (npm install / browser binary / config / seed test / init-agents)
+- `commands/pev-verify-e2e.md` — explicit E2E verify invocation
+- `commands/pev-init-e2e.md` — explicit bootstrap invocation
+- `examples/sample-project/` を Playwright fixture 化:
+  - `index.html` (minimal page、 add/subtract ボタン)
+  - `playwright.config.ts` (testDir / webServer / reporter)
+  - `tests-e2e/seed.spec.ts` (3 test cases、 Playwright agents の前提)
+  - `vitest.config.js` (unit と E2E の scope 分離)
+  - `.gitignore` (artifacts/e2e/ 等を除外)
+  - `package.json` に `@playwright/test` / `http-server` を追加
+  - `npx playwright init-agents --loop=claude` で `.claude/agents/playwright-test-{planner,generator,healer}.md` + `.mcp.json` + `specs/README.md` 自動生成
+
+### Changed
+- `agents/verifier.md` — E2E dispatch logic 追加:
+  - AC 内の UI/E2E keyword (`click`, `navigate`, `page`, `button`, `form`, etc.) を auto-detect → pev-e2e-verify skill auto-dispatch
+  - `--e2e` フラグで明示起動、 `--no-e2e` で skip
+  - verify.json に `unit` / `e2e` / `dispatch_reason` を分けて記録
+- `agents/verifier.md` Linear sync section と並列に E2E section 追加
+
+### Verified via dog food (sample-project)
+- ✅ `npx playwright init-agents --loop=claude` 実機動作確認 (Playwright 1.59.1)
+- ✅ `.claude/agents/playwright-test-{planner,generator,healer}.md` 生成、 各 agent definition の `tools:` field に `mcp__playwright-test__*` (browser_click / browser_navigate / planner_save_plan / generator_write_test 等) が listed
+- ✅ `.mcp.json` で `playwright-test` MCP server (`npx playwright run-test-mcp-server`) 設定が自動生成
+- ✅ `npx playwright test`: 3/3 PASS (webServer auto-start + http-server + chromium、 1.5s)
+- ✅ `npm test` (vitest): 4/4 PASS (vitest.config.js で tests-e2e/ を exclude、 cohabitation OK)
+
+### Spec correction (公式 doc とのずれ)
+- 公式 docs では Playwright agents が `.github/` 配下に生成されると記載があるが、 v1.59.1 では `.claude/agents/` に出力される。 pev-harness 関連 skill / command / verifier の記述を実装側の挙動 (`.claude/agents/`) に修正。
+
+### Design decisions
+- **CLI 採用** (MCP 不採用): ~75% コンテキスト節約。 Playwright公式 + TestDino / TestCollab benchmark を根拠。 ただし Playwright agents 自体は `playwright-test` MCP server を内部で使う (公式効率設計、 pev-harness 側で MCP 用意は不要)。
+- **責務分離**: pev-harness は dispatch + test 実行 (CLI) + artifact collection。 test 生成 / 修復は Playwright agents に委譲。
+- **AC keyword auto-detect + explicit flag override**: default は自動、 user が `--e2e` / `--no-e2e` で override 可。
+- **sample-project fixture extension**: 既存 unit test と E2E を共存、 Vite なしの静的 HTML + http-server で minimal footprint。
 
 ## [1.3.0] - 2026-05-11
 
