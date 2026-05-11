@@ -72,6 +72,11 @@ AC 内に以下の **keyword** を検知したら、 `pev-e2e-verify` skill を 
 - 表示系: `page` / `screen` / `displayed` / `visible` / `hidden` / `shows` / `appears`
 - UI要素: `button` / `form` / `dialog` / `modal` / `dropdown` / `menu` / `toast` / `badge`
 - アクセシビリティ系: `accessible` / `ARIA` / `keyboard` / `tab order`
+- QA 技法 trigger (v1.5+、 pev-test-design 同時起動):
+  - 数値・範囲系: `1〜N`、 `between A and B`、 `min/max`、 `limit`、 `range`、 `人数`、 `件数`
+  - 状態系: `状態`、 `権限`、 `permission`、 `role`、 `enabled/disabled`、 `active/inactive`
+  - 多条件系: `or`、 `and`、 `かつ`、 `または`、 `if`、 `when`
+  - 失敗系: `error`、 `失敗`、 `timeout`、 `retry`、 `rollback`
 
 検知ロジック: case-insensitive、 日本語版 (例: "クリック" / "表示される" / "遷移") も近似マッチ。
 
@@ -91,6 +96,12 @@ AC 内に以下の **keyword** を検知したら、 `pev-e2e-verify` skill を 
    - `npx playwright test` 実行 (CLI、 token 効率)
    - 必要に応じて Playwright Planner/Generator で test 生成 (これらは `.claude/agents/` 配下の Markdown agent、 内部で `playwright-test` MCP server を使う)
    - 失敗時に Playwright Healer で auto-fix
+
+4. `pev-test-design` が起動された場合 (v1.5+):
+   - planner が plan.md の "Test design analysis" section に書いた派生テスト観点を read
+   - 各観点 (同値分割の代表値 / 境界値 / デシジョンテーブル / 状態遷移 / エラー推測 / チェックリスト) を AC 同様に check
+   - verify.json の `qa_derived_checks[]` に結果を記録 (technique / case / result / evidence)
+   - 派生観点の失敗は AC 失敗と同じ重み (verdict=FAIL の判定材料)
 4. unit + E2E の結果を統合して `artifacts/verify.json` に記録
 
 ```json
@@ -98,7 +109,11 @@ AC 内に以下の **keyword** を検知したら、 `pev-e2e-verify` skill を 
   "verdict": "PASS | FAIL",
   "unit": { "verdict": "PASS", "checks": [...] },
   "e2e": { "verdict": "PASS", "ran": true, "test_count": 5, "report": "artifacts/e2e/playwright-report/" },
-  "dispatch_reason": "keyword 'click' detected in AC[2]" | "--e2e flag" | "skipped (--no-e2e)"
+  "qa_derived_checks": [
+    {"technique": "boundary", "case": "input 0", "result": "PASS", "evidence": "..."},
+    {"technique": "error_guessing", "case": "double submit", "result": "PASS", "evidence": "..."}
+  ],
+  "dispatch_reason": "keyword 'click' detected in AC[2]" | "--e2e flag" | "skipped (--no-e2e)" | "qa-trigger 'range' in AC[0]"
 }
 ```
 

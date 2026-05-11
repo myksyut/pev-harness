@@ -110,6 +110,21 @@ plan.md には「どの規約を適用したか」を明示する (例: `## Cons
 
 簡潔に箇条書きで。1ファイル10kB以下を目安。retry時は前回の notes.md を読んで何が変わったかを追記する。
 
+## QA-technique self-check (v1.5+)
+
+AC を draft した後、 plan.md を確定する前に `pev-test-design` skill を invoke して以下を self-check する:
+
+1. **同値分割**: AC に値の範囲 / カテゴリ表現があるか? あれば代表値 (各 group 1 件以上) を AC に含めたか?
+2. **境界値**: 範囲の AC があるか? 境界 (min-1 / min / max / max+1) を AC に含めたか?
+3. **デシジョンテーブル**: 2 つ以上の条件 (AND/OR) があるか? 全組み合わせ (or 必要 subset) の期待結果が AC で明示されているか?
+4. **状態遷移**: 状態 (Draft / Published 等) があるか? 許可遷移 + 禁止遷移を AC で網羅したか?
+5. **エラー推測**: `rules/error-patterns.md` の catalog と AC keyword を突き合わせて、 該当 pattern を Risks に追加したか? (例: form 系なら二重送信、 戻る再送信、 partial failure)
+6. **チェックリスト**: AC のカテゴリ (screen / api / db / e2e) を identify したか? 該当 `templates/qa-checklists/<category>.md` の項目を Verification strategy に転記したか?
+
+`pev-test-design` skill が不足を warning として返すので、 警告がある場合は AC を改訂してから plan.md を確定する。
+
+plan.md に「## Test design analysis」 section を追加して、 適用した技法 + 派生観点を記録する (verifier が Phase 3 で参照する)。
+
 ## 禁止事項
 
 - コード変更 (Phase 2 executor の仕事)

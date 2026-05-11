@@ -7,9 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v1.5+
-- v1.3 dog food findings の Low 6 件 (Issues #13-#18) を順次反映
+### Planned for v1.6+
+- v1.3 dog food findings の Low 6 件 (Issues #13-#18)
 - v2.0 (Issue #9): External model support via MCP
+
+## [1.5.0] - 2026-05-11
+
+QA technique integration release. AC を 6 つの古典 QA 技法で分析して派生テスト観点を自動生成する `pev-test-design` skill 追加。 「AI で実装は速くなるが、テスト観点設計の質が品質を決める」 (frontline/外山, Zenn 2026-05-06) の知見を反映。
+
+### Added
+- `skills/pev-test-design/SKILL.md` — 6 QA技法 (同値分割 / 境界値分析 / デシジョンテーブル / 状態遷移 / エラー推測 / チェックリスト) を AC に適用、 不足検出 + 派生観点提案。 planner Phase 1 で AC レビュー、 verifier Phase 3 で派生 check として動く。
+- `rules/error-patterns.md` — エラー推測 catalog (12 patterns: 二重送信 / 戻る再送信 / partial failure / timeout / race condition / 巨大 payload / XSS / SQL injection / 認可漏れ / empty edge case / 文字コード / time zone)
+- `templates/qa-checklists/screen.md` — 画面実装 verify 観点 template (正常系 / バリデーション / ローディング / 権限 / エラー / データ整合性 / a11y / responsive / performance / console)
+- `templates/qa-checklists/api.md` — API endpoint verify 観点 (contract / happy path / バリデーション / 認証認可 / rate limiting / concurrency / performance / security / error handling / observability / versioning)
+- `templates/qa-checklists/db.md` — DB migration verify 観点 (migration safety / schema integrity / performance / data integrity / backward compat / security / rollback plan)
+- `templates/qa-checklists/e2e.md` — E2E user flow verify 観点 (user journey / auth / form workflows / payment / multi-step wizard / realtime / mobile / cross-browser / performance / a11y)
+
+### Changed
+- `agents/planner.md` — "QA-technique self-check" section 追加: AC draft 後、 plan.md 確定前に 6 技法を self-check + plan.md に "## Test design analysis" section 追記
+- `agents/verifier.md` — QA-trigger keyword 追加 (`range` / `1〜N` / `状態` / `権限` / `error` / `失敗` 等)、 `pev-test-design` 起動時の dispatch logic 追加、 verify.json に `qa_derived_checks[]` field 追加
+
+### Design rationale
+- **6 技法の選定**: frontline 外山記事 (Zenn 2026-05-06) で取り上げられた古典 QA 技法を採用、 業界共通理解として安定。
+- **AC 不足の自動検出**: 「テスト書いて」ではなく「観点を整理してからテスト」が AC 段階で実現できるよう、 planner self-check に組み込み。
+- **エラー推測 catalog の集中管理**: rules/ 配下に置き、 team-conventions.md で team-specific pattern を追加可能。
+- **チェックリスト templates の library 化**: 4 カテゴリ (screen / api / db / e2e) で start、 team が project 固有 template を追加可能。
+- **既存 verifier dispatch logic と統合**: v1.4 E2E dispatch と同じ仕組みで keyword auto-detect、 `--e2e` 等と同レベルの override は今は無し (将来 `--no-qa-design` 等を検討)。
+
+### Reference
+- 外山@frontLineLLC, ["AI駆動開発時代に、おさえておきたいQA技法"](https://zenn.dev/frontline/articles/3a912df20d9210), Zenn (2026-05-06)
 
 ## [1.4.0] - 2026-05-11
 
