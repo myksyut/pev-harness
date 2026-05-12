@@ -13,10 +13,22 @@ Claude Opus 4.7時代のコーディングハーネス。Plan-Execute-Verify (PE
 | # | 原則 | 反対パターン |
 |---|---|---|
 | **P1** | **Single source of truth** — 1 phaseに1 agent / 1 skill。重複させない | "continuous-learning" と "continuous-learning-v2" の並立 |
-| **P2** | **4.7-native** — xhigh / adaptive thinking / task budget / auto modeを前提 | 4.6以前のscaffolding（"step by step"等）を一切書かない |
-| **P3** | **No backwards compat** — レガシー考慮ゼロ。Claude Code v2.1.111+ 必須 | 新旧両対応の分岐コード |
+| **P2** | **4.7-native** — xhigh / adaptive thinking / task budget / auto modeを前提 | 4.6以前のscaffolding (`"step by step"` 等) を **prompt 本文** に書く |
+| **P3** | **No backwards compat** — レガシー考慮ゼロ。Claude Code v2.1.111+ (社内検証で確認、 公式 1次情報での明示なし) | 新旧両対応の分岐コード |
 | **P4** | **Convention over configuration** — settings.jsonデフォルトで動く | 環境変数を10個要求するhook |
-| **P5** | **Hook-driven verification** — 検証はpromptに頼らずhookで強制 | "verify before returning" を agent prompt に書く |
+| **P5** | **External verification mechanism** — 検証は agent prompt の自己宣言ではなく、 外部仕組み (hook / skill / test runner) で担保する | "verify before returning" を agent prompt に書く |
+
+### 1次情報根拠 (v2.1.2 追記)
+
+各原則の Anthropic 公式 1次情報 (B1=[blog 2026-04-16](https://claude.com/blog/best-practices-for-using-claude-opus-4-7-with-claude-code), B2=[what's new 4.7](https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-7), B3=[task budgets](https://platform.claude.com/docs/en/build-with-claude/task-budgets), B4=Boris/Cat Wu 投稿) との対応:
+
+| 原則 | 1次情報根拠 | 補足 |
+|---|---|---|
+| P1 | 直接的記述なし、 PEV-harness 独自原則 | B1 の "more judicious about when to delegate to subagents" と矛盾しない |
+| P2 | xhigh (B1) / adaptive thinking (B1) / task budget (B3 ※Claude Code 非サポート) / auto mode (B4 Tip 1) | 「step-by-step を一切書かない」は **prompt 本文限定の社内規約**。 B1 は thinking hint としての "Think carefully and step-by-step" を実は許容している ([rules/4.7-native.md](./rules/4.7-native.md) §公式 1次情報との関係 参照) |
+| P3 | 1次情報では具体的 version 番号の明示なし。 B1 「If you're an existing Claude Code user but you haven't manually set your effort level, you'll be upgraded to xhigh automatically」 が間接的根拠 | v2.1.111 は社内検証値 |
+| P4 | 直接的記述なし、 汎用設計原則 | — |
+| P5 | B1 「Include tests, screenshots, or expected outputs so Claude can check itself」、 B4 Tip 6 (`/go` skill) | 「hook で強制」は PEV-harness の実装選択 (ADR-005)、 原則レベルでは「外部 verification mechanism」 |
 
 ---
 
@@ -120,33 +132,33 @@ pev-harness/
 ### Phase 1: Plan
 
 agent `agents/planner.md`：
-- `model: opus`, `effort: xhigh`
+- `model: opus`, `effort: xhigh` — 公式 B1 推奨 (「intelligence-sensitive tasks like designing APIs and schemas, migrating legacy code」 が xhigh の sweet spot)
 - tools: Read / Grep / Glob / Write
-- 入力契約: **Goal / Constraints / Acceptance Criteria** (必須)、関連ファイルパス (任意)
+- 入力契約: **Goal / Constraints / Acceptance Criteria** (必須)、関連ファイルパス (任意) — 公式 Cat Wu Tip 2 ([B5](https://x.com/_catwu/status/2044808533905178822)) 「Give Claude Code your full task context upfront」 の直接実装
 - 入力不足時はコード1行も読まずに**まず質問返し**
 - 出力: `artifacts/plan.md`
-- Task budget: 50k tokens (`pev-task-budget` skillで指定)
+- Task budget: 50k tokens (`pev-task-budget` skill で指定、 ただし **Claude Code surface では公式非サポート**、 prompt-level hint のみ。 [B3](https://platform.claude.com/docs/en/build-with-claude/task-budgets) 引用は当該 skill 参照)
 
 ### Phase 2: Execute
 
 agent `agents/executor.md`：
-- `model: sonnet`, `effort: high`
+- `model: sonnet`, `effort: high` — 公式 B1 「Balances intelligence and cost. Choose high if you're running concurrent sessions」 と一致
 - tools: Read / Edit / Write / Bash / Grep / Glob
 - 入力: `artifacts/plan.md` の File-level changes
-- 並列化: 独立した複数ファイル変更がある場合、最大3 executor を同時起動 (`PEV_PARALLEL_EXECUTOR_MAX`)
+- 並列化: 公式 B1 「Spawn multiple subagents in the same turn when fanning out across items or reading multiple files」 に準拠。 **default は直列 1**、 fan-out / independent items が plan.md に明示されている時のみ並列 (上限 3 = `PEV_PARALLEL_EXECUTOR_MAX`、 ADR-004)
 - Subagent memory: `~/.claude/pev/{task_id}/executor-{N}.md`
 
 ### Phase 3: Verify
 
 agent `agents/verifier.md`：
-- `model: sonnet`, `effort: xhigh`
+- `model: sonnet`, `effort: xhigh` — 公式 B1 「xhigh: The best setting for most coding and agentic uses」 と一致
 - tools: Read / Bash / Grep
-- 実行手順 (hard-coded、変更不可):
+- 実行手順 (hard-coded、変更不可) — ADR-008 で「Verifier は engineer ではなく CI runner」 として正当化:
   1. `git diff` で変更取得
   2. plan.md の Verification strategy を実行
   3. Acceptance Criteria を1つずつ ✅/❌ チェック
   4. `artifacts/verify.json` に書き出し
-  5. FAIL あれば planner に diff + 失敗内容を渡してリトライ (最大3回)
+  5. FAIL あれば planner に diff + 失敗内容を渡してリトライ (**最大3回 = 経験則、 1次情報根拠なし**)
 - `--strict` モード: `pev-dual-review` skill が起動し、Reviewer A=Opus 4.7、Reviewer B=Sonnet 4.6 を並列実行
 
 ### Phase Gates
@@ -199,14 +211,15 @@ agent `agents/verifier.md`：
 
 ## 6. Settings (team default)
 
-`settings.json`:
+`settings.json` (v2.1.2 で 公式 schema 準拠化):
 
 ```json
 {
   "model": "claude-opus-4-7",
   "effortLevel": "xhigh",
-  "permissionMode": "default",
-  "skillOverrides": "user-invocable-only",
+  "permissions": {
+    "defaultMode": "default"
+  },
   "env": {
     "PEV_TASK_BUDGET": "100000",
     "PEV_MAX_RETRIES": "3",
@@ -216,8 +229,10 @@ agent `agents/verifier.md`：
 }
 ```
 
-- `permissionMode` のデフォルトは安全側の `default`
+- `permissions.defaultMode` のデフォルトは安全側の `"default"` (v2.1.1 まで top-level `"permissionMode"` だったが、 公式 [settings.md](https://code.claude.com/docs/en/settings.md) で正規 key ではなかったため v2.1.2 で修正)
 - Auto Mode利用者は Shift+Tab でセッション内切替、または `.claude/settings.local.json` で個別上書き
+- B1 「If you're upgrading to the new model, we recommend experimenting with effort rather than just porting over an old setting」 を踏まえ、 session 内で `/effort` 切替も推奨 (default xhigh は出発点)
+- skill auto-invocation 抑止: top-level の独自 field ではなく、 各 SKILL.md の `disable-model-invocation: true` / `user-invocable: false` で個別制御 (v2.1.2 から)
 
 ---
 
@@ -345,7 +360,8 @@ v2.0 で reviewer mode を 4 種に拡張:
 | v1.9 | `/pev-init` project bootstrap command | pev-bootstrap-project skill + 言語検知 (Node/Python/Go/Rust) + team-conventions auto-populate + .gitignore append + interactive prompts + dry-run mode | ✅ released |
 | **v2.0** | **External reviewer (OpenAI Codex CLI) integration** | pev-bootstrap-codex / pev-external-reviewer skill + reviewer mode 4 種 (claude-only/dual-claude/dual-codex/codex-only) + codex-reviewer-output schema + fallback path | ✅ released |
 | **v2.1** | **empirical-prompt-tuning skill 取り込み** | mizchi/skills の empirical-prompt-tuning を skills/empirical-prompt-tuning/ に導入、 skill-finder 削除 (上位互換) | ✅ released |
-| **v2.1.1** | **Plugin Marketplace 配布対応** | `.claude-plugin/marketplace.json` 追加、 plugin.json version 同期、 release procedure 更新 | (current) |
+| v2.1.1 | Plugin Marketplace 配布対応 | `.claude-plugin/marketplace.json` 追加、 plugin.json version 同期、 release procedure 更新 | ✅ released |
+| **v2.1.2** | **Anthropic 公式 best practice 適合性 fix** | `marketplace.json` source `"."` → `"./"` (install 失敗修正) / PreToolUse hook stdin JSON 化 (destructive guard 復活) / settings.json `permissions.defaultMode` 化 / 3 bootstrap skill に `disable-model-invocation` | (current) |
 | v2.2+ | Gemini CLI 対応 / model 自由切替 (planner/executor も外部 model 可) | (TBD) | Issue #9 の continuation |
 
 ---
@@ -353,7 +369,16 @@ v2.0 で reviewer mode を 4 種に拡張:
 ## 12. 設計判断ログ (ADR-like)
 
 ### ADR-001: なぜ3-phase固定か
-plan/execute/verify を強制することで、Opus 4.7のliteral instruction-followingに対し、明示的なフェーズ分割が自然なscaffoldingになる。「考えて、書いて、確かめる」の標準化。
+
+(v2.1.2 で 1次情報根拠を補強)
+
+公式の 4.7 best practice ([B1](https://claude.com/blog/best-practices-for-using-claude-opus-4-7-with-claude-code)) は「最初のターンで意図・制約・受け入れ基準を全部入れる」「one-shot completion を狙う」 という委譲モデルを推奨。 [B5](https://x.com/_catwu/status/2044808533905178822) (Cat Wu Tip 2) は同じ趣旨で「Give Claude Code your full task context upfront: goal, constraints, acceptance criteria in the first turn」 と明言。 PEV-harness はこれを以下の 3 段階で実装する:
+
+- **Phase 1 (Plan)**: B5 の入力契約 (Goal/Constraints/AC) を強制し、 Planner が完全な task brief を生成
+- **Phase 2 (Execute)**: full-context brief を受けた executor が one-shot 実装 (B1 の delegation モデル直接実装)
+- **Phase 3 (Verify)**: B1 「verification を与えよ」 を独立 phase として外部化、 B4 Tip 6 の `/go` skill を構造化した version
+
+各 phase **内** では line-by-line 指導をせず、 phase 境界でのみ介入する。 これにより B1 の「engineer to delegate to」 原則を保ちつつ、 verifiability を担保する。
 
 ### ADR-002: なぜ外部CLI依存をやめたか
 ECCの santa-loop は codex/gemini に依存していたが、社内ツールチェーンの統一が難しい。Claude単独 model alias 方式で model diversity を「弱く」確保し、依存ゼロを取る。v2.0で MCP経由の選択肢を残す。
@@ -370,6 +395,8 @@ ECCの santa-loop は codex/gemini に依存していたが、社内ツールチ
 "verify before returning" を planner/executor の prompt に書くと、4.7ではそれ自体が冗長な scaffolding になる。hookで強制すれば prompt は綺麗なまま。
 
 ### ADR-006: なぜ v2.0 で MCP server ではなく codex CLI subprocess を選んだか
+
+(v2.1.2 前文追記) **codex CLI 統合は 4.7-native best practice に直接根拠を持たない PEV-harness 独自拡張**。 [B1](https://claude.com/blog/best-practices-for-using-claude-opus-4-7-with-claude-code) は「Spawn multiple subagents in the same turn when fanning out across items」 で独立 subagent 並列起動を許容しているため、 dual-review の発想自体は公式と整合するが、 「外部 vendor CLI (OpenAI Codex) を Reviewer B に据える」 model diversity 仮説は社内独自の判断。 v1.x dual-claude (同一 model family) より強い blind spot 軽減を期待しているが、 公式 1次情報での明示推奨はない。
 
 ADR-002 では「v2.0 で MCP 経由の選択肢を残す」 と書いたが、 実装時に MCP server (codex) は public spec が未成熟だった一方、 `codex exec --json --output-schema` で **structured JSON output が公式 sanctioned** されている。 subprocess + JSON schema 強制で:
 
@@ -391,3 +418,13 @@ v2.0 で Reviewer B を codex に切替できるようにしたが、 Reviewer A
 - planner (opus) が plan.md を書いた直後の verify phase で、 同じ opus が再度 verify することは「自分の plan を自分で検証」 では**ない** (verifier は plan.md + diff + AC を独立に読み直すだけ、 planner session の memory なし)
 - 一方、 codex を Reviewer A に置くと plan.md の理解と diff の評価で **codex 自身の plan 理解** が必要になり、 plan↔verify 間の rubric 整合性が崩れる可能性
 - v2.x 範疇では Reviewer A=claude (plan-aware) / Reviewer B=codex (fresh perspective) の **役割分離** を採用、 v3.x で codex planner も検討
+
+### ADR-008: なぜ Verifier の実行手順だけ hard-coded か (v2.1.2 で新規)
+
+通常 agent に対する逐次指示は [B1](https://claude.com/blog/best-practices-for-using-claude-opus-4-7-with-claude-code) の「Treat Claude more like a capable engineer you're delegating to than a pair programmer you're guiding line by line」 と矛盾する。 しかし Verifier の作業は creative judgment ではなく **deterministic checklist** (build / typecheck / lint / test / AC 照合) なので、 hard-coded 化が許容される:
+
+- **Verifier ≠ engineer**: 設計判断や trade-off の評価は plan-time に planner が済ませている。 verify-time は「plan で約束した checklist を pass/fail で answer する」 だけ
+- **Verifier = CI runner**: GitHub Actions の workflow に「step by step で test を順に走らせろ」 と書いても CI engineer から文句は出ない。 verifier も同種の "deterministic agent"
+- **rubric の安定性**: 手順が固定だと plan/verify 間の rubric 整合性 (ADR-007 と同根) が保てる、 verifier が「creative に手順を変える」 と reviewer mode 切替時に再現性が崩れる
+
+別解釈として「verifier も engineer 扱いで delegation すべき」 案もありうるが、 dog food (v1.3/v1.6) では deterministic verifier の方が flaky 率が低かった (経験則、 1次情報根拠なし)。 v3.x で creative verifier の選択肢を別 mode として提供する案は roadmap 候補。

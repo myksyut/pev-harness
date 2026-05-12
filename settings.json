@@ -1,8 +1,9 @@
 {
   "model": "claude-opus-4-7",
   "effortLevel": "xhigh",
-  "permissionMode": "default",
-  "skillOverrides": "user-invocable-only",
+  "permissions": {
+    "defaultMode": "default"
+  },
   "env": {
     "PEV_TASK_BUDGET": "100000",
     "PEV_MAX_RETRIES": "3",

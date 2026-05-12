@@ -1,6 +1,7 @@
 ---
 name: pev-bootstrap-project
 description: pev-harness を使うプロジェクトに必要な初期 file を 1 操作で生成する skill。 言語/構成 検知 (Node/Python/Go/Rust + E2E config) で team-conventions.md の Verification commands を auto-populate、 .gitignore に artifacts/ を追記、 オプションで .linear-config / settings.local / 個人 override skeleton を AskUserQuestion 経由で対話的に生成。 既存 file 衝突は「上書き / merge / skip」分岐。
+disable-model-invocation: true
 ---
 
 # pev-bootstrap-project

@@ -1,6 +1,7 @@
 ---
 name: pev-bootstrap-playwright
 description: pev-harness を使うプロジェクトに Playwright を導入する自動 bootstrap skill。 npm install / browser binary / playwright.config.ts template / seed test template / `npx playwright init-agents --loop=claude` (Playwright agents 自動生成) の 5 step を 1 操作で完了する。 pev-e2e-verify skill の Preflight が「未setup」と判定した時に自動的に提案される。
+disable-model-invocation: true
 ---
 
 # pev-bootstrap-playwright

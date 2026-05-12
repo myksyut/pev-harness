@@ -11,6 +11,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (`gemini exec` 同 pattern で external reviewer 追加、 元 v2.1 スコープ)
 - planner / executor も外部 model 可 (Issue #9 の continuation)
 
+## [2.1.2] - 2026-05-12
+
+**Anthropic 公式 best practice 適合性 fix + 4.7-native 1次情報ベース review 反映**。 Claude Code 2.1.139 で `claude plugin install pev-harness@pev-harness` が「This plugin uses a source type your Claude Code version does not support」 で失敗していた問題を含む、 公式 docs 4 ヶ所 schema 逸脱の修正に加え、 Opus 4.7 公式 1次情報 (B1 = [Anthropic blog 2026-04-16](https://claude.com/blog/best-practices-for-using-claude-opus-4-7-with-claude-code), B3 = [Task budgets API docs](https://platform.claude.com/docs/en/build-with-claude/task-budgets), B4/B5 = Boris/Cat Wu 投稿) との直接照合を実施し、 SPEC の根拠と独自拡張の境界を明確化。 機能変更なしの patch。
+
+### Fixed (Anthropic 公式 schema 逸脱 4 件)
+
+- **`.claude-plugin/marketplace.json`** `plugins[0].source` を `"."` → `"./"` に変更 (公式 [plugin-marketplaces.md](https://code.claude.com/docs/en/plugin-marketplaces.md#relative-paths) で `"./"` から始まる相対 path が正規形、 `"."` は未サポート)。 これにより Claude Code 2.1.x で marketplace 経由 install が成功するようになる
+- **`hooks/hooks.json`** PreToolUse Bash hook の input 読み取り方法を `$TOOL_INPUT` 環境変数 → **stdin JSON** (jq `.tool_input.command`) に修正 (公式 [hooks.md](https://code.claude.com/docs/en/hooks.md) 準拠)。 v0.x からの no-op だった destructive command 検知 (`rm -rf /` 等) が **実際に block** するようになる。 出力も `permissionDecision: "deny"` JSON 形式に変更
+- **`settings.json`** トップレベルの `"permissionMode": "default"` を `"permissions": {"defaultMode": "default"}` に修正 (公式 [settings.md](https://code.claude.com/docs/en/settings.md) で正規 key)、 これまで Gate A 制御の core 設定が **silently 無視されていた** 可能性を解消
+- **`settings.json`** 公式に存在しない `"skillOverrides": "user-invocable-only"` field を削除。 代わりに skill 個別制御に移行: `pev-bootstrap-codex` / `pev-bootstrap-playwright` / `pev-bootstrap-project` の 3 つの one-time setup skill に `disable-model-invocation: true` を追加し、 Claude による意図しない auto-invoke を抑止
+
+### Documented (4.7-native 1次情報ベース review 反映 / Priority 1-4)
+
+**Priority 1 — 直接的な仕様ミスマッチの明示**:
+
+- **`skills/pev-task-budget/SKILL.md`** description を「Claude Code surface で公式 Task budgets API は **非サポート** ([B3](https://platform.claude.com/docs/en/build-with-claude/task-budgets) で明記)、 prompt-level hint のみの暫定運用」 に書き換え、 冒頭に「⚠️ 公式仕様との関係」 セクションを追加 (引用文と限界を明示、 hard cap として期待する誤用を防止)
+
+**Priority 2 — 公式と緊張関係のある記述を緩和 / 正当化**:
+
+- **`rules/4.7-native.md`** に「公式 1次情報との関係」 セクション追加。 [B1](https://claude.com/blog/best-practices-for-using-claude-opus-4-7-with-claude-code) は adaptive thinking 制御 hint としての "Think carefully and step-by-step" を **実は許容している** ことを引用付きで明記。 PEV-harness 内部の禁止は「prompt 本文での 4.6 時代 scaffolding の無自覚混入」 を防ぐ社内規約であり、 公式違反ではないと位置付け
+- **`SPEC.md` ADR-008 新規追加**: 「なぜ Verifier の実行手順だけ hard-coded か」 — B1 「Treat Claude more like a capable engineer」 との緊張関係を「Verifier は engineer ではなく CI runner」 として正当化、 deterministic checklist 化の根拠を明記
+
+**Priority 3 — 公式根拠の明示で正当性を補強**:
+
+- **`SPEC.md` ADR-001 補強**: B1 「one-shot completion / delegation model」 と [B5 (Cat Wu)](https://x.com/_catwu/status/2044808533905178822) Tip 2 「Give Claude Code your full task context upfront: goal, constraints, acceptance criteria in the first turn」 を直接引用、 3-phase 構造の公式根拠を強化
+- **`SPEC.md` ADR-006 前文追加**: codex CLI 統合は「4.7-native best practice に直接根拠を持たない PEV-harness 独自拡張」 と明記、 dual-codex の model diversity 仮説が社内独自であることを期待値調整
+- **`SPEC.md` §4 Phase 2 並列ガイダンス**: B1 「Spawn multiple subagents in the same turn when fanning out across items or reading multiple files」 引用付きで明文化、 **default は直列 1**、 fan-out / independent items 明示時のみ並列 (上限 3) と整理
+- **`SPEC.md` §4 Phase 1/3 model+effort**: 各 phase の `xhigh` / `high` 配分 を B1 引用 (「intelligence-sensitive tasks」 / 「Balances intelligence and cost」 / 「The best setting for most coding」) と直接対応
+
+**Priority 4 — 経験則と 1次情報の境界明示**:
+
+- **`SPEC.md` §1 P1-P5 表の直後**に「1次情報根拠」 table 追加、 各原則の B1/B3/B4/B5 対応を明示。 P1 / P4 は「独自原則」、 P2 / P5 は「公式根拠あり、 ただし実装手段は独自」 と整理
+- **`SPEC.md` P3 注記**: Claude Code v2.1.111+ は社内検証値、 公式 1次情報に具体的 version の記載なし
+- **`SPEC.md` §4 Retry=3**: 経験則、 1次情報根拠なしと明示
+- **`SPEC.md` §6 effort experimentation note**: B1 「experimenting with effort rather than just porting over an old setting」 推奨を反映、 default xhigh は出発点扱い
+
+### Changed
+
+- **`.claude-plugin/plugin.json`** / **`.claude-plugin/marketplace.json`** version を `2.1.0` → `2.1.2` に同期 (v2.1.1 タグ commit で manifest version 更新が漏れていた状態の解消も兼ねる)
+- **`README.md`** version badge を `2.0.0` → `2.1.2` に更新 (CHANGELOG / plugin.json と integrity 揃え)
+- **`SPEC.md` §11 ロードマップ table** に v2.1.2 row 追加 (status: current)、 v2.1.1 を ✅ released へ移動
+- **`SPEC.md` §6 settings.json snippet** を v2.1.2 で 公式 schema 準拠化した形に書き換え
+
+### Verified
+
+- JSON validation: `.claude-plugin/plugin.json` / `.claude-plugin/marketplace.json` / `hooks/hooks.json` / `settings.json` を Node.js で parse 検証 → all pass
+- 4.7-native forbidden phrase check: `agents/` `skills/` `commands/` 全体 grep で 0 hit (rules/ への "step-by-step" 言及は CI 対象外)
+- 1次情報出典: 公式 docs (claude.com/blog, platform.claude.com, code.claude.com) を最優先ソースとし、 1次情報で明示なしの事項は「経験則」「社内検証値」「独自拡張」 と明記して期待値を調整
+
+### Reference
+
+- **Anthropic 公式 1次情報 (4.7-native)**:
+  - [B1: Best practices for using Claude Opus 4.7 with Claude Code (2026-04-16)](https://claude.com/blog/best-practices-for-using-claude-opus-4-7-with-claude-code)
+  - [B2: What's new in 4.7](https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-7)
+  - [B3: Task budgets API docs](https://platform.claude.com/docs/en/build-with-claude/task-budgets)
+  - B4/B5: Boris Cherny / Cat Wu 投稿 (2026-04-16)
+- **Anthropic 公式 schema docs**: [plugin-marketplaces.md](https://code.claude.com/docs/en/plugin-marketplaces.md) / [hooks.md](https://code.claude.com/docs/en/hooks.md) / [settings.md](https://code.claude.com/docs/en/settings.md) / [skills.md](https://code.claude.com/docs/en/skills.md)
+
 ## [2.1.1] - 2026-05-12
 
 **Plugin Marketplace 配布対応** + plugin.json version 同期。 v2.1 機能変更なし、 配布経路整備のみの patch。 `claude plugin marketplace add myksyut/pev-harness` → `claude plugin install pev-harness@pev-harness` で導入可能になる。

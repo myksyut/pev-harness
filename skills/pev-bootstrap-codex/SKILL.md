@@ -1,6 +1,7 @@
 ---
 name: pev-bootstrap-codex
 description: OpenAI Codex CLI を pev-harness の external reviewer として導入する one-time setup skill。 codex CLI install 確認 (npm i -g @openai/codex または brew install --cask codex)、 CODEX_API_KEY 環境変数の存在確認、 codex exec --json で sanity test、 settings.local.json の PEV_REVIEWER_MODE 雛形提案までを 1 操作で完了する。 v1.4 pev-bootstrap-playwright + v1.9 pev-bootstrap-project と並列の sibling。
+disable-model-invocation: true
 ---
 
 # pev-bootstrap-codex

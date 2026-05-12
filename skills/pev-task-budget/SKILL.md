@@ -1,11 +1,24 @@
 ---
 name: pev-task-budget
-description: 各 phase に「使ってよいトークンの目安」を渡し、長時間 agentic loop の自己制御を有効化。Claude Code v2.1.x では agent prompt 経由の暫定運用、v2.0+ で真の task_budget API passthrough へ移行
+description: 各 phase に「使ってよいトークンの目安」を渡し、長時間 agentic loop の自己制御を有効化。Claude Code surface では公式 Task budgets API は非サポート (Anthropic 公式 B3 で明記)、 本 skill は **prompt-level hint のみ** の暫定運用。
 ---
 
 # pev-task-budget
 
 各 phase に「使ってよいトークンの目安」を渡す。モデル自身がカウントダウンを意識して優先順位調整やグレースフル終了する。
+
+## ⚠️ 公式仕様との関係 (v2.1.2 追記)
+
+**Anthropic 公式 [Task budgets docs (B3)](https://platform.claude.com/docs/en/build-with-claude/task-budgets)** より直接引用:
+
+> Task budgets are not supported on Claude Code or Cowork surfaces at launch. Use task budgets directly via the Messages API on Claude Opus 4.7.
+
+つまり Claude Code plugin 経由で `task-budgets-2026-03-13` beta header を passthrough する公式ルートは **現時点で存在しない**。 本 skill が実際に提供しているのは:
+
+- ✅ **Layer 1**: agent prompt に「target task budget: Xk tokens」を hint として埋め込む (動作確認済、 LLM の self-rationing を期待)
+- ❌ **Layer 2 (将来)**: `ANTHROPIC_BETA` 環境変数経由の beta header passthrough は Claude Code 側の対応待ち
+
+「task budget が hard cap として効く」ことを期待した使い方は **できない**。 hint としての心理的圧力で agent が早めに切り上げる、 程度の効果が現実値。 厳密な上限が必要な場合は `max_tokens` または phase 分割で対処すること。
 
 ## When to Use
 

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"$TOOL_INPUT\" | grep -qE '(rm -rf /|rm -rf ~|git push --force.*main|git reset --hard.*origin/main)' && { echo '[PEV] Destructive command blocked by pev-harness'; exit 2; } || exit 0"
+            "command": "CMD=$(jq -r '.tool_input.command // empty' 2>/dev/null); if echo \"$CMD\" | grep -qE '(rm -rf /|rm -rf ~|git push --force.*main|git reset --hard.*origin/main)'; then printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"[PEV] Destructive command blocked by pev-harness\"}}'; fi; exit 0"
           }
         ]
       }
