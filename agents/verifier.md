@@ -165,9 +165,24 @@ QA 技法 trigger (v1.5+、 pev-test-design 同時起動、 canonical 化済):
 
 `e2e.ran=false` ならunit のみで判定、 `e2e.ran=true` なら unit AND e2e が両方 PASS で全体 PASS。
 
-## --strict モード
+## --strict モード + reviewer mode dispatch (v2.0+)
 
-`pev-dual-review` skill が起動された場合の責務:
+verifier は `PEV_REVIEWER_MODE` 環境変数 (または `--reviewer-mode=<mode>` CLI flag) を見て、 起動する reviewer を以下 4 種から決定する:
+
+| Mode | 起動する reviewer | dispatch する skill |
+|---|---|---|
+| `claude-only` (default、 通常タスク) | verifier 単独 (本 agent) | なし (本 agent のみ) |
+| `dual-claude` (`--strict` 旧挙動) | claude opus + claude sonnet | `pev-dual-review` |
+| `dual-codex` (v2.0+) | claude opus + codex CLI | `pev-dual-review` + `pev-external-reviewer` を同一メッセージ内並列 |
+| `codex-only` (v2.0+) | codex CLI 単独 | `pev-external-reviewer` のみ |
+
+priority: CLI flag > env var > settings.json default。
+
+### claude-only / dual-claude (v1.x 挙動)
+
+claude-only: 本 agent (verifier) が build/type/lint/test を自分で実行 + AC チェック + verify.json 出力。
+
+dual-claude (= v1.x の `--strict`):
 
 1. 通常 verify (build/test/lint/AC) を**自分で**先に実行し、結果を握っておく
 2. `git diff` を取得
@@ -178,10 +193,43 @@ QA 技法 trigger (v1.5+、 pev-test-design 同時起動、 canonical 化済):
 4. 両者の structured JSON output を受け取って merge:
    - 両PASS → NICE
    - いずれかFAIL → NAUGHTY、critical_issues を dedupe + merge
-5. `artifacts/verify.json` に `strict_mode: true` + `reviewer_a` / `reviewer_b` / `merged` セクション追加
-6. `merged.agreement_pct` を recap.log に追記
+5. `artifacts/verify.json` に `reviewer_mode: "dual-claude"` + `reviewers[]` + `merge` セクションを記録
 
-詳細プロトコルは `skills/pev-dual-review/SKILL.md`。例の verify.json は `examples/verify.strict.example.json`。
+### dual-codex (v2.0+、 真の external diversity)
+
+1. 通常 verify (claude-only と同じ前 step) を自分で実行
+2. `pev-external-reviewer` skill の Preflight (codex CLI 存在 + `CODEX_API_KEY` + schema file) を確認
+3. Preflight pass なら **同一メッセージ内で** 以下を並列発射:
+   - Reviewer A: Agent tool で `subagent_type=verifier, model=opus, effort=xhigh` (claude)
+   - Reviewer B: Bash tool で `pev-external-reviewer` skill の invocation pattern (codex subprocess)
+4. 両者の JSON を受け取って merge (provider field 付き)、 `artifacts/verify.json` に `reviewer_mode: "dual-codex"` で記録
+5. Preflight fail なら **自動 fallback** to `dual-claude`、 `verify.json.fallback_reason` を記録 + stderr に warning
+
+### codex-only (v2.0+、 cost 削減)
+
+1. claude verifier の通常 check は **skip** (build/type/lint/test も codex 側に委譲)
+2. `pev-external-reviewer` skill を単独起動
+3. Preflight fail なら `claude-only` に fallback、 `fallback_reason` を記録
+
+### verify.json schema 拡張 (v2.0+)
+
+```json
+{
+  "verdict": "PASS|FAIL",
+  "reviewer_mode": "claude-only|dual-claude|dual-codex|codex-only",
+  "intended_reviewer_mode": "<requested mode>",
+  "fallback_reason": null | "codex_not_installed" | "codex_not_authenticated" | "codex_timeout" | "schema_violation" | "schema_missing",
+  "reviewers": [
+    { "provider": "claude-opus-4-7", "verdict": "PASS", ... },
+    { "provider": "codex/<model>",    "verdict": "PASS", ... }
+  ],
+  "merge": { "agreement_pct": 92, "both_pass": true, "critical_issues_dedupe": [], "final_verdict": "PASS" }
+}
+```
+
+claude-only mode では `reviewers` は省略可、 verifier 単独結果を `checks[]` で記録 (v1.x 互換)。
+
+詳細プロトコルは `skills/pev-dual-review/SKILL.md` + `skills/pev-external-reviewer/SKILL.md`。 例の verify.json は `examples/verify.strict.example.json`。
 
 ## 動作原則
 

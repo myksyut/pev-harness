@@ -122,6 +122,73 @@ Acceptance: GET /healthz returns 200 + correct JSON, test added."
 `pev-dual-review` skill が起動し、Reviewer A (Opus xhigh) と B (Sonnet high) が並列で独立レビュー。両者 PASS で初めて NICE 判定。
 詳細: `skills/pev-dual-review/SKILL.md` / 例: `examples/verify.strict.example.json`。
 
+### v2.0+ : 真の external model diversity (dual-codex mode)
+
+v1.x までは Reviewer B も Claude (Sonnet alias) なので同一モデルファミリーの blind spot を共有する制約があった。 v2.0 で **Reviewer B を OpenAI Codex CLI subprocess に切替可能**、 異 vendor で独立レビュー。
+
+#### 5.1 codex CLI セットアップ (one-time)
+
+認証は **2 path のどちらかで OK**:
+
+**(a) ChatGPT subscription auth (推奨)** — ChatGPT Plus / Pro / Team / Enterprise の subscription があれば API key 不要:
+
+```bash
+brew install --cask codex     # macOS 推奨
+codex login                   # ブラウザで ChatGPT に sign-in
+codex login status            # "Logged in using ChatGPT" を確認
+```
+
+**(b) API key auth (CI / 自動化向け)** — OpenAI の API key を使う:
+
+```bash
+brew install --cask codex                                # macOS
+# or: npm install -g @openai/codex                       # Linux / 任意
+
+export OPENAI_API_KEY=sk-...                             # shell rc に永続化
+printenv OPENAI_API_KEY | codex login --with-api-key     # codex に取り込み
+codex login status                                       # "Logged in using API key" を確認
+```
+
+注意: codex CLI v0.128 では `OPENAI_API_KEY` を、 v0.130+ docs は `CODEX_API_KEY` を言及。 両方試して effective な方を採用する。 設定後は `codex login --with-api-key` で codex 内部 (`~/.codex/`) に取り込むのが確実。
+
+**(c) `/pev-init-codex` で sanity test + settings 雛形**:
+
+```bash
+claude
+> /pev-harness:pev-init-codex
+```
+
+`/pev-init-codex` は AskUserQuestion で install method / API key 設定先 / `PEV_REVIEWER_MODE` default を user 対話で確定 (詳細は `commands/pev-init-codex.md`)。
+
+#### 5.2 dual-codex で /pev --strict
+
+```text
+/pev-harness:pev "Refactor auth middleware to use JWT" --strict --reviewer-mode=dual-codex
+```
+
+または `.claude/settings.local.json` の env に `PEV_REVIEWER_MODE=dual-codex` を書けば、 `--strict` だけで自動的に dual-codex が動く。
+
+`verify.json` の `reviewers[]` に claude (opus) と codex の独立 verdict が記録される。
+
+#### 5.3 reviewer mode 4 種
+
+| Mode | Reviewer A | Reviewer B | 使い所 |
+|---|---|---|---|
+| `claude-only` (default) | verifier 単独 | (なし) | 通常タスク |
+| `dual-claude` | claude opus (xhigh) | claude sonnet (high) | v1.x 互換 |
+| `dual-codex` (v2.0+) | claude opus (xhigh) | codex CLI subprocess | 真の external diversity |
+| `codex-only` (v2.0+) | (なし) | codex CLI 単独 | cost 削減 path |
+
+#### 5.4 Fallback behavior
+
+codex CLI 不在 / 未認証 (`codex login status` が "Not logged in") / timeout / non-zero exit の場合、 verifier は自動で `dual-claude` (または `claude-only`) に degrade し、 `verify.json.fallback_reason` に理由を記録 (`codex_not_installed` / `codex_not_authenticated` / `codex_timeout` / `schema_violation` / `schema_missing`)。 PEV pipeline 全体は止まらない (graceful degrade)。
+
+#### 5.5 Privacy 注意
+
+dual-codex / codex-only mode では git diff が **OpenAI (Codex) にも送信** されます。 Anthropic Claude 経由でも同じ送信は発生しているが、 team policy で「OpenAI への送信は禁止」 のケースもあるので、 適用前に確認してください。 OPENAI への送信を避けたいときは `claude-only` / `dual-claude` のままで OK。
+
+詳細: `skills/pev-bootstrap-codex/SKILL.md` / `skills/pev-external-reviewer/SKILL.md` / SPEC.md §10 + ADR-006 / ADR-007。
+
 ## 6. トラブルシューティング (FAQ)
 
 | 症状 | 原因 | 対処 |

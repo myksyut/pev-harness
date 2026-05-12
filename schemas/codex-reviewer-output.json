@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/myksyut/pev-harness/blob/main/schemas/codex-reviewer-output.json",
+  "title": "Codex reviewer output schema (v2.0+)",
+  "description": "Structured JSON that codex CLI must return when invoked as Reviewer B via `codex exec --output-schema`. pev-external-reviewer skill parses this into verify.json.reviewers[]. OpenAI structured outputs strict 仕様に従い、 全 properties が required (optional は型に null を含めて表現)、 additionalProperties: false。",
+  "type": "object",
+  "required": ["verdict", "critical_issues", "suggestions", "ac_coverage", "model", "notes"],
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["PASS", "FAIL"],
+      "description": "Overall reviewer verdict against the AC + rubric"
+    },
+    "critical_issues": {
+      "type": "array",
+      "description": "Issues that must be fixed before PASS (bugs / security / contract violations)",
+      "items": {
+        "type": "object",
+        "required": ["title", "severity", "evidence", "suggested_fix"],
+        "additionalProperties": false,
+        "properties": {
+          "title": { "type": "string", "description": "Short summary, <= 80 chars" },
+          "severity": { "type": "string", "enum": ["high", "medium", "low"] },
+          "evidence": { "type": "string", "description": "Quote a diff line or plan.md AC reference" },
+          "suggested_fix": {
+            "type": ["string", "null"],
+            "description": "Optional concrete remediation; null when reviewer has no suggested fix"
+          }
+        }
+      }
+    },
+    "suggestions": {
+      "type": "array",
+      "description": "Non-blocking improvements (style / refactor / docs)",
+      "items": {
+        "type": "object",
+        "required": ["title", "rationale"],
+        "additionalProperties": false,
+        "properties": {
+          "title": { "type": "string" },
+          "rationale": {
+            "type": ["string", "null"],
+            "description": "Optional rationale; null when not provided"
+          }
+        }
+      }
+    },
+    "ac_coverage": {
+      "type": "array",
+      "description": "AC ごとの met (true/false) + evidence",
+      "items": {
+        "type": "object",
+        "required": ["criterion", "met", "evidence"],
+        "additionalProperties": false,
+        "properties": {
+          "criterion": { "type": "string", "description": "AC text excerpt or AC id (e.g., AC1)" },
+          "met": { "type": "boolean" },
+          "evidence": { "type": "string", "description": "Diff line / file path / test result reference" }
+        }
+      }
+    },
+    "model": {
+      "type": ["string", "null"],
+      "description": "Codex internal model identifier if exposed (e.g., 'gpt-5.3-codex'); null when not exposed"
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Optional free-form reviewer notes (kept short, <= 500 chars); null when none"
+    }
+  }
+}

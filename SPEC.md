@@ -281,20 +281,43 @@ artifacts/                       # .gitignore対象
 
 ## 10. Dual Review (--strict) の詳細
 
-Reviewer 2人とも Claude (model alias で多様性):
+v2.0 で reviewer mode を 4 種に拡張:
 
-| Role | model | effort |
-|---|---|---|
-| Reviewer A | opus (claude-opus-4-7) | xhigh |
-| Reviewer B | sonnet (claude-sonnet-4-6) | high |
+| Mode | Reviewer A | Reviewer B | 用途 |
+|---|---|---|---|
+| `claude-only` (default) | claude verifier 単独 | (なし) | 通常タスク |
+| `dual-claude` | opus (xhigh) | sonnet (high) | `--strict` 旧挙動 (v1.x default) |
+| `dual-codex` (v2.0+) | opus (xhigh) | codex CLI (`codex exec --json`) | 真の external model diversity |
+| `codex-only` (v2.0+) | (なし) | codex CLI 単独 | claude 不在 / cost 削減 path |
 
-独立性の担保:
-1. **並列起動** — 同一メッセージ内で2 Agent tool callを同時送信
-2. **Context isolation** — 互いの結果を見せない
-3. **同一rubric** — 同じ評価基準
-4. **Fresh agents each round** — 前ラウンドの記憶を持たない
+切替方法 (priority 高い順):
 
-**model diversityの限界の明記**: 同一モデルファミリーなのでblind spotを完全に消せない。許容トレードオフ。v2.0で MCP server経由の外部model対応を検討。
+1. `/pev <task> --reviewer-mode=<mode>` (CLI flag)
+2. `.claude/settings.local.json` の env `PEV_REVIEWER_MODE`
+3. settings.json default (= `claude-only`)
+
+独立性の担保 (mode 共通):
+
+1. **並列起動** — 同一メッセージ内で 2 Agent tool call (Claude pair) または Agent + subprocess (Claude + codex) を同時送信
+2. **Context isolation** — 互いの結果を見せない (codex はそもそも別 process なので OS レベル isolation)
+3. **同一 rubric** — 同じ評価基準を両者に渡す
+4. **Fresh agents each round** — 前ラウンドの記憶を持たない (codex も `--ephemeral` flag で session rollout を残さない)
+
+### Codex CLI 統合 (v2.0+) の技術詳細
+
+- CLI: `codex exec --json --output-schema <schema> -o <out.json> --ephemeral --sandbox workspace-write "<prompt>"`
+- 認証 (2 path、 どちらでも可):
+  - **(a) ChatGPT subscription** (推奨): `codex login` でブラウザ sign-in、 ChatGPT Plus/Pro/Team/Enterprise の subscription が前提、 API key 不要
+  - **(b) API key**: `OPENAI_API_KEY` (codex v0.128+ の help が言及) または `CODEX_API_KEY` (v0.130+ public docs が言及)。 `printenv OPENAI_API_KEY | codex login --with-api-key` で codex 内部に取り込み
+- timeout: `timeout ${PEV_CODEX_TIMEOUT:-300}s` で wrap (CLI 自体には timeout flag なし)
+- output schema: `schemas/codex-reviewer-output.json` で reviewer JSON 構造を強制
+- fallback: codex CLI 不在 / 未認証 (`codex login status` が "Not logged in") / timeout / non-zero exit → 自動で `dual-claude` に degrade、 `verify.json.fallback_reason` に記録 + warning
+
+### model diversity の改善 (v1.x との差分)
+
+- v1.x (claude-only / dual-claude): 同一モデルファミリーで blind spot を共有
+- v2.0+ (dual-codex): 異 vendor (Anthropic + OpenAI) で training corpus + RLHF policy + tokenization の独立性、 blind spot 共有が低減
+- 残る共通制約: 両者とも LLM ベースなので「LLM 全般の苦手分野」 (e.g., precise counting、 deep mathematical reasoning) は両者で同時に外しうる、 これは v2.x 範疇外
 
 ---
 
@@ -318,8 +341,9 @@ Reviewer 2人とも Claude (model alias で多様性):
 | **v1.7** | **CLAUDE.md re-targeting (developer-oriented)** | repo root CLAUDE.md を開発者向け暗黙知集に書き換え、 plugin user 向けは README へ集約 | ✅ released |
 | v1.7.1 | dev-only doc を `guide/` に集約 | docs/ + CHECKLIST/ROLLOUT/FEEDBACK を guide/ へ。 cross-reference 更新 | ✅ released |
 | v1.8 | v1.3 + v1.7.1 dog food findings reflection (9 件) | linear-project-workflow 4件 (#13/#14/#15/#18) / agents 3件 (#16/#20/#21) / `--expect-fail` flag (#17) / team-conventions Lint・Typecheck 明示 (#19) | ✅ released |
-| **v1.9** | **`/pev-init` project bootstrap command** | pev-bootstrap-project skill + 言語検知 (Node/Python/Go/Rust) + team-conventions auto-populate + .gitignore append + interactive prompts + dry-run mode | (current) |
-| v2.0 | 外部model対応 (MCP server経由) | OpenAI/Gemini MCP統合 | Issue #9 |
+| v1.9 | `/pev-init` project bootstrap command | pev-bootstrap-project skill + 言語検知 (Node/Python/Go/Rust) + team-conventions auto-populate + .gitignore append + interactive prompts + dry-run mode | ✅ released |
+| **v2.0** | **External reviewer (OpenAI Codex CLI) integration** | pev-bootstrap-codex / pev-external-reviewer skill + reviewer mode 4 種 (claude-only/dual-claude/dual-codex/codex-only) + codex-reviewer-output schema + fallback path | (current) |
+| v2.1+ | Gemini CLI 対応 / model 自由切替 (planner/executor も外部 model 可) | (TBD) | Issue #9 の continuation |
 
 ---
 
@@ -341,3 +365,26 @@ ECCの santa-loop は codex/gemini に依存していたが、社内ツールチ
 
 ### ADR-005: なぜ Stop hookで verify自動起動なのか
 "verify before returning" を planner/executor の prompt に書くと、4.7ではそれ自体が冗長な scaffolding になる。hookで強制すれば prompt は綺麗なまま。
+
+### ADR-006: なぜ v2.0 で MCP server ではなく codex CLI subprocess を選んだか
+
+ADR-002 では「v2.0 で MCP 経由の選択肢を残す」 と書いたが、 実装時に MCP server (codex) は public spec が未成熟だった一方、 `codex exec --json --output-schema` で **structured JSON output が公式 sanctioned** されている。 subprocess + JSON schema 強制で:
+
+- **依存性が軽い**: MCP server を Claude Code に常駐させず、 verify 時のみ on-demand 起動
+- **isolation が強い**: OS process boundary で context isolation が自然 (MCP 同居だと shared client state あり)
+- **schema による型保証**: `--output-schema` で reviewer JSON 構造を強制、 merge logic 側の parse 失敗リスクが激減
+- **fallback path が単純**: 子 process の non-zero exit / timeout で自動 degrade、 MCP の handshake 失敗より error mode が少ない
+
+trade-off:
+
+- 起動 latency: subprocess は 1-3 秒、 MCP 常駐の方が速い。 ただし verify は LLM 推論で 30-300 秒かかるので相対的に無視できる
+- model 切替の自由度: subprocess は `--model` flag や `codex exec resume` でセッション再開可能、 MCP より細粒度
+- Gemini / 他 vendor 拡張: v2.1+ で `pev-external-reviewer` skill を別 vendor CLI に拡張する path が同じ pattern で書ける (subprocess + JSON schema)
+
+### ADR-007: なぜ Reviewer A は Claude のまま固定なのか
+
+v2.0 で Reviewer B を codex に切替できるようにしたが、 Reviewer A は **opus 固定** とした:
+
+- planner (opus) が plan.md を書いた直後の verify phase で、 同じ opus が再度 verify することは「自分の plan を自分で検証」 では**ない** (verifier は plan.md + diff + AC を独立に読み直すだけ、 planner session の memory なし)
+- 一方、 codex を Reviewer A に置くと plan.md の理解と diff の評価で **codex 自身の plan 理解** が必要になり、 plan↔verify 間の rubric 整合性が崩れる可能性
+- v2.x 範疇では Reviewer A=claude (plan-aware) / Reviewer B=codex (fresh perspective) の **役割分離** を採用、 v3.x で codex planner も検討

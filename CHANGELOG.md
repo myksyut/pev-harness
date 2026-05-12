@@ -7,9 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v2.0+
-- v2.0 (Issue #9): External model support via MCP (OpenAI/Gemini)
-- v1.9 dog food findings (release 前 dog food で発見されたものがあれば)
+### Planned for v2.1+
+- v2.1 Gemini CLI 対応 (`gemini exec` 同 pattern で external reviewer 追加)
+- v2.x planner / executor も外部 model 可 (Issue #9 の continuation)
+
+## [2.0.0] - 2026-05-12
+
+**External reviewer (OpenAI Codex CLI) 統合** で真の model diversity を実現。 v1.x までは `pev-dual-review` が claude 単独 (Opus + Sonnet alias) だったが、 v2.0 では Reviewer B を **OpenAI Codex CLI subprocess** に切替可能。 異 vendor (Anthropic + OpenAI) で training corpus / RLHF policy / tokenization の独立性を確保し、 blind spot 共有を低減。
+
+### Added
+
+**`/pev-init-codex` command** + **`skills/pev-bootstrap-codex/SKILL.md`**:
+- codex CLI install 確認 (`npm i -g @openai/codex` or `brew install --cask codex`)
+- 認証状態確認 (`codex login status`): subscription auth (`codex login` でブラウザ sign-in) または API key auth (`OPENAI_API_KEY` を `codex login --with-api-key` で取り込み) のどちらか effective ならOK
+- `codex exec --json --skip-git-repo-check "ping"` で sanity test
+- v1.4 pev-bootstrap-playwright + v1.9 pev-bootstrap-project と並列の sibling
+
+**`skills/pev-external-reviewer/SKILL.md`**:
+- codex を Reviewer として subprocess invoke する skill
+- 起動 command: `timeout ${PEV_CODEX_TIMEOUT:-300}s codex exec --json --output-schema <schema> -o <out.json> --ephemeral --sandbox workspace-write "<prompt>"`
+- prompt: git diff + plan.md AC + rubric を概念的に組み立て stdin pipe + 引数で渡す
+- output: `schemas/codex-reviewer-output.json` で JSON 構造を強制、 verifier 側で parse + merge
+- fallback: codex 不在 / timeout / non-zero exit → 自動で `dual-claude` に degrade、 `verify.json.fallback_reason` 記録
+
+**`schemas/codex-reviewer-output.json`** (新規):
+- reviewer JSON 構造を公式 schema 化 (verdict / critical_issues / suggestions / ac_coverage)
+
+### Changed
+
+**`skills/pev-dual-review/SKILL.md`**:
+- Reviewer B が claude-sonnet (現状) / codex (v2.0 新規) のどちらかを選択可能に
+- `PEV_REVIEWER_MODE` 環境変数または `--reviewer-mode=<mode>` flag で切替
+- 4 mode: `claude-only` (default) / `dual-claude` (旧 --strict) / `dual-codex` (v2.0 新規) / `codex-only` (v2.0 新規)
+
+**`agents/verifier.md`**:
+- reviewer choice dispatch logic 追加 (PEV_REVIEWER_MODE で `pev-external-reviewer` / `pev-dual-review` / claude-single の分岐)
+- verify.json schema 拡張: `reviewer_mode` / `reviewers[]` (provider / verdict / raw_output) / `fallback_reason`
+
+**`settings.json`**:
+- env に `PEV_REVIEWER_MODE` (default: `claude-only`) / `PEV_CODEX_TIMEOUT` (default: `300`) / `PEV_CODEX_BIN` (default: `codex`) / `PEV_CODEX_SANDBOX` (default: `workspace-write`) を追加
+
+**`SPEC.md`**:
+- §10 Dual Review を v2.0 拡張 (4 mode 表 + codex 技術詳細 + model diversity 改善の言及)
+- §11 ロードマップ table に v2.0 row 追加
+- §12 ADR-006 (subprocess vs MCP の選択理由) + ADR-007 (Reviewer A が claude 固定の理由) 追加
+
+**`README.md`** / **`ONBOARDING.md`**:
+- Components 表に v2.0 新 skill / command 追加
+- ONBOARDING に「外部 reviewer (codex) セットアップ」 section 新規 (4 step: install / API key / `/pev-init-codex` / `/pev <task> --reviewer-mode=dual-codex`)
+- fallback 動作の説明明記
+
+### Verified via dog food
+- 環境: codex CLI v0.128.0 (`/etc/profiles/per-user/.../bin/codex`、 ChatGPT subscription auth = `Logged in using ChatGPT`)
+- Sanity test: `codex exec --json --skip-git-repo-check --ephemeral --sandbox workspace-write "Reply with 'pong'"` → `{"item":{"text":"pong"}}` を含む JSONL (latency 数秒、 token usage 表示)
+- 実用 dog food (sample-project に 1 行 marker comment 追加、 AC2 違反シナリオ): `codex exec --json --output-schema schemas/codex-reviewer-output.json -o out.json --ephemeral --sandbox workspace-write --skip-git-repo-check <prompt>` → schema 準拠の structured JSON を返した:
+  - `verdict: "FAIL"` + `critical_issues[0]` で AC2 違反を指摘 + `suggested_fix` 付き
+  - `ac_coverage[]` で AC1 met / AC2 not-met を evidence 引用付きで分離記録
+  - 日本語 AC ("コードが既存のテストを破壊しない") を正しく理解
+- dog food findings (release 前に patch 済):
+  - **F1**: macOS default で `timeout` コマンド不在 → `pev-external-reviewer` の Invocation pattern に portable wrapper (`timeout` → `gtimeout` → no-op fallback + warning) を明文化
+  - **F2**: OpenAI structured outputs strict 仕様で **全 properties が required 必須**、 optional は型 null 許容で表現 → `schemas/codex-reviewer-output.json` を strict 準拠に書き直し、 SKILL.md に「Schema strict 仕様」 section 追加
+  - **F3** (環境誤認、 release 前訂正済): 認証は `CODEX_API_KEY` env var ではなく **`codex login` (subscription auth) または `OPENAI_API_KEY` + `codex login --with-api-key`** が v0.128 で正。 spec / skill / commands / ONBOARDING を 2 path 対応に訂正
+  - **F4** (環境 finding、 spec 修正対象外): `codex review` subcommand (`--uncommitted` / `--base` 等) は code review 専用だが `--json` / `--output-schema` を支持しないため、 PEV 用途では `codex exec` を採用
+
+### Design rationale (詳細 SPEC.md §12 ADR-006 / ADR-007)
+- ADR-002 (v0.4) で「外部 CLI 依存をやめた」 と書いた経緯を踏まえつつ、 v2.0 では `codex exec --json --output-schema` が公式 sanctioned で **schema 強制が JSON parse risk を消す** ため subprocess + on-demand 起動を採用
+- MCP server 化された codex が public spec として安定したら v2.x で MCP path を併設検討
 
 ## [1.9.0] - 2026-05-12
 

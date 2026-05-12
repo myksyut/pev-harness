@@ -1,11 +1,27 @@
 ---
 name: pev-dual-review
-description: --strict モード専用。Reviewer A (Opus xhigh) と Reviewer B (Sonnet high) を同一メッセージ内で並列起動し、両者の structured JSON verdict を merge して NICE/NAUGHTY 判定。Claude単独 model alias diversity を採用、外部CLI依存なし
+description: --strict モード専用。Reviewer A (Opus xhigh、固定) と Reviewer B (Sonnet high / Codex CLI から選択) を並列起動し、両者の structured JSON verdict を merge して NICE/NAUGHTY 判定。v2.0 で Reviewer B が選択可能になり、 dual-codex mode (codex CLI subprocess) で真の external model diversity を実現
 ---
 
 # pev-dual-review
 
-`--strict` モードで起動される検証強化 skill。santa-method の軽量版。**外部CLI依存ゼロ**、Claude単独で model alias diversity を実現する。
+`--strict` モードで起動される検証強化 skill。santa-method の軽量版。 v1.x までは Claude 単独 model alias、 v2.0 で Reviewer B を **OpenAI Codex CLI subprocess** に切替可能。
+
+## v2.0 reviewer mode (3 種)
+
+| Mode | Reviewer A | Reviewer B | 起動 path |
+|---|---|---|---|
+| `dual-claude` (v1.x default、 `--strict` 旧挙動) | claude opus (xhigh) | claude sonnet (high) | 同一メッセージ内の Agent tool 2 並列 |
+| **`dual-codex`** (v2.0 新規) | claude opus (xhigh) | codex CLI subprocess | Agent tool + Bash subprocess を同一メッセージ内で並列起動 (本 skill が Reviewer A、 `pev-external-reviewer` skill が Reviewer B) |
+| `codex-only` (v2.0 新規、 cost 削減 path) | (なし) | codex CLI subprocess 単独 | 本 skill は起動しない、 verifier から `pev-external-reviewer` のみ起動 |
+
+mode 切替方法 (priority 高い順):
+
+1. `/pev <task> --reviewer-mode=<mode>` (CLI flag)
+2. `.claude/settings.local.json` の env `PEV_REVIEWER_MODE`
+3. settings.json default (= `claude-only`、 本 skill 起動しない)
+
+Reviewer A が **opus 固定** の理由: ADR-007 (SPEC.md §12) — plan-aware role (plan.md 理解 + AC trace) は claude 側に固定して、 codex は fresh perspective として独立に機能させる。
 
 ## When to Use
 
