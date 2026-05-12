@@ -38,10 +38,9 @@ Claude Opus 4.7 が出てから「step by step」「double-check」のような 
 ## Quick start
 
 ```bash
-# 1) Plugin として永続インストール
-mkdir -p ~/.claude/plugins/repos/myksyut
-cd ~/.claude/plugins/repos/myksyut
-git clone https://github.com/myksyut/pev-harness.git
+# 1) Plugin Marketplace 経由でインストール (v2.1+ 推奨)
+claude plugin marketplace add myksyut/pev-harness
+claude plugin install pev-harness@pev-harness
 
 # 2) project に bootstrap (v1.9+、 1 コマンドで team-conventions.md + .gitignore + 言語検知)
 cd <your-project>
@@ -60,6 +59,8 @@ claude --plugin-dir ./pev-harness
 > /pev-harness:pev-init
 > /pev-harness:pev "..."
 ```
+
+v2.0 以前の手動 clone install (`~/.claude/plugins/repos/myksyut/`) もそのまま動く。
 
 `/pev-init --dry-run` で「実行予定 file list + 言語検知結果」を見てから実行する習慣を推奨。
 

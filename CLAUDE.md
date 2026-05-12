@@ -152,15 +152,18 @@ rm -rf artifacts/ playwright-report/ test-results/
 [2] (optional) dog food 実機検証
 [3] CHANGELOG.md に v.X.Y.Z section 追加 (Added / Changed / Verified via dog food / Reference 等)
 [4] SPEC.md §11 ロードマップ table に v.X.Y を追加 (Status: ✅ released)
-[5] pre-commit check:
+[5] **plugin manifest version 同期** (v2.1+ marketplace 経由 install で surface される):
+    - .claude-plugin/plugin.json の "version" を vX.Y.Z に
+    - .claude-plugin/marketplace.json の plugins[0].version を vX.Y.Z に
+[6] pre-commit check:
     - grep -rEinH "step.by.step|double.check|..." agents/ skills/ commands/
     - node -e "JSON.parse(...)" で JSON file 全部
-[6] git add . && git commit -m "feat(v.X.Y): ..." (HEREDOC body + Co-Authored-By)
-[7] git push
-[8] git tag -a vX.Y.0 -m "vX.Y.0 — ..." && git push origin vX.Y.0
-[9] gh release create vX.Y.0 --title ... --notes ...
-[10] CI watch (sleep 8 + until conc=$(gh run view ...))
-[11] CI fail → patch commit → push (CI 自動 retry)
+[7] git add . && git commit -m "feat(v.X.Y): ..." (HEREDOC body + Co-Authored-By)
+[8] git push
+[9] git tag -a vX.Y.0 -m "vX.Y.0 — ..." && git push origin vX.Y.0
+[10] gh release create vX.Y.0 --title ... --notes ...
+[11] CI watch (sleep 8 + until conc=$(gh run view ...))
+[12] CI fail → patch commit → push (CI 自動 retry)
 ```
 
 **branch protection 経由**: admin (= `myksyut`) は `enforce_admins=false` で直 push 可能。 出力に `Bypassed rule violations` と出るが正常。

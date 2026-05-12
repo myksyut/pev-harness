@@ -344,7 +344,8 @@ v2.0 で reviewer mode を 4 種に拡張:
 | v1.8 | v1.3 + v1.7.1 dog food findings reflection (9 件) | linear-project-workflow 4件 (#13/#14/#15/#18) / agents 3件 (#16/#20/#21) / `--expect-fail` flag (#17) / team-conventions Lint・Typecheck 明示 (#19) | ✅ released |
 | v1.9 | `/pev-init` project bootstrap command | pev-bootstrap-project skill + 言語検知 (Node/Python/Go/Rust) + team-conventions auto-populate + .gitignore append + interactive prompts + dry-run mode | ✅ released |
 | **v2.0** | **External reviewer (OpenAI Codex CLI) integration** | pev-bootstrap-codex / pev-external-reviewer skill + reviewer mode 4 種 (claude-only/dual-claude/dual-codex/codex-only) + codex-reviewer-output schema + fallback path | ✅ released |
-| **v2.1** | **empirical-prompt-tuning skill 取り込み** | mizchi/skills の empirical-prompt-tuning を skills/empirical-prompt-tuning/ に導入、 skill-finder 削除 (上位互換) | (current) |
+| **v2.1** | **empirical-prompt-tuning skill 取り込み** | mizchi/skills の empirical-prompt-tuning を skills/empirical-prompt-tuning/ に導入、 skill-finder 削除 (上位互換) | ✅ released |
+| **v2.1.1** | **Plugin Marketplace 配布対応** | `.claude-plugin/marketplace.json` 追加、 plugin.json version 同期、 release procedure 更新 | (current) |
 | v2.2+ | Gemini CLI 対応 / model 自由切替 (planner/executor も外部 model 可) | (TBD) | Issue #9 の continuation |
 
 ---

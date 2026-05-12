@@ -19,20 +19,28 @@ gh repo view myksyut/pev-harness > /dev/null && echo OK || echo "ACCESS DENIED"
 ## 1. 個人ごとのインストール
 
 ```bash
-# A. plugin として ~/.claude/plugins に clone (推奨)
-cd ~/.claude/plugins
-mkdir -p repos/myksyut
-cd repos/myksyut
+# A. Plugin Marketplace 経由 (v2.1+ 推奨)
+claude plugin marketplace add myksyut/pev-harness
+claude plugin install pev-harness@pev-harness
+# Claude Code 再起動不要、 install 完了で自動認識
+
+# B. 手動 clone (v2.0 以前の方式、 現在も動く)
+mkdir -p ~/.claude/plugins/repos/myksyut
+cd ~/.claude/plugins/repos/myksyut
 git clone https://github.com/myksyut/pev-harness.git
 # Claude Code 再起動で自動認識
 
-# B. 一時利用 (--plugin-dir フラグ、セッション単位)
+# C. 一時利用 (--plugin-dir フラグ、セッション単位)
 cd ~/work
 git clone https://github.com/myksyut/pev-harness.git
 claude --plugin-dir ./pev-harness
 ```
 
-Aは永続、Bは検証/お試し向け。チーム展開では **A を推奨**。
+A は **v2.1 以降の正規方法** (`.claude-plugin/marketplace.json` を導入済み)。 `pev-harness@pev-harness` は `<plugin-name>@<marketplace-name>` 形式で、 1-repo パターンのため両者とも `pev-harness` になる。
+
+B は historic な手動 clone 方式。 既に B で導入済みのチームは `git pull` で v2.1+ に上げれば marketplace.json が同梱されるが、 install 経路を A に変える必要はない。
+
+C は検証/お試し向け。 チーム展開では **A または B を推奨**。
 
 ## 2. プロジェクトへの導入
 

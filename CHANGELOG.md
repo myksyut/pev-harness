@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (`gemini exec` 同 pattern で external reviewer 追加、 元 v2.1 スコープ)
 - planner / executor も外部 model 可 (Issue #9 の continuation)
 
+## [2.1.1] - 2026-05-12
+
+**Plugin Marketplace 配布対応** + plugin.json version 同期。 v2.1 機能変更なし、 配布経路整備のみの patch。 `claude plugin marketplace add myksyut/pev-harness` → `claude plugin install pev-harness@pev-harness` で導入可能になる。
+
+### Added
+- `.claude-plugin/marketplace.json` 新規追加 (1-repo パターン、 `plugins[0].source = "."`)
+- ONBOARDING.md §1 に Plugin Marketplace 経由インストール手順 (経路 A)、 既存手動 clone 方式を経路 B として併記
+
+### Changed
+- `.claude-plugin/plugin.json` の `version` を `0.1.0` → `2.1.0` に同期 (これまで release ごとに更新されていなかった、 v2.1+ marketplace 経由 install で正しい version が surface される)
+- `CLAUDE.md` §5 release procedure に plugin manifest version 同期 step を明示追加 (今後の release で必須化)
+- `README.md` Quickstart の plugin install snippet を marketplace 経由優先に書き換え (手動 clone も併記)
+
+### Note
+- 既に `~/.claude/plugins/repos/myksyut/pev-harness` に clone 済みのユーザーは、 そのまま `git pull` で v2.1.1 を取得すれば OK。 marketplace 経由 install への切替は任意
+
 ## [2.1.0] - 2026-05-12
 
 **`empirical-prompt-tuning` skill 取り込み + `skill-finder` 撤去**。 上流 [mizchi/skills](https://github.com/mizchi/skills/tree/main/empirical-prompt-tuning) の SKILL-ja.md (commit `0b197be`) を pev-harness に正規取り込み。 v0.1.1 で外部 skill 評価メタスキルとして導入していた `skill-finder` を撤去し、 「subagent dispatch + 自己申告 + 指示側メトリクスで反復改善」の方法論に置換。 pev-pipeline / pev-spec-template 等の中核 skill を体系的にチューニングする土台。
