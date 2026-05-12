@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml)
 [![GitHub stars](https://img.shields.io/github/stars/myksyut/pev-harness?style=social)](https://github.com/myksyut/pev-harness/stargazers)
-![version](https://img.shields.io/badge/version-2.1.2-blue)
+![version](https://img.shields.io/badge/version-2.1.4-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![claude--code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5v2.1.111-purple)
 
@@ -63,6 +63,41 @@ claude --plugin-dir ./pev-harness
 v2.0 以前の手動 clone install (`~/.claude/plugins/repos/myksyut/`) もそのまま動く。
 
 `/pev-init --dry-run` で「実行予定 file list + 言語検知結果」を見てから実行する習慣を推奨。
+
+## Optional integrations
+
+pev-harness の core 機能 (PEV pipeline / Gate A/B / dual-review / external-reviewer) は単体で動きますが、 一部 skill は **別 plugin に依存** します。 使う機能だけ install してください。
+
+### Linear sync (issue/project 連携、 `pev-linear-sync` / `linear-project-workflow` / `linear-project-tracker` 用)
+
+```bash
+# Anthropic 公式 marketplace から Linear plugin を install
+claude plugin marketplace add anthropics/claude-plugins-official
+claude plugin install linear@claude-plugins-official
+# 初回起動時に OAuth で Linear workspace に接続 (Linear hosted MCP: https://mcp.linear.app/mcp)
+```
+
+install しないと `mcp__plugin_linear_linear__*` tool が解決できず、 上記 3 skill は no-op になります。 Linear 連携を使わないなら skip 可。
+
+### Playwright E2E (`pev-e2e-verify` / `/pev-verify-e2e` / `/pev-init-e2e` 用)
+
+`examples/sample-project/.mcp.json` がテンプレ。 各 project の `.mcp.json` に下記を追記:
+
+```json
+{ "mcpServers": { "playwright-test": { "command": "npx", "args": ["playwright", "run-test-mcp-server"] } } }
+```
+
+`/pev-init-e2e` が `.mcp.json` / `.claude/agents/playwright-test-*.md` を auto 生成するので、 普段は手動編集不要。
+
+### Codex CLI (`pev-external-reviewer` / `--reviewer dual-codex` 用)
+
+```bash
+# OpenAI Codex CLI install (公式: https://github.com/openai/codex)
+brew install openai/tap/codex
+codex auth login
+```
+
+`/pev-init-codex` で project 側 wire-up 完了。
 
 ## Required initial-turn prompt structure
 

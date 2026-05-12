@@ -19,6 +19,8 @@
 - [ ] `~/.claude/plugins/repos/myksyut/pev-harness` に clone or `--plugin-dir` で session 起動できる
 - [ ] `/pev-harness:pev` がコマンド一覧に出る (`/help` で確認)
 - [ ] ONBOARDING.md を読了
+- [ ] (Linear sync を使うチーム) `linear@claude-plugins-official` plugin を install + OAuth 認証完了 (ONBOARDING §1.5 参照)
+- [ ] (`--reviewer dual-codex` を使うチーム) Codex CLI install + `codex auth login` 完了
 
 ## Project preparation
 

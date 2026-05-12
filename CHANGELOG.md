@@ -11,6 +11,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (`gemini exec` 同 pattern で external reviewer 追加、 元 v2.1 スコープ)
 - planner / executor も外部 model 可 (Issue #9 の continuation)
 
+## [2.1.4] - 2026-05-12
+
+**連携 plugin (Linear MCP / Playwright / Codex CLI) の prerequisites 明示**。 これまで pev-harness `skills/pev-linear-sync/` `skills/linear-project-workflow/` `skills/linear-project-tracker/` の 3 skill と `agents/verifier.md` の Linear push path は **Linear MCP が install されている前提** で書かれていたが、 `README.md` `ONBOARDING.md` `guide/ROLLOUT-CHECKLIST.md` のいずれにも setup 手順がなく、 別ユーザーが Linear sync 機能に到達できないギャップがあった。 ドキュメント追記のみの patch (機能変更なし)。
+
+### Documented
+
+- **`README.md`** に「Optional integrations」 セクション新規追加。 Linear / Playwright / Codex CLI それぞれの install コマンドと「使う機能だけ install」 方針を明記
+- **`ONBOARDING.md` §1.5「連携 plugin」** 新規追加。 Linear MCP は `claude plugin marketplace add anthropics/claude-plugins-official` + `claude plugin install linear@claude-plugins-official` + 初回 OAuth で setup 完了、 Linear hosted HTTP MCP (`https://mcp.linear.app/mcp`) をラップする仕組みを補足
+- **`guide/ROLLOUT-CHECKLIST.md`** Pre-rollout 個人項目に「Linear sync を使うチーム: linear plugin install + OAuth 完了」 と「dual-codex を使うチーム: Codex CLI + auth login 完了」 の 2 チェックを追加
+
+### Changed
+
+- **`.claude-plugin/plugin.json`** / **`.claude-plugin/marketplace.json`** version を `2.1.3` → `2.1.4` に同期
+- **`README.md`** version badge を `2.1.2` → `2.1.4` (v2.1.3 で更新漏れだったため整合)
+
+### Reference
+
+- 公式 Anthropic Linear plugin: <https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/linear>
+- Linear hosted MCP: `https://mcp.linear.app/mcp`
+
 ## [2.1.3] - 2026-05-12
 
 **Anthropic 公式 [anthropics/skills](https://github.com/anthropics/skills) から汎用開発系 skill 2 件を完全 vendoring**。 plugin install するだけでチーム全員が `skill-creator` (skill 自体の作成・eval・description 最適化) と `frontend-design` (production-grade UI 設計、 AI slop 回避) を利用可能になる。 機能変更なし、 純粋な追加リリース。

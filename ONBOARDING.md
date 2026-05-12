@@ -42,6 +42,44 @@ B は historic な手動 clone 方式。 既に B で導入済みのチームは
 
 C は検証/お試し向け。 チーム展開では **A または B を推奨**。
 
+## 1.5. 連携 plugin (使う機能だけ install)
+
+pev-harness の core 機能は単体で動くが、 一部 skill は **別 plugin に依存** する。 使う機能だけ追加 install すること。
+
+### Linear MCP (Linear sync 機能を使う場合は必須)
+
+`skills/pev-linear-sync/`, `skills/linear-project-workflow/`, `skills/linear-project-tracker/` の 3 skill と `agents/verifier.md` の Linear push path は、 Anthropic 公式 Linear plugin の MCP server (`mcp__plugin_linear_linear__*` tool 群) に依存する。
+
+```bash
+# 個人ごとに 1 回 install
+claude plugin marketplace add anthropics/claude-plugins-official
+claude plugin install linear@claude-plugins-official
+```
+
+初回 Linear tool 呼び出し時に **OAuth dialog が起動**、 ブラウザで Linear workspace を承認すれば認証完了 (Linear hosted MCP: `https://mcp.linear.app/mcp` をラップする HTTP transport)。
+
+確認方法:
+
+```bash
+# Claude Code 起動後、 deferred tool list に linear が surface するか
+# (新 session で初回 prompt 時に自動 fetch される)
+```
+
+Linear 連携を使わないチームは skip 可。 install しないまま `/pev-harness:pev <Linear URL>` を実行すると、 Linear sync skill が「MCP unavailable」 で no-op し、 plain text の task として処理される。
+
+### Playwright MCP (`/pev-init-e2e` を使う場合に project 側で setup)
+
+`/pev-init-e2e` 実行時に `pev-bootstrap-playwright` skill が project の `.mcp.json` を auto 生成 (`examples/sample-project/.mcp.json` 参照)。 個人 install は不要、 project ごとの setup。
+
+### Codex CLI (`--reviewer dual-codex` を使う場合)
+
+```bash
+brew install openai/tap/codex
+codex auth login
+```
+
+`/pev-init-codex` で project 側の wire-up 完了。 個人ごとに 1 回 `codex auth login` が必要。
+
 ## 2. プロジェクトへの導入
 
 ### 推奨 (v1.9+): `/pev-init` 1 コマンド
