@@ -42,6 +42,59 @@ B は historic な手動 clone 方式。 既に B で導入済みのチームは
 
 C は検証/お試し向け。 チーム展開では **A または B を推奨**。
 
+## 1.2. Project scope install (team 共有、 v2.1.5+ 推奨)
+
+§1 の A/B/C は全て **user scope** (個人 + 全 project) の install。 「チーム全員が同じ project で同じ pev-harness version を使う」 ことを保証したい場合は **project scope** で commit する選択肢がある (公式 [Configure team marketplaces](https://code.claude.com/docs/en/discover-plugins.md#configure-team-marketplaces) 仕様)。
+
+### Pattern P1: `.claude/settings.json` に declare (commit して team 共有)
+
+```json
+// <project>/.claude/settings.json
+{
+  "extraKnownMarketplaces": {
+    "pev-harness": {
+      "source": {
+        "source": "github",
+        "repo": "myksyut/pev-harness"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "pev-harness@pev-harness": true
+  }
+}
+```
+
+これを git commit すると、 teammate が project clone → `claude` 起動 → Claude Code が「この repo の marketplace を trust するか」 と prompt → trust すれば auto install + enable される。 trust は 1 回だけ確認、 以降は repo trust 状態を保持。
+
+### Pattern P2: CLI 1 発 (同等の JSON を生成)
+
+```bash
+cd <your-project>
+claude plugin marketplace add myksyut/pev-harness
+claude plugin install pev-harness@pev-harness --scope project
+```
+
+`--scope project` flag で `.claude/settings.json` に Pattern P1 と同じ JSON が書き込まれる。 commit すれば team に行き渡る。
+
+### scope 3 種の比較
+
+| Scope | 設定ファイル | git commit | 共有範囲 |
+|---|---|---|---|
+| **user** (§1 A の default) | `~/.claude/settings.json` | ❌ (個人) | 個人 / 全 project |
+| **project** | `<project>/.claude/settings.json` | ✅ commit して team へ | project clone した teammate 全員 |
+| **local** | `<project>/.claude/settings.local.json` | ❌ (`.gitignore` 推奨) | 個人 / 当該 project のみ |
+
+### 使い分けの目安
+
+- **個人で複数 project 横断的に使う** → user scope (§1 A)
+- **特定 project で team 全員に強制したい** (version pin / 同期更新) → project scope (§1.2)
+- **個人が特定 project でだけ試したい** → local scope (CLI で `--scope local`)
+
+### 注意: trust prompt の体験
+
+project scope の `extraKnownMarketplaces` は **trust prompt が初回起動で出る** (公式 docs 「When team members trust the repository folder, Claude Code prompts them to install these marketplaces and plugins」)。 teammate が CI / 非対話環境で実行する場合は、 user scope 経由の事前 install のほうがハマらない。 dev 環境 / interactive shell では project scope で十分。
+
 ## 1.5. 連携 plugin (使う機能だけ install)
 
 pev-harness の core 機能は単体で動くが、 一部 skill は **別 plugin に依存** する。 使う機能だけ追加 install すること。

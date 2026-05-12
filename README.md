@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml)
 [![GitHub stars](https://img.shields.io/github/stars/myksyut/pev-harness?style=social)](https://github.com/myksyut/pev-harness/stargazers)
-![version](https://img.shields.io/badge/version-2.1.4-blue)
+![version](https://img.shields.io/badge/version-2.1.5-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![claude--code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5v2.1.111-purple)
 
@@ -37,6 +37,8 @@ Claude Opus 4.7 が出てから「step by step」「double-check」のような 
 
 ## Quick start
 
+### A) 個人 install (user scope、 全 project で使える)
+
 ```bash
 # 1) Plugin Marketplace 経由でインストール (v2.1+ 推奨)
 claude plugin marketplace add myksyut/pev-harness
@@ -51,7 +53,21 @@ claude
 > /pev-harness:pev "Add a /healthz endpoint that returns {status: 'ok'}"
 ```
 
-セッション単位の試用なら:
+### B) Team 共有 install (project scope、 v2.1.5+)
+
+team 全員が同じ project で同じ pev-harness version を使うことを保証したい場合:
+
+```bash
+cd <your-project>
+claude plugin marketplace add myksyut/pev-harness
+claude plugin install pev-harness@pev-harness --scope project
+# → <project>/.claude/settings.json に extraKnownMarketplaces + enabledPlugins が書き込まれる
+git add .claude/settings.json && git commit -m "chore: adopt pev-harness team-wide"
+```
+
+teammate は project clone → `claude` 起動で trust prompt → 同意で auto install + enable。 詳細は [ONBOARDING §1.2](./ONBOARDING.md#12-project-scope-install-team-共有-v215-推奨)。
+
+### C) セッション単位の試用 (`--plugin-dir`)
 
 ```bash
 git clone https://github.com/myksyut/pev-harness.git

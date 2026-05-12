@@ -11,6 +11,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (`gemini exec` 同 pattern で external reviewer 追加、 元 v2.1 スコープ)
 - planner / executor も外部 model 可 (Issue #9 の continuation)
 
+## [2.1.5] - 2026-05-12
+
+**Project scope install (team 共有) 手順を docs に追加**。 これまで `README.md` `ONBOARDING.md` の install 手順は **user scope のみ** で、 「team 全員が同じ project で同じ pev-harness version を使うことを保証する」 経路が明示されていなかった。 公式 [Configure team marketplaces](https://code.claude.com/docs/en/discover-plugins.md#configure-team-marketplaces) の仕様 (`.claude/settings.json` の `extraKnownMarketplaces` + `enabledPlugins`) に沿って 2 つの Pattern を併記。 docs-only patch。
+
+### Documented
+
+- **`ONBOARDING.md` §1.2「Project scope install」 新規**: Pattern P1 (`.claude/settings.json` 直編集 + git commit で team 共有) + Pattern P2 (`claude plugin install --scope project` で同等 JSON を CLI 生成) を併記、 scope 3 種 (user / project / local) の比較表 + 使い分けの目安 + CI / 非対話環境では user scope 経由が安全という注記
+- **`README.md` Quick start** を 3 セクション化 (A: 個人 user scope / B: team 共有 project scope / C: セッション単位 `--plugin-dir`)。 B から ONBOARDING §1.2 へ deep link
+
+### Changed
+
+- **`.claude-plugin/plugin.json`** / **`.claude-plugin/marketplace.json`** version を `2.1.4` → `2.1.5` に同期
+- **`README.md`** version badge を `2.1.4` → `2.1.5`
+- **`SPEC.md` §11 ロードマップ** に v2.1.5 row 追加
+
+### Reference
+
+- 公式 docs: <https://code.claude.com/docs/en/discover-plugins.md#configure-team-marketplaces>
+- scope 仕様: <https://code.claude.com/docs/en/settings.md#configuration-scopes>
+
 ## [2.1.4] - 2026-05-12
 
 **連携 plugin (Linear MCP / Playwright / Codex CLI) の prerequisites 明示**。 これまで pev-harness `skills/pev-linear-sync/` `skills/linear-project-workflow/` `skills/linear-project-tracker/` の 3 skill と `agents/verifier.md` の Linear push path は **Linear MCP が install されている前提** で書かれていたが、 `README.md` `ONBOARDING.md` `guide/ROLLOUT-CHECKLIST.md` のいずれにも setup 手順がなく、 別ユーザーが Linear sync 機能に到達できないギャップがあった。 ドキュメント追記のみの patch (機能変更なし)。
