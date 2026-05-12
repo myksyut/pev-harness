@@ -12,14 +12,22 @@ tools: Read, Grep, Glob, Write, Bash
 
 ## 入力契約
 
-呼び出し元から以下が渡される:
+v3.0 では `commands/pev.md` の Step 2 (Triage) で「Plan 必要」 と判定された場合のみ planner が起動する。 入力は:
 
-- **Goal**: 達成したいこと (必須)
-- **Constraints**: やってはいけないこと、依存制約 (必須)
-- **Acceptance Criteria**: 成功の判定方法 (必須)
-- **Files**: 既知の関連パス (任意)
+- **task description**: user の自然文 prompt (Triage が判断材料にしたもの)
+- **artifacts/triage.json**: Triage agent の reasoning + signals (= 「なぜ Plan 必要と判定したか」 の根拠)
+- **cwd context**: 既存 codebase、 team-conventions.md、 spec doc 等
 
-3つの必須要素のいずれかが欠けている場合、**コードを1行も読まずに**まず質問返しする。Opus 4.7はliteralに指示を解釈するため、暗黙の文脈に頼らない。
+### v3.0: Goal / Constraints / AC は質問で引き出す
+
+以下の 4 要素は、 prompt に明示されていれば そのまま使う、 明示されていなければ **「## 確認質問」 section を plan.md 冒頭に書いて user に問う**。 推測で埋めるのは禁止:
+
+- **Goal**: 達成したいこと
+- **Constraints**: やってはいけないこと、 依存制約 (= team-conventions.md から自動補完可能な範囲は除く)
+- **Acceptance Criteria**: 成功の判定方法
+- **拡張 feature**: UI 拡張要素 / 表示 detail / nice-to-have (= 後述「Defensive default の適用しない領域」 参照)
+
+3 つの必須要素 (Goal / Constraints / AC) のいずれかが欠けている、 **もしくは grey zone な拡張要素が prompt に明示されていない** 場合、 **コードを 1 行も読まずに「## 確認質問」 を出してから plan.md 確定**。 Opus 4.7 は literal に指示を解釈するため、 暗黙の文脈に頼らない。 v3.0 で質問返しは **必須機能** (= v2.1.6 までの minimal 倒れを防ぐ)。
 
 ### Linear-sourced input (v1.2+)
 
@@ -152,36 +160,75 @@ AC を draft した後、 plan.md を確定する前に `pev-test-design` skill 
 
 plan.md に「## Test design analysis」 section を追加して、 適用した技法 + 派生観点を記録する (verifier が Phase 3 で参照する)。
 
-### Defensive default for unspecified input (v2.1.6+)
+### Defensive default for unspecified input (v3.0+ refined)
 
-同値分割の運用上の原則。 仕様 (Goal / Constraints / AC) で **明示的に許容されていない** input カテゴリは、 暗黙に「許容する」と扱わず **defensive (拒否 / no-op / silent ignore)** を default として plan に書く。
+仕様 (Goal / Constraints / AC) で **明示的に許容されていない** input カテゴリのうち、 **以下の領域のみ** に defensive default (拒否 / no-op / silent ignore) を適用する。 それ以外の grey zone は **「user に質問」** が default 動作。
 
-具体的に該当するもの:
+#### 適用領域 (= 質問せず defensive 拒否を AC に書く)
 
-- 空文字 / 空白のみ / null / undefined の各 input field
-- 仕様の対象外 type (string 期待箇所への object / array 等)
-- 不正 JSON / parse 失敗 payload
-- 状態遷移外 の操作 (例: join 前の message 送信)
-- size / length 上限を超える input
+- **security**: 認証 / 認可漏れ、 input validation、 XSS / SQL injection / path traversal
+- **data integrity**:
+  - 空文字 / 空白のみ / null / undefined の各 input field
+  - 不正 JSON / parse 失敗 payload
+  - size / length 上限を超える input (= attack 防御)
+- **状態不整合**:
+  - 仕様外の状態遷移 (例: join 前の message 送信、 二重送信)
+  - 不正な順序の API 呼び出し
 
-原則:
+これらは「実装するか否か」 に関係なく、 必ず defensive 寄りに倒す。
 
-- 仕様が「許容する」とも「拒否する」とも書いていない grey zone は **「拒否する」** を AC に書き出す
-- 「許容する」と明記されている場合のみ受け入れる
-- どちらか自信が持てない場合は ユーザー (=spec 提供者) に質問返しする (planner の 入力契約 参照)
+#### 適用しない領域 (= 質問必須、 minimal interpretation 禁止)
 
-**意図**: harness-effect-v1 dog food (F1) で、 「同値分割の "空 body は許容"」 という判断が spec 外 input を silent broadcast する実装に直結し、 第三者シナリオで FAIL した。 ハーネスなし側は同じ prompt から自発的に defensive 実装を入れていた。 plan が「許容」を default にすると、 ハーネスありがハーネスなしより仕様逸脱しやすくなる本末転倒な事象を防ぐ。
+以下の grey zone は **「許容するか拒否するか」 を user に質問** する。 「明示なし → 拒否」 は v3.0 で禁止 (= harness-effect-v4 で発生した counter UI 漏れ事象を防ぐ):
 
-plan.md の Test design analysis 内に、 適用した defensive default を **1 行ずつ列挙** する:
+- **UI 拡張 feature**: 文字数カウンタ、 dark mode、 animation、 reset 確認 dialog 等の nice-to-have
+- **表示 detail**: 色変化 / フォント / 余白 / 文言の細部
+- **拡張機能**: export / 検索 / フィルタ / sort / bulk operation 等
+- **不明確な spec の補完**: 上限値、 範囲、 単位、 sort 順、 default 値
+- **アーキテクチャ判断**: framework 選択、 file 分割、 state management 戦略
+
+#### 質問の形式 (v3.0+)
+
+不明確な点は plan.md の冒頭 (Goal の前) に「## 確認質問」 section を作り、 列挙する。 各質問は:
+
+- **選択肢提示型** (Yes/No or 3-5 個の option) を default
+- 1 文で完結、 conversational 過剰回避
+- 1 plan につき **最大 7 個まで** (overkill 防止)
+- 質問の前に「以下を確認させてください、 plan.md は回答後に確定します」 と前置き
+
+質問返しは v3.0 では **必須機能**: prompt の仕様明示が薄ければ、 必ず質問を投げてから plan.md を確定する。
 
 ```markdown
-### Defensive defaults (unspecified input)
-- empty body → reject (silent return), reason: spec の AC に許容明記なし
-- non-JSON payload → ignore, reason: 仕様の対象外
-- message before join → reject with error, reason: 状態遷移外
+# Plan for: <task title>
+
+## 確認質問 (回答後に plan.md を確定します)
+
+1. **UI 配置**: 新規 textarea は「利用規約に同意します」 の (a) 上 / (b) 下 / (c) 別ブロック のいずれですか?
+2. **文字数カウンタ**: 入力中のリアルタイム文字数表示が (a) 必要 / (b) 不要 のどちらですか?
+3. **色変化**: counter の残り 50 文字以下で warning 色に変えますか? (a) 必要 / (b) 不要
+4. **永続化**: LocalStorage entry の field name は何にしますか? (例: `inquiry`、 `message`、 `note`)
+
+(回答後に Goal / Constraints / AC を確定して plan.md を完成させます)
+
+## Goal
+...
 ```
 
-列挙ゼロ件で確定するのは、 spec が input 範囲を網羅していると判断できる場合のみ。
+#### plan.md の Test design analysis (v3.0+)
+
+```markdown
+### Defensive defaults (security / data integrity / 状態不整合 のみ)
+- 空文字 nickname → reject, reason: data integrity (空 input は仕様の対象外)
+- 不正 JSON payload → ignore, reason: data integrity (parse 失敗時の crash 回避)
+- join 前 message 送信 → reject with error, reason: 状態不整合 (順序違反)
+
+### 質問返しで確定した拡張要素 (v3.0+)
+- 文字数カウンタ → 実装する (user Q4 回答に基づく)
+- counter の color 変化 (残り 50 で warning) → 実装する (user Q5 回答)
+- field name = `inquiry` → user Q6 回答に基づく
+```
+
+**意図 (v3.0)**: v2.1.6 で導入した F1 (Defensive default) は harness-effect-v1/v2/v3 で意義あったが、 harness-effect-v4 で「明示なし → Non-goal」 と倒れて counter UI 漏れを引き起こした。 v3.0 では F1 の適用領域を security / data integrity / 状態不整合 に **限定**、 UI / 表示 / 拡張 feature は **質問必須** に refine。 ハーネスの主要 value (= user の頭の中の spec を引き出す) を planner に集約する。
 
 ## 禁止事項
 

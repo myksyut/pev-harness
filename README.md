@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml)
 [![GitHub stars](https://img.shields.io/github/stars/myksyut/pev-harness?style=social)](https://github.com/myksyut/pev-harness/stargazers)
-![version](https://img.shields.io/badge/version-2.1.6-blue)
+![version](https://img.shields.io/badge/version-3.0.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![claude--code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5v2.1.111-purple)
 
@@ -16,24 +16,37 @@ Claude Opus 4.7 が出てから「step by step」「double-check」のような 
 
 これらを前提に **ゼロベースで再設計** した結果が pev-harness。 既存のコーディングハーネスを4.7向けに改造するのではなく、4.7時代に**最初から書くなら何が必要か**を抜き出した。
 
-## What it does
+## What it does (v3.0+)
 
 入力: 自然文タスク → `/pev "Add /healthz endpoint that returns {status:'ok'}"`
 
 ```text
-  Phase 1 [PLAN]     opus + xhigh   →  artifacts/plan.md
-       ↓             Gate A: permissionMode で human-approval を強制可能
-  Phase 2 [EXECUTE]  sonnet + high  →  code changes + execute.log
-       ↓             Gate B: Stop hook が verify を促す
-  Phase 3 [VERIFY]   sonnet + xhigh →  artifacts/verify.json (PASS/FAIL)
+  Phase 0 [TRIAGE]   sonnet + low   →  artifacts/triage.json (v3.0+)
+       ↓             Plan 必要性を判定 (cwd context + prompt 曖昧度)
+       │
+       ├── plan_required ──→ Phase 1 [PLAN]    opus + xhigh   →  artifacts/plan.md
+       │                        ↓                Gate A: permissionMode で human-approval
+       │                     Phase 2 [EXECUTE] sonnet + high  →  code changes + execute.log
+       │                        ↓                Gate B: Stop hook が verify を促す
+       │                     Phase 3 [VERIFY]  sonnet + xhigh →  artifacts/verify.json (PASS/FAIL)
+       │
+       └── plan_skip ──→ Phase 2 [EXECUTE] (plan-less mode、 cwd context + task description で直接実装)
+                            ↓
+                         Phase 3 [VERIFY]
        ↓
   PASS → done    FAIL → planner に戻る (max 3 retries)
 ```
 
-- **3-phase 強制** で「考える → 書く → 確かめる」を Claude Code session に標準化
-- **Gate A の人間承認**で、軽微なタスクは `auto` で流し、重要変更は計画レビューを必須化
+- **Triage agent (v3.0+)** が cwd 構造 + prompt 曖昧度から Plan 必要性を判定 (= 軽量 router、 多くの実務 task で Plan skip)
+- **Plan の質問返し (v3.0+)** で「user の頭の中の spec を引き出す」 — UI 拡張要素 / 表示 detail / nice-to-have は質問必須
+- **Defensive default の scope 限定 (v3.0+)** — security / data integrity / 状態不整合 のみに適用 (= v2.1.6 の minimal 倒れ問題を解消)
+- **Gate A の人間承認** (Plan 起動時のみ) で、軽微なタスクは `auto` で流し、重要変更は計画レビューを必須化
 - **`--strict` で dual review** (Reviewer A=Opus xhigh + B=Sonnet high) を同一メッセージ内並列起動、structured JSON を merge
 - **agent ごとに memory directory** (`~/.claude/pev/{TASK_ID}/`) を持ち、retry や次セッションへの引き継ぎが durable
+
+### v2.x → v3.0 Migration
+
+v2.x の `/pev <task>` で `permissionMode=auto` での挙動を 保ちたい場合: `/pev <task> --with-plan` で v2.x 互換 (= Triage を skip して必ず Plan を起動)。 詳細は [CHANGELOG v3.0](./CHANGELOG.md#300---2026-05-12)。
 
 ## Quick start
 

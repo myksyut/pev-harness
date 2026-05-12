@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>TODO</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 600px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      background: #f5f5f5;
+      color: #222;
+    }
+    h1 { font-size: 1.8rem; margin-bottom: 1rem; }
+    h2 { font-size: 1.1rem; margin-bottom: 0.5rem; color: #555; }
+    #add-form {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    #add-input {
+      flex: 1;
+      padding: 0.5rem 0.75rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #add-form button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      background: #4a90d9;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #add-form button:hover { background: #357abd; }
+    section { margin-bottom: 1.5rem; }
+    ul { list-style: none; }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 0.4rem;
+    }
+    li .text {
+      flex: 1;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    #done-list li .text {
+      text-decoration: line-through;
+      color: #888;
+    }
+    li button {
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 0.2rem 0.5rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+    li button:hover { background: #eee; }
+    li button[data-action="delete"] { color: #c0392b; border-color: #c0392b; }
+    li button[data-action="delete"]:hover { background: #fdecea; }
+  </style>
+</head>
+<body>
+  <h1>TODO</h1>
+  <form id="add-form">
+    <input id="add-input" type="text" autocomplete="off" placeholder="新しいタスク">
+    <button type="submit">追加</button>
+  </form>
+  <section id="pending-section">
+    <h2>未完了</h2>
+    <ul id="pending-list"></ul>
+  </section>
+  <section id="done-section">
+    <h2>完了</h2>
+    <ul id="done-list"></ul>
+  </section>
+  <script>
+    const STORAGE_KEY = 'todo-app-state';
+
+    function loadTodos() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!parsed || parsed.v !== 1 || !Array.isArray(parsed.todos)) return [];
+        return parsed.todos;
+      } catch {
+        console.warn('[todo-app] localStorage parse failed, resetting to empty state');
+        return [];
+      }
+    }
+
+    function saveTodos(todos) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 1, todos }));
+      } catch {
+        console.warn('[todo-app] localStorage write failed (quota or unavailable)');
+      }
+    }
+
+    let todos = loadTodos();
+
+    function createLi(todo) {
+      const li = document.createElement('li');
+      li.dataset.id = todo.id;
+
+      const toggleBtn = document.createElement('button');
+      toggleBtn.dataset.action = todo.done ? 'untoggle' : 'toggle';
+      toggleBtn.setAttribute('aria-label', todo.done ? '完了取り消し' : '完了');
+      toggleBtn.textContent = todo.done ? '↶' : '○';
+
+      const span = document.createElement('span');
+      span.className = 'text';
+      span.textContent = todo.text;
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.dataset.action = 'delete';
+      deleteBtn.setAttribute('aria-label', '削除');
+      deleteBtn.textContent = '×';
+
+      li.appendChild(toggleBtn);
+      li.appendChild(span);
+      li.appendChild(deleteBtn);
+      return li;
+    }
+
+    function render() {
+      const pendingList = document.getElementById('pending-list');
+      const doneList = document.getElementById('done-list');
+      pendingList.innerHTML = '';
+      doneList.innerHTML = '';
+      todos.forEach(function(todo) {
+        if (todo.done) {
+          doneList.appendChild(createLi(todo));
+        } else {
+          pendingList.appendChild(createLi(todo));
+        }
+      });
+    }
+
+    document.getElementById('add-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const input = document.getElementById('add-input');
+      const text = input.value.trim();
+      if (text.length === 0) return;
+      todos.push({
+        id: crypto.randomUUID(),
+        text: text,
+        done: false,
+        createdAt: Date.now(),
+      });
+      saveTodos(todos);
+      render();
+      input.value = '';
+    });
+
+    function handleListClick(e) {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const li = btn.closest('li[data-id]');
+      if (!li) return;
+      const id = li.dataset.id;
+      const action = btn.dataset.action;
+
+      if (action === 'toggle') {
+        todos = todos.map(function(t) {
+          return t.id === id ? Object.assign({}, t, { done: true }) : t;
+        });
+      } else if (action === 'untoggle') {
+        todos = todos.map(function(t) {
+          return t.id === id ? Object.assign({}, t, { done: false }) : t;
+        });
+      } else if (action === 'delete') {
+        todos = todos.filter(function(t) { return t.id !== id; });
+      }
+
+      saveTodos(todos);
+      render();
+    }
+
+    document.getElementById('pending-list').addEventListener('click', handleListClick);
+    document.getElementById('done-list').addEventListener('click', handleListClick);
+
+    render();
+  </script>
+</body>
+</html>

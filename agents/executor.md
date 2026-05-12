@@ -12,9 +12,26 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 
 ## 入力契約
 
-- **必須**: `artifacts/plan.md` が存在すること
-- **必須**: plan.md に File-level changes セクションがあること
-- 不在ならエラーで停止し、`/pev-plan` を促す
+v3.0 から 2 mode で起動される:
+
+### Mode A: plan ベース (= 従来 v2.x 挙動)
+
+- `artifacts/plan.md` が存在し、 File-level changes セクションがある
+- 計画通りに実装する。 drive-by リファクタ禁止
+
+### Mode B: plan-less (v3.0+ で新規対応)
+
+Triage agent が「Plan skip」 と判断した場合、 plan.md は存在しない。 この時:
+
+- **task description** (user の自然文 prompt) を直接読む
+- **cwd context** (既存 codebase、 team-conventions.md、 spec doc) を Read で確認
+- 既存 pattern を踏襲して実装 (= validatePhone のような任意項目 validator が手本、 vitest test pattern を踏襲、 etc.)
+- `artifacts/triage.json` の `reasoning` と `context_signals` を **必ず参照**、 Triage が「明確」 と判断した根拠を理解してから実装
+- 不明確な点に直面したら、 即座に **停止して user に質問** (= 推測で進めない、 v2.1.6 の minimal 倒れを防ぐ)
+
+### 共通: 既存 codebase の読み込み
+
+両 mode で、 cwd の既存実装 (src/ / tests/) と team-conventions.md / spec doc / CLAUDE.md を **必ず読んでから** 実装開始する。 これは v2.1.6 までは Mode A の planner 経由で間接的に行っていたが、 v3.0 Mode B では executor が直接担う。
 
 ## 動作原則
 

@@ -7,9 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v2.2+
-- Gemini CLI 対応 (`gemini exec` 同 pattern で external reviewer 追加、 元 v2.1 スコープ)
-- planner / executor も外部 model 可 (Issue #9 の continuation)
+### Planned for v3.1+
+- Triage 判定基準の dog food tuning (v3.0-alpha で集めた精度データを反映)
+- Plan-less mode の executor self-clarify (= 実装中に不明確点が出たら user へ質問)
+- Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
+
+## [3.0.0] - 2026-05-12
+
+**ハーネスの value proposition を「user の頭の中の spec を引き出す」 に再定義**。 harness-effect-v1/v2/v3/v4 の 4 つの実験 ([experiments/](experiments/)) から、 v2.x の PEV pipeline は (a) 質問返し channel の脆さ / (b) F1 Defensive default の minimal 倒れ / (c) 効率コスト 12-18x / (d) Plan の overkill 等の構造的問題を抱えていることが明らかになった。 v3.0 は **Triage agent 新設 + Plan の on-demand 化 + 質問判定強化 + F1 scope 限定** で根本見直し。
+
+### Breaking changes
+
+- **default flow が変わる**: `/pev <task>` で Triage agent (Phase 0) が「Plan 必要性」 を判定、 多くの実務 task では Plan を skip して直接 Execute → Verify
+- **plan.md が出ない場合がある**: artifacts/plan.md を expect する CI / hooks は要 update (v3.0 では plan.md がなくても verify.json は出る)
+- **F1 (Defensive default) の scope 限定**: v2.1.6 で全領域に適用していた「不明確 → defensive 拒否」 を、 v3.0 では **security / data integrity / 状態不整合 のみ** に限定。 UI 拡張 / 表示 detail / nice-to-have は **質問必須** に変更
+- **旧挙動互換**: `/pev <task> --with-plan` で v2.x 互換 (Triage skip + Plan を必ず起動)
+
+### Added
+
+- **`agents/triage.md`** 新設 — Plan 必要性を 1 turn 以内で判定する軽量 router agent (model: sonnet, effort: low)。 cwd context (既存 codebase / spec doc / team-conventions.md 有無) + prompt の曖昧度を LLM 判断で評価、 `artifacts/triage.json` に decision + reasoning + signals を出力
+- **`commands/pev.md`** に **Step 1.5 (Phase 0: Triage)** を追加。 `--with-plan` / `--no-plan` flag を導入
+- **`agents/planner.md` 「## 確認質問」 protocol** — Goal / Constraints / AC が欠ける、 もしくは grey zone な拡張要素が未明示の場合、 plan.md 冒頭に確認質問を列挙して user に問う (v3.0 で必須機能)
+
+### Changed
+
+- **`agents/planner.md` Defensive default の scope 限定** (F1 refine):
+  - 適用領域: security / data integrity / 状態不整合 (= 引き続き defensive 拒否を AC に書く)
+  - 適用外領域: UI 拡張 feature / 表示 detail / nice-to-have / 不明確 spec 補完 / アーキテクチャ判断 → **質問必須に変更** (= harness-effect-v4 で発生した counter UI 漏れを防ぐ)
+- **`agents/executor.md` Mode B (plan-less) 対応** — Triage が plan_skip と判断した場合、 plan.md なしで task description + cwd context を直接読んで実装。 不明確な点に直面したら推測せず停止 (= 自己 clarify は v3.1+ で検討)
+- **`commands/pev.md` フロー** を Triage → (Plan?) → Execute → Verify に再構成
+
+### Verified via experiments (harness-effect-v1 to v4)
+
+| 実験 | task 性質 | v2.x 結果 | v3.0 期待 |
+|---|---|---:|---|
+| v1 (明確 spec) | WebSocket chat | タイ | ✓ Plan skip で overhead 削減 |
+| v2 (中曖昧 + text input) | TODO アプリ | no-harness 勝ち | △ Plan の質問判定強化で対応、 stream-json input 推奨 |
+| v3 (中曖昧 + stream-json) | TODO アプリ | **with-harness 勝ち** | ✓ 再現性確保 |
+| v4 (中曖昧 + 既存 codebase) | 申込フォーム機能追加 | no-harness 勝ち (counter UI 漏れ) | ✓ F1 scope 限定 + 質問必須 で解決 |
+
+詳細: [experiments/v3.0-design.md](experiments/v3.0-design.md) + [experiments/RFC-v3.0.md](experiments/RFC-v3.0.md)
+
+### Migration (v2.x → v3.0)
+
+旧 default (= 常時 PEV): `/pev <task> --with-plan` で互換
+新 default (= on-demand Plan): `/pev <task>` のまま、 ただし Triage 判定で Plan skip される task が多くなる
+
+### Reference
+
+- [experiments/harness-effect-v1 to v4](experiments/) の SUMMARY.md 群
+- [experiments/v3.0-design.md](experiments/v3.0-design.md)
 
 ## [2.1.6] - 2026-05-12
 

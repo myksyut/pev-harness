@@ -1,0 +1,4 @@
+scratch/*/node_modules/
+scratch/*/test-results/
+scratch/*/playwright-report/
+logs/*.stream.jsonl

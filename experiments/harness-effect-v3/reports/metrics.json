@@ -1,0 +1,34 @@
+{
+  "per_turn": {
+    "logs/turn1.stream.jsonl": {
+      "turn": 21,
+      "tool_use": 10,
+      "out_tok": 858,
+      "cache_r": 935231
+    },
+    "logs/turn2.stream.jsonl": {
+      "turn": 24,
+      "tool_use": 16,
+      "out_tok": 814,
+      "cache_r": 1024286
+    },
+    "logs/turn3.stream.jsonl": {
+      "turn": 68,
+      "tool_use": 61,
+      "out_tok": 1811,
+      "cache_r": 2582665
+    },
+    "logs/turn4.stream.jsonl": {
+      "turn": 3,
+      "tool_use": 1,
+      "out_tok": 24,
+      "cache_r": 235488
+    }
+  },
+  "total": {
+    "turn": 116,
+    "tool_use": 88,
+    "out_tok": 3507,
+    "cache_r": 4777670
+  }
+}

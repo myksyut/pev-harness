@@ -32,17 +32,27 @@ linear\.app/[^/]+/issue/([A-Z]+-\d+)
 
 Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済みであることが前提。 不在時は warning を出して通常 flow にfallback。
 
-## フロー
+## フロー (v3.0+)
 
 1. **引数判定**:
-   - Linear URL → `pev-linear-sync` inbound + plan
-   - 自然文 → `pev-spec-template` で Goal/Constraints/AC 整形 (不足要素は質問返し)
-2. **Phase 1 (Plan)**: planner agent → `artifacts/plan.md`
-3. **Gate A**: `permissionMode` 判定で auto / 停止 / 終了 を分岐
-4. **Phase 2 (Execute)**: executor agent → コード変更 + `artifacts/execute.log`
-5. **Gate B**: Stop hook が verifier を促す
-6. **Phase 3 (Verify)**: verifier agent (`--strict` 時は `pev-dual-review`) → `artifacts/verify.json`
-7. **Retry Gate**: PASS → 完了 / FAIL → planner に戻る (max 3回)
+   - Linear URL → `pev-linear-sync` inbound
+   - 自然文 → そのまま task description として使用
+2. **Phase 0 (Triage、 v3.0+)**: triage agent → `artifacts/triage.json` で Plan 必要性判定
+   - `decision = plan_required` → Step 3 (Plan) へ
+   - `decision = plan_skip` → Step 4 (Execute) へ直行
+3. **Phase 1 (Plan、 on-demand)**: planner agent → `artifacts/plan.md` (= Triage が plan_required と判定した場合のみ)
+4. **Gate A**: `permissionMode` 判定で auto / 停止 / 終了 を分岐 (= Plan が走った場合のみ)
+5. **Phase 2 (Execute)**: executor agent → コード変更 + `artifacts/execute.log`
+   - plan.md があれば計画ベース、 なければ task description + cwd context ベース
+6. **Gate B**: Stop hook が verifier を促す
+7. **Phase 3 (Verify)**: verifier agent (`--strict` 時は `pev-dual-review`) → `artifacts/verify.json`
+8. **Retry Gate**: PASS → 完了 / FAIL → planner (もしくは Triage) に戻る (max 3回)
+
+### Flag による flow override (v3.0+)
+
+- `--with-plan`: Triage を skip して必ず Plan を起動 (= v2.x 互換挙動)
+- `--no-plan`: Triage を skip して必ず Plan も skip (= 最短 path)
+- 指定なし: Triage の判定に従う (= default、 v3.0 推奨)
 
 ## Implementation
 
@@ -65,9 +75,51 @@ mkdir -p ~/.claude/pev/$TASK_ID
 echo "[PEV] Task started: $TASK_ID"
 ```
 
-### Step 2 — Phase 1 (Plan)
+### Step 1.5 — Phase 0 (Triage、 v3.0+)
 
-`pev-spec-template` skill で入力整形 → planner agent (model: opus, effort: xhigh) を起動 → `artifacts/plan.md` 出力。
+```bash
+# --with-plan / --no-plan flag を check
+WITH_PLAN=false
+NO_PLAN=false
+[[ "$*" == *"--with-plan"* ]] && WITH_PLAN=true
+[[ "$*" == *"--no-plan"* ]] && NO_PLAN=true
+
+if [ "$WITH_PLAN" = "true" ]; then
+  echo "[PEV] --with-plan: Triage skip、 Plan を必ず起動"
+  TRIAGE_DECISION="plan_required"
+elif [ "$NO_PLAN" = "true" ]; then
+  echo "[PEV] --no-plan: Triage skip、 Plan を必ず skip"
+  TRIAGE_DECISION="plan_skip"
+else
+  # default: Triage agent を起動して判定
+  echo "[PEV] Phase 0 (Triage): Plan 必要性を判定..."
+  # triage agent (model: sonnet, effort: low) を起動、 artifacts/triage.json を生成
+  # ※ Agent 起動の実装詳細は claude code internal、 ここでは概念的に記述
+  invoke_triage_agent "$TASK_DESCRIPTION" "$(pwd)"
+  TRIAGE_DECISION=$(jq -r '.decision' artifacts/triage.json 2>/dev/null)
+fi
+
+echo "[PEV] Triage decision: $TRIAGE_DECISION"
+
+# Plan skip の場合は Step 4 (Execute) へ直行
+if [ "$TRIAGE_DECISION" = "plan_skip" ]; then
+  echo "[$(date -u +%FT%TZ)] Phase 0 (Triage) complete: plan_skip → direct Execute" >> artifacts/recap.log
+  # Step 4 (Execute) へジャンプ
+fi
+```
+
+**triage decision の解釈**:
+
+- `plan_required`: Step 2 (Phase 1 Plan) → Step 3 (Gate A) → Step 4 (Execute) → ...
+- `plan_skip`: Step 4 (Execute) へ直行、 Gate A は skip (= Plan がないので permissionMode 判定の文脈なし)
+
+**Defensive default**: triage agent が応答しない / parse 失敗 / 不明な decision の場合、 default は `plan_required` (= 過剰な skip を避けて minimal interpretation 漏れを防ぐ)。
+
+### Step 2 — Phase 1 (Plan、 on-demand、 v3.0+)
+
+Triage decision が `plan_required` の場合のみ起動。 `plan_skip` ならこの Step 全体を skip して Step 4 へ。
+
+planner agent (model: opus, effort: xhigh) を起動 → `artifacts/plan.md` 出力。 plan.md 冒頭に「## 確認質問」 が出力された場合は、 user との対話で確定後に Goal/Constraints/AC 等を確定する (= v3.0 で質問返しは必須機能)。
 
 ### Step 3 — Gate A (permissionMode判定、**絶対遵守**)
 
