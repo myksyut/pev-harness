@@ -79,7 +79,7 @@ Files: 既知の関連パス (任意)
 | 種類 | 内容 |
 |---|---|
 | **agents** (3) | planner / executor / verifier |
-| **skills** (17) | pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, pev-test-design, pev-e2e-verify, pev-bootstrap-playwright, pev-bootstrap-project (v1.9), **pev-bootstrap-codex** (v2.0), **pev-external-reviewer** (v2.0), pev-linear-sync, linear-project-workflow, linear-project-tracker, skill-finder |
+| **skills** (18) | pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, pev-test-design, pev-e2e-verify, pev-bootstrap-playwright, pev-bootstrap-project (v1.9), **pev-bootstrap-codex** (v2.0), **pev-external-reviewer** (v2.0), pev-linear-sync, linear-project-workflow, linear-project-tracker, **empirical-prompt-tuning** (v2.1) |
 | **commands** (9) | `/pev`, `/pev-plan`, `/pev-execute`, `/pev-verify`, `/pev-verify-e2e`, `/pev-status`, `/pev-init-e2e`, `/pev-init` (v1.9), **`/pev-init-codex`** (v2.0) |
 | **hooks** (3) | PreToolUse (destructive cmd block) / Stop (recap auto-append) / SessionStart (task resume) |
 | **rules** (3) | `pev-conventions.md` (Gate respect 等) / `4.7-native.md` (禁止フレーズリスト) / `error-patterns.md` (エラー推測 catalog) |

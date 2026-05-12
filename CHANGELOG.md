@@ -7,9 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v2.1+
-- v2.1 Gemini CLI 対応 (`gemini exec` 同 pattern で external reviewer 追加)
-- v2.x planner / executor も外部 model 可 (Issue #9 の continuation)
+### Planned for v2.2+
+- Gemini CLI 対応 (`gemini exec` 同 pattern で external reviewer 追加、 元 v2.1 スコープ)
+- planner / executor も外部 model 可 (Issue #9 の continuation)
+
+## [2.1.0] - 2026-05-12
+
+**`empirical-prompt-tuning` skill 取り込み + `skill-finder` 撤去**。 上流 [mizchi/skills](https://github.com/mizchi/skills/tree/main/empirical-prompt-tuning) の SKILL-ja.md (commit `0b197be`) を pev-harness に正規取り込み。 v0.1.1 で外部 skill 評価メタスキルとして導入していた `skill-finder` を撤去し、 「subagent dispatch + 自己申告 + 指示側メトリクスで反復改善」の方法論に置換。 pev-pipeline / pev-spec-template 等の中核 skill を体系的にチューニングする土台。
+
+### Added
+
+**`skills/empirical-prompt-tuning/SKILL.md`** (日本語版を採用):
+- Iteration 0 (description / body 整合チェック、 dispatch 不要) → baseline 準備 → bias-free subagent dispatch → 両面評価 (自己申告 + `tool_uses`/`duration_ms`) → 差分適用 → 再評価 → 収束判定の 7 step
+- 評価軸 7 種 (成功/失敗、 精度、 ステップ数、 duration、 retries、 不明瞭点、 裁量補完) と重み付け方針 (質的を主、 量的を補助)
+- subagent 起動契約 (Target prompt / Scenario / Requirements checklist / Task / Report structure を固定フォーマットで渡す)
+- 失敗パターン台帳 (per-target-prompt の累積記録、 同クラスの誤り再発見を防ぐ)
+- バリアント探索 (Conservative + Exploratory、 plateau-breaking 用、 default 不使用)
+- Red flags 表 (self-reread / 1 シナリオ / 単発 zero / 一括修正 / 同 subagent 再利用 等の rationalization に対する反論)
+- 出典セクション: `mizchi/skills` `0b197be` を明示
+
+### Removed
+
+- **`skills/skill-finder/SKILL.md`** — v0.1.1 で導入した外部 skill 評価メタスキル。 上位互換である empirical-prompt-tuning (汎用プロンプト改善方法論) に役割吸収。 SPEC.md §7 と guide/CHECKLIST.md の言及も整理
+
+### Changed
+
+- **`SPEC.md`** §7 (Skills 一覧) に empirical-prompt-tuning row 追加
+- **`SPEC.md`** §11 ロードマップ table を v2.1 = empirical-prompt-tuning、 v2.0 を ✅ released へ更新、 Gemini CLI を v2.2+ へ後送り
+- **`README.md`** Components 表の skills count を `(17)` → `(18)` に整合化、 skill-finder を empirical-prompt-tuning に置換
+- **`guide/CHECKLIST.md`** v0.1.1 当時の skill リストに撤去/置換注記を追加 (履歴保持目的)
+
+### Verified
+
+- 静的整合チェックのみ (取り込んだ skill 本体の dog food は別 session で pev-pipeline / pev-spec-template を対象に実施予定)
+- 4.7-native forbidden phrase check: `step.by.step` / `double.check` / `be thorough|careful|take.your.time` を `agents/` `skills/` `commands/` 全体に grep して 0 hit を確認
+- JSON validation: `.claude-plugin/plugin.json` / `hooks/hooks.json` / `settings.json` / `schemas/*.json` を Node.js で parse 検証
 
 ## [2.0.0] - 2026-05-12
 

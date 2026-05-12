@@ -10,9 +10,9 @@
 
 - リポジトリ: <https://github.com/myksyut/pev-harness> (private)
 - ローカル: `~/pev-harness/`
-- バージョン: v0.1.1 (初期 skeleton + 周辺整備 + dog food検証 + skill-finder追加)
+- バージョン: v0.1.1 (初期 skeleton + 周辺整備 + dog food検証 + skill-finder追加) — v2.1 で skill-finder を撤去し empirical-prompt-tuning に置換
 - ファイル数: 約 44 (Claude生成、source-of-truth は SPEC.md)
-- skills: **9個** (pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, **skill-finder**)
+- skills: **9個** (pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, ~~skill-finder~~ → **empirical-prompt-tuning** v2.1+)
 
 ---
 
