@@ -364,7 +364,8 @@ v2.0 で reviewer mode を 4 種に拡張:
 | **v2.1.2** | **Anthropic 公式 best practice 適合性 fix** | `marketplace.json` source `"."` → `"./"` (install 失敗修正) / PreToolUse hook stdin JSON 化 (destructive guard 復活) / settings.json `permissions.defaultMode` 化 / 3 bootstrap skill に `disable-model-invocation` | ✅ released |
 | **v2.1.3** | **Anthropic 公式 skill vendoring (skill-creator + frontend-design)** | `anthropics/skills` から 2 件を `skills/` に完全 vendoring (LICENSE.txt 同梱) / CI forbidden-phrase + markdownlint で vendored exclude / `rules/4.7-native.md` に vendoring 例外節追加 | ✅ released |
 | **v2.1.4** | **連携 plugin prerequisites 明示 (Linear MCP / Playwright / Codex CLI)** | `README.md` Optional integrations + `ONBOARDING.md` §1.5 連携 plugin + `ROLLOUT-CHECKLIST.md` Pre-rollout 個人項目に Linear MCP install (`linear@claude-plugins-official` + OAuth) / Codex CLI auth 手順追記 | ✅ released |
-| **v2.1.5** | **Project scope install 手順 (team 共有)** | `ONBOARDING.md` §1.2 新規 (`.claude/settings.json` `extraKnownMarketplaces` + `enabledPlugins` Pattern P1 / `--scope project` Pattern P2 / scope 3 種比較) + `README.md` Quick start 3 セクション化 (A user / B project / C `--plugin-dir`) | (current) |
+| **v2.1.5** | **Project scope install 手順 (team 共有)** | `ONBOARDING.md` §1.2 新規 (`.claude/settings.json` `extraKnownMarketplaces` + `enabledPlugins` Pattern P1 / `--scope project` Pattern P2 / scope 3 種比較) + `README.md` Quick start 3 セクション化 (A user / B project / C `--plugin-dir`) | ✅ released |
+| **v2.1.6** | **harness-effect-v1 dog food findings reflection** | `experiments/harness-effect-v1/` 新設 (4 軸比較 framework) / planner に Defensive default 原則 / executor に DRY self-review / extract-metrics-v2.py で phase 別 breakdown | (current) |
 | v2.2+ | Gemini CLI 対応 / model 自由切替 (planner/executor も外部 model 可) | (TBD) | Issue #9 の continuation |
 
 ---

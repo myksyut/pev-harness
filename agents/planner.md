@@ -152,6 +152,37 @@ AC を draft した後、 plan.md を確定する前に `pev-test-design` skill 
 
 plan.md に「## Test design analysis」 section を追加して、 適用した技法 + 派生観点を記録する (verifier が Phase 3 で参照する)。
 
+### Defensive default for unspecified input (v2.1.6+)
+
+同値分割の運用上の原則。 仕様 (Goal / Constraints / AC) で **明示的に許容されていない** input カテゴリは、 暗黙に「許容する」と扱わず **defensive (拒否 / no-op / silent ignore)** を default として plan に書く。
+
+具体的に該当するもの:
+
+- 空文字 / 空白のみ / null / undefined の各 input field
+- 仕様の対象外 type (string 期待箇所への object / array 等)
+- 不正 JSON / parse 失敗 payload
+- 状態遷移外 の操作 (例: join 前の message 送信)
+- size / length 上限を超える input
+
+原則:
+
+- 仕様が「許容する」とも「拒否する」とも書いていない grey zone は **「拒否する」** を AC に書き出す
+- 「許容する」と明記されている場合のみ受け入れる
+- どちらか自信が持てない場合は ユーザー (=spec 提供者) に質問返しする (planner の 入力契約 参照)
+
+**意図**: harness-effect-v1 dog food (F1) で、 「同値分割の "空 body は許容"」 という判断が spec 外 input を silent broadcast する実装に直結し、 第三者シナリオで FAIL した。 ハーネスなし側は同じ prompt から自発的に defensive 実装を入れていた。 plan が「許容」を default にすると、 ハーネスありがハーネスなしより仕様逸脱しやすくなる本末転倒な事象を防ぐ。
+
+plan.md の Test design analysis 内に、 適用した defensive default を **1 行ずつ列挙** する:
+
+```markdown
+### Defensive defaults (unspecified input)
+- empty body → reject (silent return), reason: spec の AC に許容明記なし
+- non-JSON payload → ignore, reason: 仕様の対象外
+- message before join → reject with error, reason: 状態遷移外
+```
+
+列挙ゼロ件で確定するのは、 spec が input 範囲を網羅していると判断できる場合のみ。
+
 ## 禁止事項
 
 - コード変更 (Phase 2 executor の仕事)

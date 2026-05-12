@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WS Chat</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+
+    /* Join screen */
+    #join-screen {
+      background: #fff;
+      border-radius: 8px;
+      padding: 32px 40px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+      width: 320px;
+      text-align: center;
+    }
+    #join-screen h1 { margin-bottom: 24px; font-size: 1.4rem; color: #333; }
+    #join-screen input {
+      width: 100%; padding: 10px 12px; border: 1px solid #ccc;
+      border-radius: 6px; font-size: 1rem; margin-bottom: 12px;
+    }
+    #join-screen button {
+      width: 100%; padding: 10px; background: #4f80f5; color: #fff;
+      border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;
+    }
+    #join-screen button:disabled { background: #aaa; cursor: not-allowed; }
+    #join-error { color: #e33; font-size: 0.85rem; margin-top: 8px; min-height: 20px; }
+
+    /* Chat screen */
+    #chat-screen { display: none; flex-direction: column; width: 640px; height: 90vh; max-height: 700px; background: #fff; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1); overflow: hidden; }
+    #chat-header { padding: 14px 20px; background: #4f80f5; color: #fff; font-weight: bold; font-size: 1rem; }
+    #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+
+    .msg { max-width: 80%; }
+    .msg-system { align-self: center; font-size: 0.8rem; color: #888; font-style: italic; }
+    .msg-bubble { padding: 8px 12px; border-radius: 8px; font-size: 0.95rem; line-height: 1.4; word-break: break-word; }
+    .msg-other .msg-bubble { background: #e8ecf0; color: #333; align-self: flex-start; }
+    .msg-self .msg-bubble { background: #4f80f5; color: #fff; align-self: flex-end; }
+    .msg-nick { font-size: 0.75rem; color: #666; margin-bottom: 2px; }
+    .msg-self .msg-nick { text-align: right; color: #4f80f5; }
+    .msg-self { align-self: flex-end; }
+
+    #status-bar { padding: 6px 16px; font-size: 0.8rem; color: #888; background: #fafafa; border-top: 1px solid #eee; min-height: 26px; }
+    #status-bar.error { color: #e33; }
+    #input-area { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #eee; }
+    #msg-input { flex: 1; padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; resize: none; height: 42px; }
+    #send-btn { padding: 10px 20px; background: #4f80f5; color: #fff; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; }
+    #send-btn:disabled { background: #aaa; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+<!-- Join screen -->
+<div id="join-screen">
+  <h1>WS Chat</h1>
+  <input id="nickname-input" type="text" placeholder="ニックネームを入力" maxlength="50" autocomplete="off" />
+  <button id="join-btn" disabled>入室する</button>
+  <div id="join-error" aria-live="polite"></div>
+</div>
+
+<!-- Chat screen -->
+<div id="chat-screen">
+  <div id="chat-header">WS Chat — <span id="my-nick"></span></div>
+  <div id="messages" role="log" aria-live="polite"></div>
+  <div id="status-bar"></div>
+  <div id="input-area">
+    <input id="msg-input" type="text" placeholder="メッセージを入力…" maxlength="1000" autocomplete="off" disabled />
+    <button id="send-btn" disabled>送信</button>
+  </div>
+</div>
+
+<script>
+  // --- DOM refs ---
+  const joinScreen = document.getElementById("join-screen");
+  const chatScreen = document.getElementById("chat-screen");
+  const nicknameInput = document.getElementById("nickname-input");
+  const joinBtn = document.getElementById("join-btn");
+  const joinError = document.getElementById("join-error");
+  const myNickEl = document.getElementById("my-nick");
+  const messagesEl = document.getElementById("messages");
+  const statusBar = document.getElementById("status-bar");
+  const msgInput = document.getElementById("msg-input");
+  const sendBtn = document.getElementById("send-btn");
+
+  // --- state ---
+  let ws = null;
+  let myNickname = "";
+  let joined = false;
+  let retryCount = 0;
+  let retryTimer = null;
+  const MAX_RETRIES = 5;
+  const BASE_RETRY_DELAY_MS = 3000;
+
+  // --- join screen: enable button only when nickname is non-empty ---
+  nicknameInput.addEventListener("input", () => {
+    joinBtn.disabled = nicknameInput.value.trim().length === 0;
+    joinError.textContent = "";
+  });
+
+  nicknameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !joinBtn.disabled) joinBtn.click();
+  });
+
+  joinBtn.addEventListener("click", () => {
+    const nick = nicknameInput.value.trim();
+    if (!nick) {
+      // S5 client-side guard
+      joinError.textContent = "ニックネームを入力してください。";
+      return;
+    }
+    myNickname = nick;
+    joinError.textContent = "";
+    joinBtn.disabled = true;
+    connect();
+  });
+
+  // --- WebSocket lifecycle ---
+
+  function connect() {
+    if (ws && ws.readyState === WebSocket.OPEN) return;
+    const proto = location.protocol === "https:" ? "wss:" : "ws:";
+    ws = new WebSocket(`${proto}//${location.host}`);
+
+    ws.addEventListener("open", () => {
+      retryCount = 0;
+      clearTimeout(retryTimer);
+      setStatus("接続中…");
+      // A4: send join immediately after open
+      safeSend({ type: "join", nickname: myNickname });
+    });
+
+    ws.addEventListener("message", (event) => {
+      let msg;
+      try {
+        msg = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      handleServerMessage(msg);
+    });
+
+    ws.addEventListener("close", () => {
+      joined = false;
+      setInputEnabled(false);
+      scheduleReconnect();
+    });
+
+    ws.addEventListener("error", () => {
+      // error event is always followed by close; handling in close is sufficient
+    });
+  }
+
+  function handleServerMessage(msg) {
+    switch (msg.type) {
+      case "joined": {
+        joined = true;
+        myNickname = msg.nickname;
+        // Switch to chat screen
+        joinScreen.style.display = "none";
+        chatScreen.style.display = "flex";
+        myNickEl.textContent = myNickname;
+        setInputEnabled(true);
+        setStatus("");
+        break;
+      }
+      case "message": {
+        appendMessage(msg.nickname, msg.text, msg.nickname === myNickname);
+        break;
+      }
+      case "system": {
+        appendSystemMessage(msg.text);
+        break;
+      }
+      case "error": {
+        // join rejection or other server error
+        if (!joined) {
+          joinError.textContent = msg.text || "サーバーエラーが発生しました。";
+          joinBtn.disabled = false;
+          ws.close();
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  // A8: reconnect with exponential backoff, max MAX_RETRIES
+  function scheduleReconnect() {
+    if (retryCount >= MAX_RETRIES) {
+      setStatus("接続が切断されました。ページを再読み込みしてください。", true);
+      return;
+    }
+    const delay = BASE_RETRY_DELAY_MS * Math.pow(2, retryCount);
+    retryCount += 1;
+    setStatus(`接続が切断されました。${Math.round(delay / 1000)}秒後に再接続します… (${retryCount}/${MAX_RETRIES})`, true);
+    retryTimer = setTimeout(() => {
+      setStatus("再接続中…");
+      connect();
+    }, delay);
+  }
+
+  // --- send message ---
+
+  sendBtn.addEventListener("click", sendMessage);
+  msgInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !sendBtn.disabled) sendMessage();
+  });
+  msgInput.addEventListener("input", () => {
+    sendBtn.disabled = msgInput.value.trim().length === 0;
+  });
+
+  function sendMessage() {
+    const text = msgInput.value.trim();
+    // A13 + S2 client-side guard
+    if (!text) return;
+    // R7: check WebSocket is open
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    if (!joined) return;
+    safeSend({ type: "message", text });
+    msgInput.value = "";
+    sendBtn.disabled = true;
+  }
+
+  // R7: safe send helper — only sends when OPEN
+  function safeSend(obj) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(obj));
+    }
+  }
+
+  // --- DOM helpers ---
+
+  // XSS-safe message append using textContent only (never innerHTML for user data)
+  function appendMessage(nickname, text, isSelf) {
+    const outer = document.createElement("div");
+    outer.className = `msg ${isSelf ? "msg-self" : "msg-other"}`;
+
+    const nick = document.createElement("div");
+    nick.className = "msg-nick";
+    nick.textContent = nickname; // XSS: textContent
+
+    const bubble = document.createElement("div");
+    bubble.className = "msg-bubble";
+    bubble.textContent = text; // XSS: textContent
+
+    outer.appendChild(nick);
+    outer.appendChild(bubble);
+    messagesEl.appendChild(outer);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function appendSystemMessage(text) {
+    const el = document.createElement("div");
+    el.className = "msg msg-system";
+    el.textContent = text; // XSS: textContent
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function setInputEnabled(enabled) {
+    msgInput.disabled = !enabled;
+    sendBtn.disabled = !enabled || msgInput.value.trim().length === 0;
+  }
+
+  function setStatus(text, isError) {
+    statusBar.textContent = text;
+    statusBar.className = isError ? "error" : "";
+  }
+</script>
+</body>
+</html>

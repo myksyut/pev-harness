@@ -11,6 +11,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (`gemini exec` 同 pattern で external reviewer 追加、 元 v2.1 スコープ)
 - planner / executor も外部 model 可 (Issue #9 の continuation)
 
+## [2.1.6] - 2026-05-12
+
+**harness-effect-v1 dog food findings reflection**。 ハーネスありなしで同一 prompt から WebSocket chat を実装させる comparative experiment ([experiments/harness-effect-v1/](experiments/harness-effect-v1/)) で抽出した 4 件の findings を agents / experiment 周辺に反映。 ハーネスあり側が plan で「空 body は許容」と判断してしまい、 結果的にハーネスなし側より仕様逸脱しやすいという本末転倒な事象 (F1) を防ぐ defensive default 原則を planner に追加。
+
+### Added
+
+- **`experiments/harness-effect-v1/`** 新設 — 効果検証実験フレームワーク。 SPEC.md / prompt.txt (両者共通)、 EVALUATION.md (4 軸 × 10 点)、 run.sh (2 並行 background)、 extract-metrics.sh + extract-metrics-v2.py (phase 別 breakdown)、 reports/ (metrics.json / SUMMARY.md)。 `claude --plugin-dir ~/pev-harness` での `/pev-harness:pev <prompt> --force-auto` wrap と plain claude を同一 prompt で比較
+- **`agents/planner.md` "Defensive default for unspecified input (v2.1.6+)"** — 同値分割の運用原則として、 仕様で明示的に許容されていない input は defensive (拒否 / no-op) を default にする。 plan.md の Test design analysis に該当 default を列挙する義務化
+- **`agents/executor.md` "DRY / duplication self-review (v2.1.6+)"** — verifier に渡す前に、 同関数の再実装 / loop pattern 重複 / dead import / dead branch / dead comment を self-check する。 検出は実装中に修正、 未解消は execute.log に明示
+
+### Changed
+
+- **`experiments/harness-effect-v1/prompt.txt`** — 動作確認シナリオ S1-S5 を明記、 空メッセージ拒否 (E2) / 切断時 reconnect (E1) を「必須」 側に移動。 SPEC.md との 1:1 整合性確保
+
+### Verified via dog food (harness-effect-v1 baseline run)
+
+- **F1 (Plan の defensive bias)**: with-harness が `空 body は許容` と plan で判断、 第三者シナリオ S2 で FAIL。 no-harness は同 prompt から自発的に defensive 実装
+- **F2 (executor の DRY 抜け)**: with-harness の `server.js` で `broadcast()` 定義後に `wss.clients.forEach()` を直接実装、 plan 外の重複
+- **F4 (prompt 設計の公平性)**: prompt.txt が SPEC.md より緩く、 評価軸 S2 が両者で非対称になった
+- **F5 (効率軸の解像度)**: 合計値だけでなく Plan / Execute / Verify phase 別の turn / token を分解できるよう extract-metrics-v2.py で実装
+
+### Reference
+
+- experiment report: [experiments/harness-effect-v1/reports/SUMMARY.md](experiments/harness-effect-v1/reports/SUMMARY.md)
+- baseline metrics: [experiments/harness-effect-v1/reports/metrics-v2.json](experiments/harness-effect-v1/reports/metrics-v2.json)
+
 ## [2.1.5] - 2026-05-12
 
 **Project scope install (team 共有) 手順を docs に追加**。 これまで `README.md` `ONBOARDING.md` の install 手順は **user scope のみ** で、 「team 全員が同じ project で同じ pev-harness version を使うことを保証する」 経路が明示されていなかった。 公式 [Configure team marketplaces](https://code.claude.com/docs/en/discover-plugins.md#configure-team-marketplaces) の仕様 (`.claude/settings.json` の `extraKnownMarketplaces` + `enabledPlugins`) に沿って 2 つの Pattern を併記。 docs-only patch。

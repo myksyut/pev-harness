@@ -1,0 +1,25 @@
+{
+  "no_harness":
+    {
+      "name": "no-harness",
+      "assistant_turn_count": 21,
+      "tool_use_count": 14,
+      "total_input_tokens": 41,
+      "total_output_tokens": 781,
+      "total_cache_read": 821015,
+      "total_cache_creation": 96541,
+      "elapsed_seconds": 114
+    }
+  ,
+  "with_harness":
+    {
+      "name": "with-harness",
+      "assistant_turn_count": 88,
+      "tool_use_count": 77,
+      "total_input_tokens": 144,
+      "total_output_tokens": 2284,
+      "total_cache_read": 2555296,
+      "total_cache_creation": 517404,
+      "elapsed_seconds": 572
+    }
+}

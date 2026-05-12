@@ -1,0 +1,10 @@
+[run.sh] no-harness と with-harness を並行起動 (background)
+[run.sh] log は ./logs/{no,with}-harness.stream.jsonl
+[run.sh] scratch は ./scratch/{no,with}-harness/
+
+[run.sh] no-harness PID=34171, with-harness PID=34172
+[run.sh] 完了まで待機...
+
+[run.sh] no-harness exit=0
+[run.sh] with-harness exit=0
+[run.sh] 完了。 次は ./extract-metrics.sh で集計、 評価は EVALUATION.md 参照

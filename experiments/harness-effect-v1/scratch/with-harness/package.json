@@ -1,0 +1,17 @@
+{
+  "name": "ws-chat",
+  "version": "1.0.0",
+  "description": "Realtime WebSocket chat app",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,7 @@
+scratch/*/node_modules/
+logs/*.stream.jsonl
+logs/*.stderr.txt
+
+# v1 dog food の PEV 証跡は残す (root の artifacts/ ignore を override)
+!scratch/with-harness/artifacts/
+!scratch/with-harness/artifacts/**

@@ -1,0 +1,111 @@
+{
+  "no_harness": {
+    "name": "no-harness",
+    "wall_clock": {
+      "elapsed_seconds": 215
+    },
+    "recap": {
+      "available": false
+    },
+    "phase_breakdown": {
+      "main": {
+        "turn_count": 28,
+        "tool_use_count": 21,
+        "input_tokens": 53,
+        "output_tokens": 1551,
+        "cache_creation_input_tokens": 109052,
+        "cache_read_input_tokens": 1289480,
+        "invocations": 1
+      }
+    },
+    "total": {
+      "turn_count": 28,
+      "tool_use_count": 21,
+      "input_tokens": 53,
+      "output_tokens": 1551,
+      "cache_creation_input_tokens": 109052,
+      "cache_read_input_tokens": 1289480
+    }
+  },
+  "with_harness": {
+    "name": "with-harness",
+    "wall_clock": {
+      "elapsed_seconds": 625
+    },
+    "recap": {
+      "available": true,
+      "entries": [
+        {
+          "ts": "2026-05-12T07:39:01+00:00",
+          "msg": "Gate A overridden by --force-auto (original mode: default)"
+        },
+        {
+          "ts": "2026-05-12T07:45:06+00:00",
+          "msg": "Task complete (verdict: PASS, retries: 0)"
+        },
+        {
+          "ts": "2026-05-12T07:45:23+00:00",
+          "msg": "Phase 3 (Verify) completed (verdict: PASS)"
+        }
+      ],
+      "total_log_span_seconds": 382,
+      "retries": 0
+    },
+    "phase_breakdown": {
+      "plan": {
+        "invocations": 1,
+        "turn_count": 12,
+        "tool_use_count": 12,
+        "input_tokens": 22,
+        "output_tokens": 1021,
+        "cache_creation_input_tokens": 61154,
+        "cache_read_input_tokens": 234975
+      },
+      "execute": {
+        "invocations": 1,
+        "turn_count": 23,
+        "tool_use_count": 23,
+        "input_tokens": 27,
+        "output_tokens": 493,
+        "cache_creation_input_tokens": 56479,
+        "cache_read_input_tokens": 552599
+      },
+      "verify": {
+        "invocations": 1,
+        "turn_count": 20,
+        "tool_use_count": 20,
+        "input_tokens": 24,
+        "output_tokens": 630,
+        "cache_creation_input_tokens": 77721,
+        "cache_read_input_tokens": 597194
+      },
+      "other-subagent": {
+        "invocations": 1,
+        "turn_count": 0,
+        "tool_use_count": 0,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "main": {
+        "turn_count": 27,
+        "tool_use_count": 19,
+        "input_tokens": 52,
+        "output_tokens": 1307,
+        "cache_creation_input_tokens": 136757,
+        "cache_read_input_tokens": 1339826,
+        "invocations": 1
+      }
+    },
+    "total": {
+      "turn_count": 82,
+      "tool_use_count": 74,
+      "input_tokens": 125,
+      "output_tokens": 3451,
+      "cache_creation_input_tokens": 332111,
+      "cache_read_input_tokens": 2724594
+    }
+  },
+  "generated_at": "2026-05-12T07:45:41.957528+00:00"
+}
