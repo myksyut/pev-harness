@@ -361,7 +361,8 @@ v2.0 で reviewer mode を 4 種に拡張:
 | **v2.0** | **External reviewer (OpenAI Codex CLI) integration** | pev-bootstrap-codex / pev-external-reviewer skill + reviewer mode 4 種 (claude-only/dual-claude/dual-codex/codex-only) + codex-reviewer-output schema + fallback path | ✅ released |
 | **v2.1** | **empirical-prompt-tuning skill 取り込み** | mizchi/skills の empirical-prompt-tuning を skills/empirical-prompt-tuning/ に導入、 skill-finder 削除 (上位互換) | ✅ released |
 | v2.1.1 | Plugin Marketplace 配布対応 | `.claude-plugin/marketplace.json` 追加、 plugin.json version 同期、 release procedure 更新 | ✅ released |
-| **v2.1.2** | **Anthropic 公式 best practice 適合性 fix** | `marketplace.json` source `"."` → `"./"` (install 失敗修正) / PreToolUse hook stdin JSON 化 (destructive guard 復活) / settings.json `permissions.defaultMode` 化 / 3 bootstrap skill に `disable-model-invocation` | (current) |
+| **v2.1.2** | **Anthropic 公式 best practice 適合性 fix** | `marketplace.json` source `"."` → `"./"` (install 失敗修正) / PreToolUse hook stdin JSON 化 (destructive guard 復活) / settings.json `permissions.defaultMode` 化 / 3 bootstrap skill に `disable-model-invocation` | ✅ released |
+| **v2.1.3** | **Anthropic 公式 skill vendoring (skill-creator + frontend-design)** | `anthropics/skills` から 2 件を `skills/` に完全 vendoring (LICENSE.txt 同梱) / CI forbidden-phrase + markdownlint で vendored exclude / `rules/4.7-native.md` に vendoring 例外節追加 | (current) |
 | v2.2+ | Gemini CLI 対応 / model 自由切替 (planner/executor も外部 model 可) | (TBD) | Issue #9 の continuation |
 
 ---

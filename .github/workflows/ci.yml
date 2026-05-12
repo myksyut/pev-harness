@@ -34,6 +34,8 @@ jobs:
             --ignore node_modules \
             --ignore artifacts \
             --ignore '**/CHANGELOG.md' \
+            --ignore 'skills/skill-creator/**' \
+            --ignore 'skills/frontend-design/**' \
             --config .markdownlint.json
 
       - name: Validate JSON files
@@ -60,8 +62,13 @@ jobs:
           set -e
           # Check agents/, skills/, commands/ prompts for 4.6 scaffolding phrases.
           # rules/ are documentation of these phrases (allowed).
+          # Vendored Anthropic-official skills (skill-creator, frontend-design) are excluded:
+          # they preserve upstream wording verbatim and are not authored under PEV-harness conventions.
           FORBIDDEN='step.by.step|double.check|verify your output|be thorough|be careful|take your time'
-          if grep -rEinH "$FORBIDDEN" agents/ skills/ commands/ 2>/dev/null; then
+          if grep -rEinH \
+              --exclude-dir=skill-creator \
+              --exclude-dir=frontend-design \
+              "$FORBIDDEN" agents/ skills/ commands/ 2>/dev/null; then
             echo "ERROR: Found 4.6-style scaffolding phrases. See rules/4.7-native.md for replacements."
             exit 1
           fi

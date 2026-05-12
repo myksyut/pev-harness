@@ -11,6 +11,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (`gemini exec` 同 pattern で external reviewer 追加、 元 v2.1 スコープ)
 - planner / executor も外部 model 可 (Issue #9 の continuation)
 
+## [2.1.3] - 2026-05-12
+
+**Anthropic 公式 [anthropics/skills](https://github.com/anthropics/skills) から汎用開発系 skill 2 件を完全 vendoring**。 plugin install するだけでチーム全員が `skill-creator` (skill 自体の作成・eval・description 最適化) と `frontend-design` (production-grade UI 設計、 AI slop 回避) を利用可能になる。 機能変更なし、 純粋な追加リリース。
+
+### Added
+
+- **`skills/skill-creator/`** ([anthropic-source](https://github.com/anthropics/skills/tree/main/skills/skill-creator)) — skill の draft → eval → iterate ループを支援する meta-skill。 `agents/` (grader / comparator / analyzer) + `scripts/` (run_eval.py / improve_description.py / quick_validate.py / aggregate_benchmark.py 等) + `eval-viewer/` (HTML レポート生成) + `references/schemas.md` を同梱。 pev-harness 自身の skill 開発 (今後の v2.2+ 機能追加) を加速する用途
+- **`skills/frontend-design/`** ([anthropic-source](https://github.com/anthropics/skills/tree/main/skills/frontend-design)) — distinctive な UI 設計ガイド。 typography / layout / color / motion の出分け、 「AI slop (generic aesthetic)」 を避けるための bold な aesthetic direction 選定指針。 PEV pipeline で UI 系タスクを扱う際の補助として `examples/sample-project` の HTML 編集にも使える
+- 両 skill とも upstream の `LICENSE.txt` を同梱 (MIT)
+
+### Changed (vendoring 対応の CI rule 緩和)
+
+- **`.github/workflows/ci.yml`** — forbidden phrase check に `--exclude-dir=skill-creator --exclude-dir=frontend-design` を追加。 markdownlint にも `--ignore 'skills/skill-creator/**' --ignore 'skills/frontend-design/**'` を追加。 公式 skill は upstream wording (`"take your time"` `"Be thorough"` `"step-by-step"` 等を含む) を改変せず vendoring する原則のため
+- **`rules/4.7-native.md`** に「vendored Anthropic 公式 skills の扱い」 セクション追加。 PEV-harness 独自 skill には引き続き禁止 rule を適用、 vendored 部分のみ例外という運用方針を明記
+- **`.claude-plugin/plugin.json`** / **`.claude-plugin/marketplace.json`** version を `2.1.2` → `2.1.3` に同期、 description に「vendored Anthropic-official skill-creator + frontend-design」 を明記、 tags に `skill-creator` / `frontend-design` を追加
+
+### Verified
+
+- 全 skill (vendored 含む 20 個) に SKILL.md 存在を CI 相当の loop で確認
+- 4.7-native forbidden phrase check: vendored exclude 適用後に `agents/` `skills/` `commands/` 全体 grep で 0 hit
+- markdownlint: vendored ignore 適用後の exit code 0
+- JSON validation: `.claude-plugin/plugin.json` / `marketplace.json` を Node.js で parse 検証 → pass
+
+### Reference
+
+- upstream: <https://github.com/anthropics/skills> (commit に固定せず latest main 取得、 今後の upstream patch は手動 sync)
+- skill-creator description: 自前 skill を `examples/sample-project` で eval する用途で v2.2+ 検討余地
+- frontend-design description: AI slop 回避のための typography / aesthetic direction 推奨
+
 ## [2.1.2] - 2026-05-12
 
 **Anthropic 公式 best practice 適合性 fix + 4.7-native 1次情報ベース review 反映**。 Claude Code 2.1.139 で `claude plugin install pev-harness@pev-harness` が「This plugin uses a source type your Claude Code version does not support」 で失敗していた問題を含む、 公式 docs 4 ヶ所 schema 逸脱の修正に加え、 Opus 4.7 公式 1次情報 (B1 = [Anthropic blog 2026-04-16](https://claude.com/blog/best-practices-for-using-claude-opus-4-7-with-claude-code), B3 = [Task budgets API docs](https://platform.claude.com/docs/en/build-with-claude/task-budgets), B4/B5 = Boris/Cat Wu 投稿) との直接照合を実施し、 SPEC の根拠と独自拡張の境界を明確化。 機能変更なしの patch。
