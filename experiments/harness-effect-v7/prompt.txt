@@ -1,0 +1,1 @@
+team-conventions.md の「二重送信防止」 section に、 「キャンセル操作時も同じ pattern (button disabled + flag) を適用する」 という 1 行を追記してください。 既存の bullet point pattern と同じ書式で。
