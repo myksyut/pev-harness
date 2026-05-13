@@ -68,7 +68,7 @@ plan.md がない状態で executor が:
 +  - キャンセル操作時も同じ pattern (button disabled + flag) を適用する
 ```
 
-**既存 bullet (2-space indent / `- ` prefix / 末尾句読点なし) と完全一致**。 v3.0+ executor agent (Mode B) の cwd context 推測力が確認できた。
+**既存 bullet (2-space indent / `-` prefix / 末尾句読点なし) と完全一致**。 v3.0+ executor agent (Mode B) の cwd context 推測力が確認できた。
 
 ## Verify の挙動 (plan.md なし)
 
