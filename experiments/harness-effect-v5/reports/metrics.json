@@ -1,0 +1,71 @@
+{
+  "no-harness": {
+    "per_turn": [
+      {
+        "file": "logs/no-harness/turn1.stream.jsonl",
+        "turn": 12,
+        "tool_use": 8,
+        "out_tok": 464,
+        "duration_ms": 33372
+      },
+      {
+        "file": "logs/no-harness/turn2.stream.jsonl",
+        "turn": 4,
+        "tool_use": 1,
+        "out_tok": 26,
+        "duration_ms": 50782
+      },
+      {
+        "file": "logs/no-harness/turn3.stream.jsonl",
+        "turn": 24,
+        "tool_use": 17,
+        "out_tok": 1166,
+        "duration_ms": 214904
+      },
+      {
+        "file": "logs/no-harness/turn4-close.stream.jsonl",
+        "turn": 1,
+        "tool_use": 0,
+        "out_tok": 1,
+        "duration_ms": 11369
+      }
+    ],
+    "total": {
+      "turn": 41,
+      "tool_use": 26,
+      "out_tok": 1657,
+      "duration_ms": 310427
+    }
+  },
+  "with-harness": {
+    "per_turn": [
+      {
+        "file": "logs/with-harness/turn1.stream.jsonl",
+        "turn": 44,
+        "tool_use": 32,
+        "out_tok": 1455,
+        "duration_ms": 271466
+      },
+      {
+        "file": "logs/with-harness/turn2.stream.jsonl",
+        "turn": 48,
+        "tool_use": 44,
+        "out_tok": 899,
+        "duration_ms": 389333
+      },
+      {
+        "file": "logs/with-harness/turn3-close.stream.jsonl",
+        "turn": 0,
+        "tool_use": 0,
+        "out_tok": 0,
+        "duration_ms": 0
+      }
+    ],
+    "total": {
+      "turn": 92,
+      "tool_use": 76,
+      "out_tok": 2354,
+      "duration_ms": 660799
+    }
+  }
+}

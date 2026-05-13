@@ -10,7 +10,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned for v3.1+
 - Triage 判定基準の dog food tuning (v3.0-alpha で集めた精度データを反映)
 - Plan-less mode の executor self-clarify (= 実装中に不明確点が出たら user へ質問)
+- bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
 - Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
+
+## [3.0.1] - 2026-05-13
+
+**harness-effect-v5 dog food findings reflection** (F_v5_1)。 v3.0 を 別 task (申込キャンセル機能) で再走、 効果の再現性 (軸 1-4 で +6) を確認したうえで、 検出した **「pattern 踏襲指示が Plan の質問を抑制する」 問題** (= F_v5_1) に対する patch。
+
+### Verified via dog food
+
+- `experiments/harness-effect-v5/`: 申込キャンセル機能 task で v3.0 with-harness が no-harness を軸 1-4 で **+6** で勝利 (= v3-dogfood の +8 に続く 2 例目の再現)
+- 内心 spec との一致率: **12/15 (= 80%)**、 ただし `window.confirm()` dialog (Q4) を Plan が質問せず推測 minimal で skip した結果 AC2 落ち
+
+### Changed
+
+- **`agents/planner.md`** に「**「pattern 踏襲」 指示が来ても質問する (v3.0.1+)**」 section 追加。 `既存 pattern を踏襲` 等の prompt 指示があっても、 pattern では一意に決まらない要素 (dialog / 削除方式 / 状態遷移細部 / 拡張 feature 有無 / error UX) は **質問必須**
+
+### Added
+
+- `experiments/harness-effect-v5/` 新設 — 申込キャンセル機能で v3.0 の再現性検証 + F_v5_1 検出
+
+### Reference
+
+- [experiments/harness-effect-v5/reports/SUMMARY.md](experiments/harness-effect-v5/reports/SUMMARY.md)
 
 ## [3.0.0] - 2026-05-12
 

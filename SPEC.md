@@ -366,8 +366,9 @@ v2.0 で reviewer mode を 4 種に拡張:
 | **v2.1.4** | **連携 plugin prerequisites 明示 (Linear MCP / Playwright / Codex CLI)** | `README.md` Optional integrations + `ONBOARDING.md` §1.5 連携 plugin + `ROLLOUT-CHECKLIST.md` Pre-rollout 個人項目に Linear MCP install (`linear@claude-plugins-official` + OAuth) / Codex CLI auth 手順追記 | ✅ released |
 | **v2.1.5** | **Project scope install 手順 (team 共有)** | `ONBOARDING.md` §1.2 新規 (`.claude/settings.json` `extraKnownMarketplaces` + `enabledPlugins` Pattern P1 / `--scope project` Pattern P2 / scope 3 種比較) + `README.md` Quick start 3 セクション化 (A user / B project / C `--plugin-dir`) | ✅ released |
 | **v2.1.6** | **harness-effect-v1 dog food findings reflection** | `experiments/harness-effect-v1/` 新設 (4 軸比較 framework) / planner に Defensive default 原則 / executor に DRY self-review / extract-metrics-v2.py で phase 別 breakdown | ✅ released |
-| **v3.0** | **value proposition 再定義: 「user の頭の中の spec を引き出す」** | `agents/triage.md` 新設 (Plan 必要性判定 router) / Plan を on-demand 化 / planner に「## 確認質問」 protocol / F1 scope 限定 (security / data integrity / 状態不整合 のみ、 UI 拡張は質問必須) / executor の plan-less mode 対応 / experiments/harness-effect-v1-v4 で根拠提示 | (current) |
-| v3.1+ | Triage 精度 tuning / Plan-less executor の self-clarify / Gemini CLI 対応 | (TBD) | dog food data 収集後 |
+| **v3.0** | **value proposition 再定義: 「user の頭の中の spec を引き出す」** | `agents/triage.md` 新設 (Plan 必要性判定 router) / Plan を on-demand 化 / planner に「## 確認質問」 protocol / F1 scope 限定 (security / data integrity / 状態不整合 のみ、 UI 拡張は質問必須) / executor の plan-less mode 対応 / experiments/harness-effect-v1-v4 で根拠提示 | ✅ released |
+| **v3.0.1** | **harness-effect-v5 dog food findings reflection (F_v5_1)** | planner に「pattern 踏襲指示が来ても dialog / 削除方式 / 状態遷移細部 / 拡張 feature / error UX は質問必須」 directive 追加 / experiments/harness-effect-v5/ で再現性検証 (軸 1-4 で +6 で勝利) | (current) |
+| v3.1+ | Triage 精度 tuning / Plan-less executor の self-clarify / bin/pev-interactive helper / Gemini CLI 対応 | (TBD) | dog food data 収集後 |
 
 ---
 

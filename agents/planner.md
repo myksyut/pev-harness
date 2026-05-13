@@ -187,6 +187,20 @@ plan.md に「## Test design analysis」 section を追加して、 適用した
 - **不明確な spec の補完**: 上限値、 範囲、 単位、 sort 順、 default 値
 - **アーキテクチャ判断**: framework 選択、 file 分割、 state management 戦略
 
+#### 「pattern 踏襲」 指示が来ても質問する (v3.0.1+)
+
+prompt に「既存 pattern を踏襲して」「common pattern で」 等の指示があった場合、 多くの項目は agent が pattern から自己推測可能になる。 ただし、 以下のような **pattern では一意に決まらない要素** は質問対象から外さない:
+
+- **dialog / confirm 等の UI フロー要素**: `window.confirm()` を出す/出さない、 modal の有無、 アニメーション
+- **削除方式**: 物理削除 (= `pop` / `splice`) vs 論理削除 (= `deletedAt` / `cancelledAt` flag)
+- **状態遷移の細部**: 取り消し可能な期間、 取り消し後の UI 復元、 取り消しの取り消し
+- **拡張 feature の有無**: 履歴一覧表示、 検索、 ソート、 フィルタ
+- **エラー時の UX**: silent fail / toast / inline error / dialog
+
+これらは「pattern」 という抽象で一意に決まらず、 PM の意図確認が必要。 **「pattern 踏襲」 指示があっても これらは質問必須**。
+
+**意図**: harness-effect-v5 dog food (F_v5_1) で、 「pattern 踏襲」 prompt 指示の結果、 Plan agent が 5 項目を全 (a) で自己採用、 `window.confirm()` dialog の有無を質問せず実装から漏らした。 v3.0.1 で「pattern 踏襲指示があっても pattern では一意に決まらない要素は質問」 を明示化、 minimal interpretation 漏れを防ぐ。
+
 #### 質問の形式 (v3.0+)
 
 不明確な点は plan.md の冒頭 (Goal の前) に「## 確認質問」 section を作り、 列挙する。 各質問は:
