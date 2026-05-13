@@ -388,7 +388,8 @@ v2.0 で reviewer mode を 4 種に拡張:
 | **v2.1.6** | **harness-effect-v1 dog food findings reflection** | `experiments/harness-effect-v1/` 新設 (4 軸比較 framework) / planner に Defensive default 原則 / executor に DRY self-review / extract-metrics-v2.py で phase 別 breakdown | ✅ released |
 | **v3.0** | **value proposition 再定義: 「user の頭の中の spec を引き出す」** | `agents/triage.md` 新設 (Plan 必要性判定 router) / Plan を on-demand 化 / planner に「## 確認質問」 protocol / F1 scope 限定 (security / data integrity / 状態不整合 のみ、 UI 拡張は質問必須) / executor の plan-less mode 対応 / experiments/harness-effect-v1-v4 で根拠提示 | ✅ released |
 | **v3.0.1** | **harness-effect-v5 dog food findings reflection (F_v5_1)** | planner に「pattern 踏襲指示が来ても dialog / 削除方式 / 状態遷移細部 / 拡張 feature / error UX は質問必須」 directive 追加 / experiments/harness-effect-v5/ で再現性検証 (軸 1-4 で +6 で勝利) | ✅ released |
-| **v3.0.2** | **ドキュメント align** | CLAUDE.md / SPEC.md / README / ONBOARDING / rules / skills / examples / guide の全 active doc を v3.0 reflect、 歴史 doc には disclaimer note 追加 | (current) |
+| **v3.0.2** | **ドキュメント align** | CLAUDE.md / SPEC.md / README / ONBOARDING / rules / skills / examples / guide の全 active doc を v3.0 reflect、 歴史 doc には disclaimer note 追加 | ✅ released |
+| **v3.0.3** | **F_v6_1 patch (DOM container/text 分離)** | planner.md に「DOM container 内に新規 element 追加時は text 代入が子 element を破壊しない構造を AC で明示」 directive 追加。 harness-effect-v6 で textContent bug の事前明示用、 harness-effect-v7 で Mode B 初実証 | (current) |
 | v3.1+ | Triage 精度 tuning / Plan-less executor の self-clarify / bin/pev-interactive helper / Gemini CLI 対応 | (TBD) | dog food data 収集後 |
 
 ---

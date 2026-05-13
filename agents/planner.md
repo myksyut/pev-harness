@@ -201,6 +201,20 @@ prompt に「既存 pattern を踏襲して」「common pattern で」 等の指
 
 **意図**: harness-effect-v5 dog food (F_v5_1) で、 「pattern 踏襲」 prompt 指示の結果、 Plan agent が 5 項目を全 (a) で自己採用、 `window.confirm()` dialog の有無を質問せず実装から漏らした。 v3.0.1 で「pattern 踏襲指示があっても pattern では一意に決まらない要素は質問」 を明示化、 minimal interpretation 漏れを防ぐ。
 
+#### DOM 変更時の container/text 分離 (v3.0.3+)
+
+UI 機能追加で **既存 DOM container 内に新規 element (button / span / div 等) を追加する** タスクでは、 plan の AC に **「既存 container の text を更新する `textContent` 代入が新規 element を破壊しない構造を保証する」** を明示する。
+
+具体的には:
+
+- 既存 `<div id="foo">既存テキスト</div>` に新規 button を追加する場合、 plan で:
+  - 「text 専用の sub-element (`<span>`) を挟む」 もしくは
+  - 「DOM 全体を一括 re-render する handler を使う」 のどちらかを **AC で選択して明示**
+- `element.textContent = "..."` は **子ノード全削除** な挙動を持つ。 button や別 element を子に持つ container では使えない
+- plan の Risks section に「container 内の text 代入と子 element の衝突」 を明示的に挙げる
+
+**意図**: harness-effect-v6 dog food (F_v6_1) で、 plan AC が「`#success` 内に button 追加」 + 「textContent で text 変更」 を併記、 衝突を AC で明示していなかったため execute で素直に実装 → button が削除される bug。 Verifier が捕捉して retry 1 で `<span id="success-text">` を追加する形で self-heal したが、 plan で事前明示していれば 1 回で pass していた。 v3.0.3 で「DOM の text 操作と子 element の構造的衝突」 を planner directive に明文化。
+
 #### 質問の形式 (v3.0+)
 
 不明確な点は plan.md の冒頭 (Goal の前) に「## 確認質問」 section を作り、 列挙する。 各質問は:

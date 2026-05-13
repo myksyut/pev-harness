@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
 - Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
 
+## [3.0.3] - 2026-05-14
+
+**harness-effect-v6 dog food findings reflection (F_v6_1)**。 v6 の Verify retry 原因 (= plan AC が「`#success` 内に button 追加」 + 「textContent で text 変更」 を併記、 衝突未明示で execute が button 削除 bug を生んだ) を planner directive に追加。 「DOM container 内に新規 element 追加するタスクは、 text 代入が子 element を破壊しない構造を AC で明示」。
+
+### Changed
+
+- **`agents/planner.md`** に「**DOM 変更時の container/text 分離 (v3.0.3+)**」 section 追加。 既存 container 内に新規 element を追加する場合、 text 専用 sub-element 分離 / DOM 一括 re-render のどちらかを AC で明示する制約
+
+### Verified via dog food
+
+- harness-effect-v6/ で textContent + 子 element の衝突 bug が Verify で捕捉 → retry 1 で修正される pattern を観測 (= retry loop は機能したが事前明示で 1 回 pass にできた)
+- harness-effect-v7/ で Mode B (plan-less) 初検証完璧成功、 plan_required / plan_skip 両経路実証完了
+
+### Reference
+
+- [experiments/harness-effect-v6/reports/SUMMARY.md](experiments/harness-effect-v6/reports/SUMMARY.md) (F_v6_1 検出)
+- [experiments/harness-effect-v7/reports/SUMMARY.md](experiments/harness-effect-v7/reports/SUMMARY.md) (Mode B 初実証)
+
 ## [3.0.2] - 2026-05-13
 
 **ドキュメント align**。 v3.0 / v3.0.1 で構造変更 (Triage 新設、 Plan on-demand、 質問判定強化、 F1 scope 限定) を agents / commands / CHANGELOG に反映していたが、 CLAUDE.md / SPEC.md / README / ONBOARDING / rules / skills / examples / guide の各 doc が v2.x 当時のまま stale だった。 v3.0.2 で全 active doc を v3.0 reflect、 歴史 doc (v1.x dog food log 等) には disclaimer note を追加。
