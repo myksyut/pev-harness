@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
 - Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
 
+## [3.0.4] - 2026-05-14
+
+**harness-effect-v8 dog food findings reflection (F_v8_1/2/3)**。 multi-task で Triage 判定 boundary を探索した結果、 3 件の構造問題を検出 → triage.md に reflect。
+
+### Changed
+
+- **`agents/triage.md` 出力契約 schema 厳守 (F_v8_3)**: field name `decision` / `reasoning` / `context_signals` / `ambiguity_signals` / `task_id` を厳守、 別名禁止
+- **`agents/triage.md` に `task_infeasible` 判定追加 (F_v8_1)**: 対象不在 (= file / 文字列 / API が cwd に存在しない) の場合、 plan_required / plan_skip ではなく `task_infeasible` を返す formal channel
+- **`agents/triage.md` に「pattern 踏襲」 指示でも conservative 判定 directive 追加 (F_v8_2)**: 「同じ pattern で」 「validatePhone と同じ pattern で」 等の prompt 指示があっても、 dialog / 削除方式 / 状態遷移細部 / 拡張 feature / error UX / 新規 function signature 詳細 のいずれかが未明示なら plan_required を返す。 **planner.md の F_v5_1 patch との 2 段階防御** を構造的に補完
+
+### Verified via dog food
+
+- harness-effect-v8/: 6 task で Triage 判定精度を測定、 明確 plan_required / plan_skip は 100% 一致、 boundary は prompt の指示語に強く依存することを実証
+
+### Reference
+
+- [experiments/harness-effect-v8/reports/SUMMARY.md](experiments/harness-effect-v8/reports/SUMMARY.md)
+
 ## [3.0.3] - 2026-05-14
 
 **harness-effect-v6 dog food findings reflection (F_v6_1)**。 v6 の Verify retry 原因 (= plan AC が「`#success` 内に button 追加」 + 「textContent で text 変更」 を併記、 衝突未明示で execute が button 削除 bug を生んだ) を planner directive に追加。 「DOM container 内に新規 element 追加するタスクは、 text 代入が子 element を破壊しない構造を AC で明示」。

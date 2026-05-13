@@ -9,7 +9,7 @@
       "name": "pev-harness",
       "source": "./",
       "description": "Claude Opus 4.7 native Plan-Execute-Verify coding harness. Minimal 3-phase pipeline (plan → execute → verify) with dual-review, external-reviewer (Codex CLI), Linear sync, Playwright E2E verify, empirical prompt tuning, plus vendored Anthropic-official skill-creator + frontend-design.",
-      "version": "3.0.3",
+      "version": "3.0.4",
       "category": "coding-harness",
       "tags": [
         "coding-harness",
