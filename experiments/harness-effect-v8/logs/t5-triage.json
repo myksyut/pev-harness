@@ -1,0 +1,19 @@
+{
+  "decision": "plan_required",
+  "reasoning": "React 化は build tool (Vite 等) 導入、HTML → JSX 変換、form.js の React component 化、既存 unit/E2E test との互換維持、npm scripts 改修など、影響範囲が広く複数の設計判断を伴う。team-conventions.md は現状 vanilla JS ESM / vitest を前提としており、React 導入後の test 戦略 (React Testing Library 導入可否、E2E の selector 変更など) も prompt に明示されていない。defensive default に従い plan_required と判定する。",
+  "context_signals": [
+    "cwd に src/ + tests/ + team-conventions.md が揃っている (既存 vanilla JS codebase)",
+    "index.html + src/validation.js + src/form.js + tests/ + tests-e2e/ が存在",
+    "React は未導入 (package.json に react 依存なし)",
+    "team-conventions.md は JS ESM / vitest を前提とした規約"
+  ],
+  "ambiguity_signals": [
+    "build tool の選定が未明示 (Vite / webpack / その他)",
+    "既存 unit test (vitest) を React Testing Library で書き直すか否かが未指定",
+    "E2E (Playwright) の selector 変更方針が未指定",
+    "TypeScript 移行を同時に行うか否かが未明示",
+    "State 管理方針 (useState のみか、Context / 外部ライブラリか) が未指定",
+    "accessibility 属性 (aria-required / aria-describedby / role=alert) の維持方針が未明示"
+  ],
+  "task_id": "1778695071-88004799"
+}
