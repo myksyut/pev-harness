@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
 - Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
 
+## [3.0.2] - 2026-05-13
+
+**ドキュメント align**。 v3.0 / v3.0.1 で構造変更 (Triage 新設、 Plan on-demand、 質問判定強化、 F1 scope 限定) を agents / commands / CHANGELOG に反映していたが、 CLAUDE.md / SPEC.md / README / ONBOARDING / rules / skills / examples / guide の各 doc が v2.x 当時のまま stale だった。 v3.0.2 で全 active doc を v3.0 reflect、 歴史 doc (v1.x dog food log 等) には disclaimer note を追加。
+
+### Documented
+
+- **CLAUDE.md**: §0 current version note + §1 history table に v2/v3 entries + §2.2 Gate respect の v3.0+ 注記 + §3.1 sample-project の form fixture 反映 + §3.3 dog food 手順を stream-json input mode に + §11 cross-references に experiments/ 追加
+- **SPEC.md**: 冒頭文を v3.0 reflect、 §4 Plan-Execute-Verify 詳細に Phase 0 (Triage) 追加、 §8 Commands に `--with-plan` / `--no-plan` flag、 §9 artifacts に triage.json、 ADR-001 を「3-phase 固定 → on-demand に変更」 に rewrite
+- **README.md**: tagline を `(Triage →) Plan → Execute → Verify pipeline (v3.0+)` に
+- **ONBOARDING.md**: §3 期待動作を Phase 0 (Triage) 追加 + flag override 説明
+- **rules/pev-conventions.md**: §0 Gate respect に Triage decision を追加、 triage agent の停止 rule
+- **skills/pev-pipeline/SKILL.md**: Phase 遷移ルールに Phase 0 + Flag override + artifacts table に triage.json
+- **skills/pev-recap/SKILL.md**: When to Use に triage agent 追記
+- **skills/pev-spec-template/SKILL.md**: When to Use に Triage 経由 note
+- **agents/verifier.md**: v3.0+ Mode B (plan-less) 対応の verification path
+- **commands/pev-execute.md**: Mode A / Mode B の 2 mode 説明 + `--plan-less` flag
+- **commands/pev-plan.md**: v3.0 で「Triage を skip して直接 Plan のみ」 と明示
+- **commands/pev-verify.md**: 前提条件に「plan.md または triage.json のいずれか」、 plan.md なしの verification path
+- **examples/README.md / team-conventions.example.md**: v3.0+ note
+- **guide/CHECKLIST.md / FEEDBACK-TEMPLATE.md / ROLLOUT-CHECKLIST.md**: v3.0+ note + 新規 axis (Triage 精度 / Plan 確認質問の有用性 / F1 挙動)
+
+### Not changed
+
+- 歴史 doc (`guide/dogfood-v1.3-report.md` / `guide/TEST-PLAN-linear-v1.3.md` / `examples/dog-food-evidence/`): v1.x 当時の reality 記録として時系列維持
+- `examples/linear-task-flow.md`: v1.2+ Linear 例なので v1.x context のまま
+
+### Reference
+
+- v3.0 設計: [experiments/v3.0-design.md](experiments/v3.0-design.md)
+- v3.0 dog food 根拠: [experiments/harness-effect-v1 to v5](experiments/)
+
 ## [3.0.1] - 2026-05-13
 
 **harness-effect-v5 dog food findings reflection** (F_v5_1)。 v3.0 を 別 task (申込キャンセル機能) で再走、 効果の再現性 (軸 1-4 で +6) を確認したうえで、 検出した **「pattern 踏襲指示が Plan の質問を抑制する」 問題** (= F_v5_1) に対する patch。

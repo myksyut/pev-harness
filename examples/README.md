@@ -1,5 +1,7 @@
 # pev-harness Examples
 
+> **v3.0+ note**: 例は当初の 3-phase pipeline 前提で書かれている。 v3.0 では Phase 0 (Triage) が追加され Plan は on-demand 化された ([CLAUDE.md](../CLAUDE.md) / [SPEC.md §4](../SPEC.md) 参照)。 例自体は Plan が走ったケースとして読める。
+
 dog food 前に「PEV pipelineを通すと実際にどうなるか」を見るための参考ファイル群。
 
 ## Files

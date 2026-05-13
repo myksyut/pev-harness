@@ -1,6 +1,8 @@
 # Rollout Checklist (per-team)
 
 > **Note**: This document is for **organization-internal deployment** tracking. Individual OSS users don't need this — just follow [ONBOARDING.md](./ONBOARDING.md).
+>
+> **v3.0+**: checklist 内の「Gate A」 / 「Phase 1」 / 「3-phase」 等は v0.1-v2.x 時点の reality。 v3.0 での current flow (Triage → Plan on-demand → Execute → Verify) は [CLAUDE.md](../CLAUDE.md) 参照。
 
 各チームへの導入時、ロールアウト管理者がチェック。Issue #7 (v1.0) のAC達成を追跡するため。
 

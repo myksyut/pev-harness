@@ -1,11 +1,11 @@
 ---
 name: pev-pipeline
-description: PEV (Plan-Execute-Verify) パイプラインのメインフロー。3 phase間の受け渡し規約、artifacts/ ディレクトリ仕様、Gate判定ロジックを定義
+description: PEV ((Triage →) Plan-Execute-Verify) パイプラインのメインフロー (v3.0+)。 Triage の plan_required / plan_skip 判定 + 各 phase 間の受け渡し規約、 artifacts/ ディレクトリ仕様、 Gate 判定ロジックを定義
 ---
 
-# pev-pipeline
+# pev-pipeline (v3.0+)
 
-PEV harnessの心臓部。`/pev` コマンドが起動するメインフローを定義する。
+PEV harnessの心臓部。 `/pev` コマンドが起動するメインフローを定義する。 v3.0 で **Phase 0 (Triage)** を新設、 Plan を on-demand 化。
 
 ## When to Use
 
@@ -15,41 +15,56 @@ PEV harnessの心臓部。`/pev` コマンドが起動するメインフロー�
 
 ## How It Works
 
-### Phase 遷移ルール
+### Phase 遷移ルール (v3.0+)
 
 ```
 START
   │
   ▼
-[Phase 1: PLAN]
-  │   planner agentを起動
-  │   入力: Goal/Constraints/AC
-  │   出力: artifacts/plan.md
+[Phase 0: TRIAGE] (v3.0+ 新規)
+  │   triage agentを起動 (model: sonnet, effort: low)
+  │   入力: task description + cwd context
+  │   出力: artifacts/triage.json (decision = plan_required | plan_skip)
   ▼
-[Gate A] permissionMode判定:
+[Triage decision]
+  │   plan_required → Phase 1 (Plan) へ
+  │   plan_skip     → Phase 2 (Execute) へ直行 (Mode B、 plan-less)
+  ▼
+[Phase 1: PLAN] (= plan_required の場合のみ)
+  │   planner agentを起動 (model: opus, effort: xhigh)
+  │   入力: Goal/Constraints/AC + cwd context + triage.json
+  │   出力: artifacts/plan.md (= 必要なら冒頭に「## 確認質問」)
+  ▼
+[Gate A] permissionMode判定 (= Plan が起動された場合のみ):
   │   "auto"    → 自動でPhase 2へ
   │   "default" → 停止、ユーザー承認待ち
   │   "plan"    → ここで終了
   ▼
 [Phase 2: EXECUTE]
   │   executor agentを起動 (並列可)
-  │   入力: artifacts/plan.md
+  │   入力: artifacts/plan.md (Mode A) or task description + cwd context (Mode B)
   │   出力: code edits + artifacts/execute.log
   ▼
 [Gate B] Stop hookが自動でPhase 3起動
   ▼
 [Phase 3: VERIFY]
-  │   verifier agentを起動
-  │   入力: git diff + plan.md
+  │   verifier agentを起動 (model: sonnet, effort: xhigh)
+  │   入力: git diff + plan.md (もしくは task description)
   │   出力: artifacts/verify.json
   ▼
 [Retry Gate] verify.verdict:
   │   PASS                       → DONE
-  │   FAIL && retry_count < 3    → Phase 1 へ戻る
+  │   FAIL && retry_count < 3    → Phase 1 へ戻る (もしくは Triage 経由再判定)
   │   FAIL && retry_count >= 3   → 人間にescalate
   ▼
 DONE → pev-recap が recap.log に追記
 ```
+
+### Flag override (v3.0+)
+
+- `--with-plan`: Triage を skip して必ず Plan を起動 (= v2.x 互換挙動)
+- `--no-plan`: Triage を skip して必ず Plan-less Execute (= 最短 path)
+- 指定なし: Triage の判定に従う (= default、 v3.0 推奨)
 
 ### task_id の発行
 
@@ -68,9 +83,10 @@ mkdir -p ~/.claude/pev/$TASK_ID
 | ファイル | 書き手 | 用途 |
 |---|---|---|
 | `.task_id` | pipeline | タスクID保持 |
-| `plan.md` | planner | Phase 1出力 |
-| `execute.log` | executor | Phase 2ログ |
-| `verify.json` | verifier | Phase 3結果 |
+| `triage.json` | triage (v3.0+) | Phase 0 出力 (plan_required / plan_skip) |
+| `plan.md` | planner | Phase 1 出力 (Plan 起動時のみ) |
+| `execute.log` | executor | Phase 2 ログ |
+| `verify.json` | verifier | Phase 3 結果 |
 | `recap.log` | pev-recap skill | phase完了サマリの追記蓄積 |
 
 すべて `.gitignore` 対象。タスク完了後に削除してOK (`/pev-status --clean`)。

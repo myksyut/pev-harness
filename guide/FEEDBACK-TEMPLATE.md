@@ -1,6 +1,8 @@
 # Feedback Template
 
 > **Note**: This template is for **organization-internal deployment** feedback aggregation (3 teams use the same form, results compared). Individual OSS users can use the standard [Issue templates](.github/ISSUE_TEMPLATE/) instead.
+>
+> **v3.0+**: feedback で「Triage 判定の精度 (plan_required / plan_skip)」「 Plan 確認質問の有用性」 「F1 Defensive default の挙動 (security / data integrity / 状態不整合)」 等の v3.0 新規 axis を確認項目に追加することを推奨。
 
 各チームが5タスク完了後、このテンプレで feedback を書く。GitHub Issue として起票 (title: `[feedback] <team-name>`)。
 

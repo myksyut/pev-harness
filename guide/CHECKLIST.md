@@ -1,5 +1,7 @@
 # pev-harness 確認チェックリスト
 
+> **v3.0+ note**: 以下の checklist 内で「Phase 1」 「Gate A」 等の言及は v0.1-v2.x 時点の reality。 v3.0 で Phase 0 (Triage) 追加 + Plan on-demand 化された後の current state は [CLAUDE.md](../CLAUDE.md) / [SPEC.md §4](../SPEC.md) 参照。
+
 ユーザーが後で確認するためのリスト。Claudeが自律で進めた v0.1.0 + 周辺整備に対するレビュー観点。
 
 > 全項目を必ず確認する必要はない。気になるところだけ。

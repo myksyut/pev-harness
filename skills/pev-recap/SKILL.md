@@ -9,7 +9,8 @@ phase完了ごとに「何をやったか / 次に何が残ってるか」の1�
 
 ## When to Use
 
-- planner が plan.md を書き終えた時
+- **v3.0+**: triage agent が triage.json を書き終えた時 (= Phase 0 完了マーカー、 plan_required / plan_skip の decision を recap)
+- planner が plan.md を書き終えた時 (Plan が走った場合)
 - 各 executor がコード変更を終えた時
 - verifier が verify.json を書き終えた時
 - ユーザーが `/pev-status` を実行した時

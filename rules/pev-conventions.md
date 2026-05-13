@@ -2,24 +2,26 @@
 
 pev-harness を使う際の always-follow ガイドライン。すべての agent / skill / command の出力に適用される。
 
-## 0. Gate respect (最重要、v0.6 で追加)
+## 0. Gate respect (最重要、 v0.6 で追加、 v3.0 で Triage decision を追加)
 
-PEV pipeline には3つの Gate がある:
+PEV pipeline には以下の Gate / decision point がある:
 
-- **Gate A** (Plan → Execute): `permissionMode` で判定
+- **Triage decision** (v3.0+、 Phase 0 出口): `artifacts/triage.json` の decision で「Plan 必要 / Plan skip」 を判定。 `--with-plan` / `--no-plan` flag で override 可能
+- **Gate A** (Plan → Execute、 = Plan が起動された場合のみ): `permissionMode` で判定
 - **Gate B** (Execute → Verify): Stop hook で promotion
 - **Retry Gate** (Verify FAIL時): retry_count と PEV_MAX_RETRIES で判定
 
-**Gate の判断は `commands/pev*.md` の役割であり、agent の責務外**。
+**Gate / Triage decision の判断は `commands/pev*.md` の役割であり、 agent の責務外**。
 
 絶対遵守ルール:
 
-- planner は plan.md を書いたら**そこで完全停止**。executor を起動しない。Phase 2進行はGate A が決める
-- executor は変更を終えたら**そこで完全停止**。verifier を起動しない。Phase 3進行は Gate B (Stop hook) が決める
-- verifier は verify.json を書いたら**そこで完全停止**。retry判断は Retry Gate に委ねる
-- agent は「ユーザーが続行したいはずだ」「permissionMode=default だが意図を尊重する」のような推論で **Phase boundary を越えてはならない**
+- **triage agent (v3.0+)** は `artifacts/triage.json` を書いたら **そこで完全停止**。 planner / executor を起動しない。 後続 phase 進行は commands/pev.md の Step 1.5 が決める
+- planner は plan.md を書いたら**そこで完全停止**。 executor を起動しない。 Phase 2進行はGate A が決める
+- executor は変更を終えたら**そこで完全停止**。 verifier を起動しない。 Phase 3進行は Gate B (Stop hook) が決める
+- verifier は verify.json を書いたら**そこで完全停止**。 retry 判断は Retry Gate に委ねる
+- agent は「ユーザーが続行したいはずだ」「permissionMode=default だが意図を尊重する」 のような推論で **Phase boundary を越えてはならない**
 
-このルールが破られた場合の症状: dog food で `permissionMode=default` なのにフルパイプラインが完走してしまう (v0.5 dog food で実観測)。Phase boundary 違反は plugin の安全設計を無効化する。
+このルールが破られた場合の症状: dog food で `permissionMode=default` なのにフルパイプラインが完走してしまう (v0.5 dog food で実観測)。 Phase boundary 違反は plugin の安全設計を無効化する。
 
 ## 1. 出力の最小性
 

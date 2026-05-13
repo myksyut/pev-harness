@@ -1,10 +1,10 @@
 # pev-harness Specification
 
-Claude Opus 4.7時代のコーディングハーネス。Plan-Execute-Verify (PEV) 3-phase pipelineを核に、4.7のnative機能（xhigh effort, adaptive thinking, task budget, auto mode）を前提として設計する。
+Claude Opus 4.7時代のコーディングハーネス。 **v3.0 で「(Triage →) Plan → Execute → Verify」 pipeline に再設計**。 v2.x までの 3-phase 固定から、 Plan を on-demand 化 + 質問判定強化 + F1 Defensive default の scope 限定 で「user の頭の中の spec を引き出す」 を主要 value に再定義。 4.7 の native 機能 (xhigh effort, adaptive thinking, task budget, auto mode) を前提として設計する。
 
 - **対象**: チーム内共有
 - **配布**: Claude Code plugin単独
-- **設計哲学**: ミニマル削ぎ落とし。core skill 8個、agent 3個、command 5個、hook 3個のみ。
+- **設計哲学**: ミニマル削ぎ落とし。 v3.0 時点で core skill 8 個、 agent 4 個 (triage / planner / executor / verifier)、 command 5 個、 hook 3 個のみ。
 
 ---
 
@@ -129,13 +129,27 @@ pev-harness/
 
 ## 4. Plan-Execute-Verify 詳細
 
-### Phase 1: Plan
+### Phase 0: Triage (v3.0+)
+
+agent `agents/triage.md`:
+
+- `model: sonnet`, `effort: low` — 軽量 router、 1 turn 以内で判定
+- tools: Read / Glob / Bash
+- 入力: user の task description + cwd context (既存 codebase / spec doc / team-conventions.md の有無)
+- 動作: LLM 判断で「Plan 必要 (= 曖昧 spec / zero context / UI 拡張要素未明示) か」 を decide
+- 出力: `artifacts/triage.json` (= decision + reasoning + context_signals + ambiguity_signals)
+- **Defensive default**: 判断に自信がない場合は `plan_required` (= 過剰 skip を避ける)
+- Flag override: `--with-plan` (= 必ず Plan 起動、 v2.x 互換) / `--no-plan` (= 必ず Plan skip)
+
+### Phase 1: Plan (v3.0+ on-demand)
 
 agent `agents/planner.md`：
 - `model: opus`, `effort: xhigh` — 公式 B1 推奨 (「intelligence-sensitive tasks like designing APIs and schemas, migrating legacy code」 が xhigh の sweet spot)
 - tools: Read / Grep / Glob / Write
+- **v3.0+ 起動条件**: Triage agent が `plan_required` と判定した場合のみ。 `--with-plan` flag でも強制起動可能
 - 入力契約: **Goal / Constraints / Acceptance Criteria** (必須)、関連ファイルパス (任意) — 公式 Cat Wu Tip 2 ([B5](https://x.com/_catwu/status/2044808533905178822)) 「Give Claude Code your full task context upfront」 の直接実装
-- 入力不足時はコード1行も読まずに**まず質問返し**
+- **v3.0+ 質問返し**: 入力不足 / UI 拡張要素未明示 / 表示 detail 未明示 / 拡張 feature 有無未明示 の場合、 plan.md 冒頭に「## 確認質問」 section を作って **必ず質問**。 「pattern 踏襲」 prompt 指示があっても dialog / 削除方式 / 状態遷移細部 / 拡張 feature 有無 / error UX は質問必須 (v3.0.1+)
+- **v3.0+ F1 Defensive default**: 適用領域を security / data integrity / 状態不整合 に **限定** (= v2.1.6 で全領域に適用していたものを refine)、 UI / 表示 / nice-to-have は質問必須
 - 出力: `artifacts/plan.md`
 - Task budget: 50k tokens (`pev-task-budget` skill で指定、 ただし **Claude Code surface では公式非サポート**、 prompt-level hint のみ。 [B3](https://platform.claude.com/docs/en/build-with-claude/task-budgets) 引用は当該 skill 参照)
 
@@ -144,8 +158,11 @@ agent `agents/planner.md`：
 agent `agents/executor.md`：
 - `model: sonnet`, `effort: high` — 公式 B1 「Balances intelligence and cost. Choose high if you're running concurrent sessions」 と一致
 - tools: Read / Edit / Write / Bash / Grep / Glob
-- 入力: `artifacts/plan.md` の File-level changes
+- **v3.0+ 2 つの mode**:
+  - **Mode A (plan ベース)**: `artifacts/plan.md` の File-level changes に従って実装 (= v2.x までの挙動)
+  - **Mode B (plan-less、 v3.0+ 新規)**: Triage が `plan_skip` 判定した場合、 plan.md なしで user prompt + cwd context (team-conventions.md / 既存実装) を直接読んで実装。 不明確な点に直面したら推測せず停止
 - 並列化: 公式 B1 「Spawn multiple subagents in the same turn when fanning out across items or reading multiple files」 に準拠。 **default は直列 1**、 fan-out / independent items が plan.md に明示されている時のみ並列 (上限 3 = `PEV_PARALLEL_EXECUTOR_MAX`、 ADR-004)
+- DRY self-review (v2.1.6+): 同関数の再実装 / loop pattern 重複 / dead import / dead branch / dead comment を実装直後に self-check
 - Subagent memory: `~/.claude/pev/{task_id}/executor-{N}.md`
 
 ### Phase 3: Verify
@@ -165,9 +182,9 @@ agent `agents/verifier.md`：
 
 | Gate | 位置 | 挙動 |
 |---|---|---|
-| **A** | Plan → Execute | `permissionMode` 判定。auto時スキップ、default時停止、plan時終了 |
+| **A** | Plan → Execute (= Plan が起動された場合のみ) | `permissionMode` 判定。auto時スキップ、default時停止、plan時終了。 v3.0+ では Triage が `plan_skip` した場合 Gate A 自体を skip して直接 Execute |
 | **B** | Execute → Verify | Stop hookが自動でverifier起動 |
-| **Retry** | Verify FAIL時 | plan.md と diff を planner に戻す、最大3回 |
+| **Retry** | Verify FAIL時 | plan.md と diff を planner に戻す、最大3回 (= plan.md がない Mode B では Triage に戻す or 単発再 Execute、 v3.1+ で詳細詰め) |
 
 ---
 
@@ -258,9 +275,11 @@ agent `agents/verifier.md`：
 
 | Command | 説明 |
 |---|---|
-| `/pev <task>` | フルpipeline。Plan → Execute → Verify を順に実行、Gate A/B で停止判定 |
+| `/pev <task>` | フルpipeline (v3.0+)。 Triage → (Plan?) → Execute → Verify、 Gate A/B で停止判定 |
+| `/pev <task> --with-plan` | Triage を skip して必ず Plan を起動 (= v2.x 互換挙動) |
+| `/pev <task> --no-plan` | Triage を skip して必ず Plan-less Execute (= 最短 path) |
 | `/pev-plan <task>` | Plan のみ実行、`artifacts/plan.md` 出力 |
-| `/pev-execute` | 既存 plan.md を読んで実装 |
+| `/pev-execute` | 既存 plan.md があれば読んで実装、 なければ task description ベースで Mode B 実装 (v3.0+) |
 | `/pev-verify` | 検証のみ実行 |
 | `/pev-status` | 現在のphase / artifacts一覧 / 残り task budget |
 | `/pev-verify-e2e` | E2E verify のみ実行 (v1.4+) |
@@ -275,9 +294,10 @@ agent `agents/verifier.md`：
 
 ```
 artifacts/                       # .gitignore対象
-├── plan.md                      # Phase 1出力
-├── execute.log                  # Phase 2ログ
-├── verify.json                  # Phase 3結果
+├── triage.json                  # Phase 0 出力 (v3.0+、 plan_required / plan_skip 判定)
+├── plan.md                      # Phase 1 出力 (Plan 起動時のみ)
+├── execute.log                  # Phase 2 ログ
+├── verify.json                  # Phase 3 結果
 ├── recap.log                    # phase完了サマリ
 └── linear/                      # v1.x で追加予定
     ├── issue_id.txt
@@ -367,24 +387,42 @@ v2.0 で reviewer mode を 4 種に拡張:
 | **v2.1.5** | **Project scope install 手順 (team 共有)** | `ONBOARDING.md` §1.2 新規 (`.claude/settings.json` `extraKnownMarketplaces` + `enabledPlugins` Pattern P1 / `--scope project` Pattern P2 / scope 3 種比較) + `README.md` Quick start 3 セクション化 (A user / B project / C `--plugin-dir`) | ✅ released |
 | **v2.1.6** | **harness-effect-v1 dog food findings reflection** | `experiments/harness-effect-v1/` 新設 (4 軸比較 framework) / planner に Defensive default 原則 / executor に DRY self-review / extract-metrics-v2.py で phase 別 breakdown | ✅ released |
 | **v3.0** | **value proposition 再定義: 「user の頭の中の spec を引き出す」** | `agents/triage.md` 新設 (Plan 必要性判定 router) / Plan を on-demand 化 / planner に「## 確認質問」 protocol / F1 scope 限定 (security / data integrity / 状態不整合 のみ、 UI 拡張は質問必須) / executor の plan-less mode 対応 / experiments/harness-effect-v1-v4 で根拠提示 | ✅ released |
-| **v3.0.1** | **harness-effect-v5 dog food findings reflection (F_v5_1)** | planner に「pattern 踏襲指示が来ても dialog / 削除方式 / 状態遷移細部 / 拡張 feature / error UX は質問必須」 directive 追加 / experiments/harness-effect-v5/ で再現性検証 (軸 1-4 で +6 で勝利) | (current) |
+| **v3.0.1** | **harness-effect-v5 dog food findings reflection (F_v5_1)** | planner に「pattern 踏襲指示が来ても dialog / 削除方式 / 状態遷移細部 / 拡張 feature / error UX は質問必須」 directive 追加 / experiments/harness-effect-v5/ で再現性検証 (軸 1-4 で +6 で勝利) | ✅ released |
+| **v3.0.2** | **ドキュメント align** | CLAUDE.md / SPEC.md / README / ONBOARDING / rules / skills / examples / guide の全 active doc を v3.0 reflect、 歴史 doc には disclaimer note 追加 | (current) |
 | v3.1+ | Triage 精度 tuning / Plan-less executor の self-clarify / bin/pev-interactive helper / Gemini CLI 対応 | (TBD) | dog food data 収集後 |
 
 ---
 
 ## 12. 設計判断ログ (ADR-like)
 
-### ADR-001: なぜ3-phase固定か
+### ADR-001: なぜ 3-phase 固定 → Plan on-demand (v3.0) に変更したか
 
-(v2.1.2 で 1次情報根拠を補強)
+(v2.1.2 で 1次情報根拠を補強、 v3.0 で再評価)
 
-公式の 4.7 best practice ([B1](https://claude.com/blog/best-practices-for-using-claude-opus-4-7-with-claude-code)) は「最初のターンで意図・制約・受け入れ基準を全部入れる」「one-shot completion を狙う」 という委譲モデルを推奨。 [B5](https://x.com/_catwu/status/2044808533905178822) (Cat Wu Tip 2) は同じ趣旨で「Give Claude Code your full task context upfront: goal, constraints, acceptance criteria in the first turn」 と明言。 PEV-harness はこれを以下の 3 段階で実装する:
+公式の 4.7 best practice ([B1](https://claude.com/blog/best-practices-for-using-claude-opus-4-7-with-claude-code)) は「最初のターンで意図・制約・受け入れ基準を全部入れる」「one-shot completion を狙う」 という委譲モデルを推奨。 [B5](https://x.com/_catwu/status/2044808533905178822) (Cat Wu Tip 2) は同じ趣旨で「Give Claude Code your full task context upfront: goal, constraints, acceptance criteria in the first turn」 と明言。 PEV-harness は v2.x までこれを以下の 3 段階で実装してきた:
 
 - **Phase 1 (Plan)**: B5 の入力契約 (Goal/Constraints/AC) を強制し、 Planner が完全な task brief を生成
 - **Phase 2 (Execute)**: full-context brief を受けた executor が one-shot 実装 (B1 の delegation モデル直接実装)
 - **Phase 3 (Verify)**: B1 「verification を与えよ」 を独立 phase として外部化、 B4 Tip 6 の `/go` skill を構造化した version
 
-各 phase **内** では line-by-line 指導をせず、 phase 境界でのみ介入する。 これにより B1 の「engineer to delegate to」 原則を保ちつつ、 verifiability を担保する。
+#### v3.0 での再評価
+
+harness-effect-v1/v2/v3/v4 (= experiments/) の 4 件 dog food で、 3-phase 固定の以下の構造的問題が見えた:
+
+- **明確 spec / 既存 codebase あり task で Plan が overkill** (= v1 タイ / v4 で no-harness 勝)
+- **効率コスト 12-18x が回収されないケース** (= 既存 pattern からの推測で十分な task)
+- **F1 Defensive default が minimal interpretation を生む** (= v4 で counter UI を Non-goal に倒す)
+
+v3.0 でこれを以下に refine:
+
+- **Phase 0 (Triage、 v3.0+ 新規)**: Plan 必要性を 1 turn で判定する軽量 router (sonnet/low)。 cwd context + prompt 曖昧度で `plan_required` / `plan_skip` を decide
+- **Phase 1 (Plan、 on-demand)**: Triage が plan_required と判定した場合のみ起動。 起動時の質問返しは必須機能 (= UI 拡張 / 表示 detail / nice-to-have は推測せず質問)
+- **Phase 2 (Execute)**: Mode A (plan ベース) と Mode B (plan-less、 task description + cwd context 直接) の 2 mode 対応
+- **Phase 3 (Verify)**: 変更なし
+
+これにより B1 の「engineer to delegate to」 原則を保ちつつ、 「真に Plan が必要な task のみ Plan を払う」 経済性を追加。 v3.0 dog food (v3-dogfood + v5) で軸 1-4 で no-harness を +6〜+8 で逆転、 v3.0 の再現性確認済。
+
+各 phase **内** では line-by-line 指導をせず、 phase 境界でのみ介入する。 これにより verifiability を担保する。
 
 ### ADR-002: なぜ外部CLI依存をやめたか
 ECCの santa-loop は codex/gemini に依存していたが、社内ツールチェーンの統一が難しい。Claude単独 model alias 方式で model diversity を「弱く」確保し、依存ゼロを取る。v2.0で MCP経由の選択肢を残す。

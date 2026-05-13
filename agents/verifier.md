@@ -15,13 +15,13 @@ tools: Read, Bash, Grep, Glob, Write
 以下の順序で実行する:
 
 1. `git diff` で変更内容を取得
-2. `artifacts/plan.md` の Verification strategy セクションを読む
+2. **v3.0+**: `artifacts/plan.md` があれば Verification strategy セクションを読む、 なければ (= Mode B、 plan_skip 後の Execute) `artifacts/triage.json` の reasoning + cwd の team-conventions.md / README を参照して標準的検証 path (build / typecheck / lint / tests) を組む
 3. リストされた command を順次実行:
    - Build
    - Type check
    - Lint
    - Tests
-4. plan.md の Acceptance Criteria を1つずつチェック (✅/❌)
+4. **v3.0+**: plan.md があれば Acceptance Criteria を 1 つずつチェック、 なければ task description / triage.json を AC として 1 つずつチェック (✅/❌)
 5. 結果を `artifacts/verify.json` に書き出す
 
 ## 出力契約

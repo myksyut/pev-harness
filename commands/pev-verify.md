@@ -15,15 +15,15 @@ description: Run only the Verify phase. Validates changes against plan.md accept
 
 ## 前提条件
 
-- `artifacts/plan.md` が存在 (AC比較のため)
+- **v3.0+**: `artifacts/plan.md` または `artifacts/triage.json` のいずれかが存在 (= AC / task description の取得元)
 - git作業ツリーに変更がある (verifyすべきものがある)
 
 ## フロー (hard-coded)
 
 1. `git diff` で変更を取得
-2. plan.md の `## Verification strategy` セクションを読む
+2. **v3.0+**: `artifacts/plan.md` があれば Verification strategy + AC を、 なければ (= Mode B、 plan_skip 後) triage.json + cwd の team-conventions.md / README を参照
 3. リストされた command を順次実行 (Build / Type check / Lint / Tests)
-4. plan.md の各 Acceptance Criteria を ✅/❌ チェック
+4. plan.md の各 Acceptance Criteria を ✅/❌ チェック (plan.md なしなら task description + triage.json を AC として)
 5. `artifacts/verify.json` に結果書き出し
 6. `--strict` 指定時、`pev-dual-review` skill が起動 (Reviewer A=Opus xhigh / B=Sonnet high 並列)
 7. 結果サマリ表示

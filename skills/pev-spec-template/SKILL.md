@@ -9,7 +9,7 @@ description: タスク開始時の初回プロンプト雛形を提示。Goal/Co
 
 ## When to Use
 
-- `/pev <task>` の `<task>` 部分が自然文だけの場合
+- `/pev <task>` の `<task>` 部分が自然文だけの場合 (v3.0+ では Triage が plan_required と判定した後に planner が起動する flow で利用)
 - planner が「Goal/Constraints/ACが不足」と返した時
 - 新規タスクを開始する前のpre-flight check
 

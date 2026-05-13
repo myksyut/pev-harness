@@ -1,6 +1,6 @@
 # Team Conventions
 
-このファイルは pev-harness の planner / executor / verifier に自動 inject されるチーム規約。 `/pev-init` が言語検知で初期値を埋めるので、 各 placeholder を実値に書き換えてください。
+このファイルは pev-harness の **triage (v3.0+) / planner / executor / verifier** に自動 inject されるチーム規約。 `/pev-init` が言語検知で初期値を埋めるので、 各 placeholder を実値に書き換えてください。
 
 ## Language & Stack
 

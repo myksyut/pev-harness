@@ -4,7 +4,9 @@
 
 ## 0. このリポジトリは何か
 
-Claude Opus 4.7 native の **Plan → Execute → Verify (PEV) coding harness** Claude Code plugin。 v0.1 → v1.6 (現在) まで dog food 駆動で漸進的に成長させてきた。 v1.0 で OSS public 化済 (<https://github.com/myksyut/pev-harness>)。
+Claude Opus 4.7 native の **(Triage →) Plan → Execute → Verify (PEV) coding harness** Claude Code plugin。 v0.1 → v3.0.1 (現在) まで dog food 駆動で漸進的に成長させてきた。 v1.0 で OSS public 化済 (<https://github.com/myksyut/pev-harness>)。
+
+**v3.0 で根本見直し済**: ハーネスの value proposition を「user の頭の中の spec を引き出す」 に再定義。 v2.x までは Plan を必ず起動する 3-phase pipeline だったが、 v3.0 で Phase 0 (Triage) を新設、 Plan を on-demand 化、 質問判定強化、 F1 Defensive default の scope 限定 を実施。 詳細: [experiments/v3.0-design.md](./experiments/v3.0-design.md) + [experiments/harness-effect-v1 to v5](./experiments/) の 5 件の根拠実験。
 
 ## 1. 開発スタイル: dog food 駆動 spec evolution
 
@@ -31,7 +33,11 @@ Claude Opus 4.7 native の **Plan → Execute → Verify (PEV) coding harness** 
 | v1.4 | Playwright E2E | sample-project E2E fixture | clean、 spec correction (.github/ → .claude/agents/) |
 | v1.5 | QA technique integration | (combined with v1.4) | — |
 | v1.4+v1.5 | multiply task | TES-4 | **5 findings (F1-F5)** → v1.6 |
-| v1.6 | F1-F5 反映 | sample-project reset | (current) |
+| v1.6 | F1-F5 反映 | sample-project reset | clean |
+| v2.x | Linear / Codex / scope install 等の追記強化 | (累積) | dog food 中心 |
+| **v2.1.6** | **harness-effect-v1 dog food**: WebSocket chat | F1 Defensive default + F2 DRY self-review | released |
+| **v3.0** | **大型再設計**: Triage 新設 + Plan on-demand + 質問判定強化 + F1 scope 限定 | harness-effect-v1/v2/v3/v4 (4 件) で根拠提示、 v3-dogfood で再現性確認 | released |
+| **v3.0.1** | **harness-effect-v5 dog food**: 申込キャンセル機能 | F_v5_1 (pattern 踏襲指示でも dialog 等は質問必須) | (current) |
 
 **重要**: dog food は **実機 invoke** が原則。 spec review のみで release しない (v1.2 の Linear sync は dog food 未実施で、 v1.3 で 28 findings が一気に出た)。
 
@@ -52,6 +58,7 @@ Claude Opus 4.7 native の **Plan → Execute → Verify (PEV) coding harness** 
 - planner agent が `permissionMode=default` を override してはならない
 - Gate A 判断は `commands/pev*.md` の責任、 agent はphase boundary を越えない
 - user が override したい場合は v1.6+ の `--force-auto` flag (formal channel)
+- **v3.0+**: Gate A は **Plan が起動された場合のみ**。 Triage agent が `plan_skip` 判定した task では Gate A は走らず、 直接 Execute → Verify。 `--with-plan` で v2.x 互換挙動を強制可能
 
 ### 2.3 Single source of truth
 
@@ -73,14 +80,16 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 
 ## 3. dog food fixture (examples/sample-project/)
 
-### 3.1 構造
+### 3.1 構造 (v1.7.1+ の form fixture)
 
 ```text
 examples/sample-project/
-├── src/index.js          # add + subtract (実装済 state)
-├── tests/index.test.js   # 4 unit tests
-├── index.html            # add + subtract ボタン
-├── tests-e2e/seed.spec.ts   # 3 E2E tests + console error fixture (v1.6 DRY)
+├── src/validation.js     # 純関数 validators (validateName/Email/Phone/Plan/Agreement)
+├── src/form.js           # submit handler + LocalStorage persistence + 二重送信防止
+├── tests/validation.test.js  # 境界値 (空、 51 文字、 不正 email、 etc.) 網羅
+├── tests/form.test.js    # mock storage + fake timer で submit flow / 二重送信 test
+├── index.html            # 申込フォーム UI (accessible: label/aria-required/role=alert)
+├── tests-e2e/seed.spec.ts   # Playwright 正常パス + 必須欠落 + email 不正 + 二重送信防止
 ├── playwright.config.ts  # webServer auto-start (http-server :8080)
 ├── vitest.config.js      # tests/ のみ scope (E2E と分離)
 ├── .claude/agents/       # Playwright agents (planner/generator/healer)
@@ -88,6 +97,8 @@ examples/sample-project/
 ├── .linear-config.yml    # workspace=emuni-kyoto, team.id=TES
 └── team-conventions.md   # JS ESM + vitest + 2-space indent
 ```
+
+**Domain**: イベント参加申込フォーム (氏名 / メール / 電話 / プラン / 利用規約同意)、 LocalStorage append、 二重送信防止、 accessibility 配慮。
 
 ### 3.2 Linear test data
 
@@ -103,26 +114,42 @@ examples/sample-project/
 
 これらは累積的 test data。 cleanup は manual (`gh issue close` / `mcp__plugin_linear_linear__save_issue` で archived へ)。
 
-### 3.3 dog food 手順
+### 3.3 dog food 手順 (v3.0+ stream-json input mode 推奨)
+
+v3.0+ では `--input-format stream-json` で起動すると Triage 経由で planner が **質問返し可能**。 v2.x 互換 (text input + --print) では質問が skip されるため、 dog food で v3.0 効果を検証するなら stream-json 必須。
 
 ```bash
-# (a) headless 実行 (私の Claude session でやる場合)
-cd /tmp && rm -rf pev-test && cp -r ~/pev-harness/examples/sample-project /tmp/pev-test
-cd /tmp/pev-test && npm install --silent
-claude --plugin-dir ~/pev-harness --print '/pev-harness:pev https://linear.app/...' > /tmp/dogfood.log 2>&1 &
+# (a) headless 実行 (= 効果検証 dog food)
+SRC=~/oss/pev-harness/examples/sample-project
+DEST=/tmp/v3-dogfood
+rm -rf $DEST
+rsync -a --exclude='node_modules' --exclude='artifacts' --exclude='playwright-report' --exclude='test-results' $SRC/ $DEST/
+cd $DEST && npm install --silent
 
-# (b) 既存 sample-project で直接 (state は accumulate)
-cd ~/pev-harness/examples/sample-project
-claude --plugin-dir ~/pev-harness   # interactive
-# > /pev-harness:pev <task>
+# v3.0 flow を invoke
+PROMPT="/pev-harness:pev <task description>"
+INIT=$(jq -nc --arg t "$PROMPT" '{type:"user",message:{role:"user",content:[{type:"text",text:$t}]}}')
+echo "$INIT" | claude --plugin-dir ~/oss/pev-harness \
+  --input-format stream-json --output-format stream-json --include-partial-messages \
+  --permission-mode bypassPermissions --verbose --model claude-opus-4-7 -p \
+  > /tmp/dogfood-turn1.log 2>&1
+# Triage → (Plan ?) → Gate A (Plan あり時のみ) → Execute → Verify
+# Plan で「## 確認質問」 が出たら、 同 cwd で claude --continue で次 turn を送る
+
+# (b) 既存 sample-project で直接 (state accumulate)
+cd ~/oss/pev-harness/examples/sample-project
+claude --plugin-dir ~/oss/pev-harness   # interactive
+# > /pev-harness:pev <task>            # default: Triage 経由
+# > /pev-harness:pev <task> --with-plan # v2.x 互換 (Triage skip + 必ず Plan)
+# > /pev-harness:pev <task> --no-plan   # Triage skip + 必ず plan-less Execute
 ```
 
 **dog food 後は必ず reset**:
 
 ```bash
-cd ~/pev-harness/examples/sample-project
+cd ~/oss/pev-harness/examples/sample-project
 rm -rf artifacts/ playwright-report/ test-results/
-# 追加 feature (multiply 等) は手で削除して src/index.js を add + subtract のみに
+# 追加 feature (multiply / inquiry 等) は手で削除して form fixture を初期状態に
 ```
 
 ## 4. CI 構成 ([.github/workflows/ci.yml](./.github/workflows/ci.yml))
@@ -257,10 +284,12 @@ rm -rf artifacts/ playwright-report/ test-results/
 - 社内展開: [ONBOARDING.md](./ONBOARDING.md) + [guide/ROLLOUT-CHECKLIST.md](./guide/ROLLOUT-CHECKLIST.md) + [guide/FEEDBACK-TEMPLATE.md](./guide/FEEDBACK-TEMPLATE.md)
 - 脆弱性: [SECURITY.md](./SECURITY.md)
 - 規約: [rules/pev-conventions.md](./rules/pev-conventions.md) (Gate respect 等) + [rules/4.7-native.md](./rules/4.7-native.md) (禁止フレーズ) + [rules/error-patterns.md](./rules/error-patterns.md) (エラー推測 catalog)
-- dog food レポート: [guide/dogfood-v1.3-report.md](./guide/dogfood-v1.3-report.md) / [guide/TEST-PLAN-linear-v1.3.md](./guide/TEST-PLAN-linear-v1.3.md)
+- **v3.0 設計**: [experiments/v3.0-design.md](./experiments/v3.0-design.md) + [experiments/RFC-v3.0.md](./experiments/RFC-v3.0.md)
+- **v3.0 dog food 根拠**: [experiments/harness-effect-v1 to v5](./experiments/) (= 5 件の比較実験、 各 reports/SUMMARY.md に詳細)
+- 旧 dog food レポート (v1.x 当時): [guide/dogfood-v1.3-report.md](./guide/dogfood-v1.3-report.md) / [guide/TEST-PLAN-linear-v1.3.md](./guide/TEST-PLAN-linear-v1.3.md)
 - 開発 checklist: [guide/CHECKLIST.md](./guide/CHECKLIST.md)
 - Issue 一覧: <https://github.com/myksyut/pev-harness/issues>
 
 ---
 
-> このファイルは v1.7 で書き換えられた (元は plugin user 向けだったが、 dog food 駆動の開発が確立した v1.6 までを振り返って **開発者向け暗黙知集** として再定義)。
+> このファイルは v1.7 で書き換えられた (元は plugin user 向けだったが、 dog food 駆動の開発が確立した v1.6 までを振り返って **開発者向け暗黙知集** として再定義)。 v3.0.2 で v3.0 / v3.0.1 の構造変更 (Triage 新設、 Plan on-demand、 質問判定強化、 F1 scope 限定、 sample-project の form fixture 化) を反映済。

@@ -4,7 +4,7 @@ description: Run only the Plan phase. Outputs artifacts/plan.md and stops
 
 # /pev-plan
 
-Plan phaseだけ実行する。設計レビュー、見積もり、初期検討で使う。
+Plan phase だけ実行する。 設計レビュー、 見積もり、 初期検討で使う。 v3.0+ では Triage を skip して **直接 Plan のみ起動** する path (= `/pev <task> --with-plan` の Plan-only 版相当)。
 
 ## Usage
 

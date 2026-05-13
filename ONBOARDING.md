@@ -188,15 +188,20 @@ Constraints: no new dependencies.
 Acceptance: GET /healthz returns 200 + correct JSON, test added."
 ```
 
-期待される動作 (`permissionMode=default` のとき):
+期待される動作 (`permissionMode=default` のとき、 **v3.0+**):
 
-1. `pev-spec-template` skill が Goal / Constraints / AC を整形
-2. planner agent が `artifacts/plan.md` 生成
-3. **Gate A で停止** (default mode のため)
+1. **Phase 0 (Triage、 v3.0+)**: triage agent が `artifacts/triage.json` を生成、 「Plan 必要か (plan_required) / Plan skip して直接 Execute (plan_skip)」 を 1 turn 以内で判定
+2. **Plan 必要なら** (= 曖昧 spec / UI 拡張要素未明示 等): planner agent が `artifacts/plan.md` 生成。 grey zone は plan.md 冒頭の「## 確認質問」 で user に質問
+3. **Gate A で停止** (default mode の場合、 = Plan が走った場合のみ)
 4. ユーザーが plan.md を読み、問題なければ `/pev-harness:pev-execute`
-5. executor が実装、Stop hook が verify を促す
+5. executor が実装 (Mode A = plan ベース / Mode B = plan-less)、 Stop hook が verify を促す
 6. ユーザーが `/pev-harness:pev-verify` を打つ、verifier が `verify.json` 生成
 7. PASS なら完了。FAIL なら自動 retry (最大3回)
+
+**v3.0 flag override**:
+
+- `/pev-harness:pev <task> --with-plan`: Triage を skip して **必ず Plan を起動** (= v2.x 互換)
+- `/pev-harness:pev <task> --no-plan`: Triage を skip して **必ず Plan-less Execute** (= 最短 path)
 
 ## 4. permissionMode の使い分け
 
