@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# pev-interactive — claude を stream-json input mode で wrap、 質問返し channel を確保する helper
+#
+# v3.0+ で観察された問題: claude --print + text input で起動すると、 planner / triage agent が
+# 「対話 channel なし」 と判定して質問を skip する (= F_v2_1 / F_v5_2)。
+# stream-json input mode を使うと agent が質問を投げて待つ挙動になる。
+#
+# 使い方:
+#   bin/pev-interactive "/pev-harness:pev 申込フォームに inquiry textarea を追加してください"
+#   bin/pev-interactive --continue "Q1: 任意でお願いします。 Q2: 500 文字。"   # 2 turn 目以降
+#
+# v3.1+ (this script): no-harness 側 user も質問返し path を持てるよう wrap layer を提供。
+# harness の plugin-dir も option で渡せる。
+
+set -euo pipefail
+
+# --- options ---
+PLUGIN_DIR=""
+CONTINUE_FLAG=""
+MODEL="${PEV_MODEL:-claude-opus-4-7}"
+EXTRA_ARGS=()
+
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [options] "<prompt>"
+
+Options:
+  --plugin-dir <path>   pev-harness plugin directory (default: \$PEV_HARNESS_DIR or auto-detect)
+  --continue            既存 session を resume (= 2 turn 目以降)
+  --model <name>        claude model (default: claude-opus-4-7)
+  --help                show this help
+
+Environment:
+  PEV_HARNESS_DIR       pev-harness の path (--plugin-dir 不在時の fallback)
+  PEV_MODEL             model override (--model 不在時の fallback)
+
+Examples:
+  # 初回 (ハーネスあり、 質問返し期待):
+  $(basename "$0") --plugin-dir ~/oss/pev-harness "/pev-harness:pev TODO アプリを作って"
+
+  # ハーネスなし (no-harness で interactive):
+  $(basename "$0") "TODO アプリを作って"
+
+  # 質問への回答 (= --continue で resume):
+  $(basename "$0") --continue "Q1: 個人用。 Q2: localStorage。"
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --plugin-dir)
+      PLUGIN_DIR="$2"
+      shift 2
+      ;;
+    --continue|-c)
+      CONTINUE_FLAG="--continue"
+      shift
+      ;;
+    --model)
+      MODEL="$2"
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      EXTRA_ARGS+=("$@")
+      break
+      ;;
+    -*)
+      EXTRA_ARGS+=("$1")
+      shift
+      ;;
+    *)
+      EXTRA_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [[ ${#EXTRA_ARGS[@]} -eq 0 ]]; then
+  echo "Error: prompt is required" >&2
+  echo "" >&2
+  usage >&2
+  exit 1
+fi
+
+PROMPT="${EXTRA_ARGS[*]}"
+
+# --plugin-dir が未指定なら env から fallback
+if [[ -z "$PLUGIN_DIR" && -n "${PEV_HARNESS_DIR:-}" ]]; then
+  PLUGIN_DIR="$PEV_HARNESS_DIR"
+fi
+
+# --- stream-json input message を組み立て ---
+if ! command -v jq >/dev/null 2>&1; then
+  echo "Error: jq is required (brew install jq)" >&2
+  exit 1
+fi
+
+INIT=$(jq -nc --arg t "$PROMPT" '{type:"user",message:{role:"user",content:[{type:"text",text:$t}]}}')
+
+# --- claude を起動 ---
+CLAUDE_ARGS=(
+  --input-format stream-json
+  --output-format stream-json
+  --include-partial-messages
+  --permission-mode bypassPermissions
+  --verbose
+  --model "$MODEL"
+  -p
+)
+
+if [[ -n "$PLUGIN_DIR" ]]; then
+  CLAUDE_ARGS=(--plugin-dir "$PLUGIN_DIR" "${CLAUDE_ARGS[@]}")
+fi
+
+if [[ -n "$CONTINUE_FLAG" ]]; then
+  CLAUDE_ARGS=("$CONTINUE_FLAG" "${CLAUDE_ARGS[@]}")
+fi
+
+echo "$INIT" | claude "${CLAUDE_ARGS[@]}"

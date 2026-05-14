@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
 - Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
 
+## [3.1.0] - 2026-05-14
+
+**bin/pev-interactive helper script 新設** (= v3.1 minor release)。 claude を `--input-format stream-json` で wrap、 質問返し channel を確保する helper。 v3.0 設計で見えた「`--print` + text input で planner / triage の質問返しが skip される」 問題 (F_v2_1 / F_v5_2) を 1 コマンドで解決。
+
+### Added
+
+- **`bin/pev-interactive`** 新設 — claude を stream-json input mode で起動する wrap script
+  - `--plugin-dir <path>`: pev-harness plugin directory (env `PEV_HARNESS_DIR` fallback)
+  - `--continue` / `-c`: 既存 session を resume (= multi-turn 対話用)
+  - `--model <name>`: model override (default: claude-opus-4-7)
+  - jq で stream-json input message を組み立て、 質問返し可能な channel で agent を起動
+  - ハーネスあり (= /pev-harness:pev wrap) と no-harness 両方で利用可能
+
+### Usage
+
+```bash
+# 初回 (ハーネスあり、 質問返し期待):
+bin/pev-interactive --plugin-dir ~/oss/pev-harness "/pev-harness:pev TODO アプリを作って"
+
+# 質問への回答 (= --continue で resume):
+bin/pev-interactive --continue "Q1: 個人用。 Q2: localStorage。"
+```
+
+### Motivation
+
+v3.0 design で stream-json input mode が質問返しの key channel であることが確認された (v3 dog food)。 ただし生 claude CLI 起動は冗長 (= 5+ flag を毎回手打ち)。 helper script で **1 cmd で interactive flow を提供**、 OSS user の onboarding を改善。
+
 ## [3.0.5] - 2026-05-14
 
 **harness-effect-v10 findings reflection (F_v10_1)**。 v3.0.4 で triage.md に追加した `task_infeasible` decision が **commands/pev.md と未統合** だった構造問題に対応。 main session が triage agent invoke 自体を skip して自走判定していた事象を v3.0.5 で fix。
