@@ -101,6 +101,19 @@ fi
 
 echo "[PEV] Triage decision: $TRIAGE_DECISION"
 
+# task_infeasible の場合は user 通知して停止 (v3.0.5+)
+if [ "$TRIAGE_DECISION" = "task_infeasible" ]; then
+  REASONING=$(jq -r '.reasoning' artifacts/triage.json 2>/dev/null)
+  AMBIGUITY=$(jq -r '.ambiguity_signals[]' artifacts/triage.json 2>/dev/null)
+  echo "[PEV] Phase 0 (Triage): task_infeasible — タスクの対象が cwd に見つかりません"
+  echo "[PEV] reasoning: $REASONING"
+  echo "[PEV] missing targets:"
+  echo "$AMBIGUITY" | sed 's/^/  - /'
+  echo "[PEV] task description を確認してください、 PEV pipeline は起動しません"
+  echo "[$(date -u +%FT%TZ)] Phase 0 (Triage) complete: task_infeasible → exit" >> artifacts/recap.log
+  exit 0
+fi
+
 # Plan skip の場合は Step 4 (Execute) へ直行
 if [ "$TRIAGE_DECISION" = "plan_skip" ]; then
   echo "[$(date -u +%FT%TZ)] Phase 0 (Triage) complete: plan_skip → direct Execute" >> artifacts/recap.log
@@ -112,6 +125,9 @@ fi
 
 - `plan_required`: Step 2 (Phase 1 Plan) → Step 3 (Gate A) → Step 4 (Execute) → ...
 - `plan_skip`: Step 4 (Execute) へ直行、 Gate A は skip (= Plan がないので permissionMode 判定の文脈なし)
+- `task_infeasible` (v3.0.5+): user 通知して exit、 Plan / Execute / Verify は起動しない
+
+**重要 (v3.0.5+)**: main session (= /pev コマンド自身) は **必ず triage agent を invoke する**。 prompt の表面解釈で「対象不在」 と自走判定して triage を skip するのは禁止。 task feasibility check は triage agent の責務 (= triage.json に `task_infeasible` を出力)、 main の責務は triage の decision を受領して分岐するのみ。
 
 **Defensive default**: triage agent が応答しない / parse 失敗 / 不明な decision の場合、 default は `plan_required` (= 過剰な skip を避けて minimal interpretation 漏れを防ぐ)。
 

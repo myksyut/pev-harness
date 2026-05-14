@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
 - Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
 
+## [3.0.5] - 2026-05-14
+
+**harness-effect-v10 findings reflection (F_v10_1)**。 v3.0.4 で triage.md に追加した `task_infeasible` decision が **commands/pev.md と未統合** だった構造問題に対応。 main session が triage agent invoke 自体を skip して自走判定していた事象を v3.0.5 で fix。
+
+### Changed
+
+- **`commands/pev.md` Step 1.5 (Triage)** に `task_infeasible` 受領 logic を追加。 triage.json の decision が `task_infeasible` の場合、 user に reasoning + missing targets を通知して `exit 0`
+- **`commands/pev.md`** に「main session は **必ず triage agent を invoke する** (prompt 表面解釈で自走判定して triage を skip するのは禁止)」 directive を追加。 task feasibility check は triage agent の責務
+
+### Verified via dog food
+
+- `experiments/harness-effect-v10/`: F_v8_2 (pattern 踏襲 conservative) + F_v8_3 (schema) は v3.0.4 で完璧に functional 確認。 F_v8_1 (task_infeasible) は agent prompt だけでは不発動 (= 新 finding F_v10_1) → v3.0.5 で main flow 統合
+
+### 設計教訓
+
+agent prompt directive + main flow logic の **両方を touch** しないと patch が complete にならない。 future patch では「agent 側 + commands/ 側」 のペア更新を check すべき。
+
+### Reference
+
+- [experiments/harness-effect-v10/reports/SUMMARY.md](experiments/harness-effect-v10/reports/SUMMARY.md)
+
 ## [3.0.4] - 2026-05-14
 
 **harness-effect-v8 dog food findings reflection (F_v8_1/2/3)**。 multi-task で Triage 判定 boundary を探索した結果、 3 件の構造問題を検出 → triage.md に reflect。
