@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
 - Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
 
+## [3.3.1] - 2026-05-15
+
+**F_v15_1 hotfix**。 v3.3.0 で新設した Gate L (Linear issue-first) を Gate A の **後** (Step 3.5) に配置していたが、 Gate A は `permissionMode=default` で `exit 0` 停止するため、 default mode で Gate L が完全に dead path になっていた。 harness-effect-v15 dog food で検出。 v3.3.1 で Gate L を Gate A の **前** (Step 2.5) に移動。
+
+### Changed
+
+- **`commands/pev.md`**: Gate L を Step 3.5 (Gate A の後) → Step 2.5 (Gate A の前) に re-order。 これにより default mode で Gate A 停止しても issue + branch は準備済、 user が `/pev-execute` を打った時に Linear branch 上で実装が走る
+- **`SPEC.md` Phase Gates table**: Gate L の位置を「Plan → Gate A」 に更新、 Gate A の位置を「Gate L → Execute」 に
+- **`skills/pev-linear-sync/SKILL.md`**: Direction 1.5 の呼び出し元を「Gate L (Step 2.5、 = Gate A の前)」 に更新
+
+### Verified via dog food
+
+- `experiments/harness-effect-v15/`: v3.3.0 で Gate L 不発動を検出 (= artifacts/linear/ なし、 branch は main のまま、 実 Linear への書き込みも発生せず)
+
+### 設計教訓 (F_v15_1)
+
+Gate / Step の順序設計時、 「前段の Gate が `exit` するケース」 を必ず考慮する。 commands/pev.md は bash 制御フローなので `exit` / `case` / 条件分岐の順序が semantics を決める。 v3.0.5 F_v10_1 / v3.2.1 F_v14_1 に続く commands/pev.md 制御フロー設計の落とし穴 3 例目。
+
 ## [3.3.0] - 2026-05-15
 
 **Linear issue-first workflow 新設**。 `.linear-config.yml` が存在する project で、 **実装前に必ず Linear issue を作成し、 Linear が発行する branch 名で実装する** 経路を追加。 「issue を立ててから実装」 を formal channel として強制。

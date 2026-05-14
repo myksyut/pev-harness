@@ -117,7 +117,7 @@ inbound 失敗時 (404 / network / validation 等) の合図:
 
 ### Direction 1.5: Issue-first (実装前 issue 作成 + branch checkout、 v3.3.0+)
 
-`.linear-config.yml` が cwd に存在し、 **自然文 task で `/pev` が起動された** (= Linear URL ではない) 場合、 commands/pev.md の Gate L (Step 3.5) から呼ばれる。 「実装前に必ず Linear issue を立てて、 Linear が発行する branch 名で実装する」 を強制する direction。
+`.linear-config.yml` が cwd に存在し、 **自然文 task で `/pev` が起動された** (= Linear URL ではない) 場合、 commands/pev.md の Gate L (Step 2.5、 = Gate A の前、 v3.3.1+) から呼ばれる。 「実装前に必ず Linear issue を立てて、 Linear が発行する branch 名で実装する」 を強制する direction。
 
 **前提条件**:
 
