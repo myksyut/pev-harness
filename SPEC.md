@@ -393,8 +393,9 @@ v2.0 で reviewer mode を 4 種に拡張:
 | **v3.0.4** | **F_v8_1/2/3 patch (Triage 強化)** | triage.md schema 厳守 / `task_infeasible` 判定追加 / 「pattern 踏襲」 指示でも conservative (= F_v5_1 との 2 段階防御)。 harness-effect-v8 multi-task tuning で検出 | ✅ released |
 | **v3.0.5** | **F_v10_1 patch (commands/pev.md と task_infeasible 統合)** | commands/pev.md に task_infeasible 受領 logic + 「main は必ず triage agent invoke、 自走判定禁止」 directive 追加。 harness-effect-v10 で F_v8_1 が agent prompt だけでは不発動と判明 | ✅ released |
 | **v3.1.0** | **bin/pev-interactive helper script 新設** | claude を stream-json input mode で wrap する helper、 質問返し channel を 1 cmd で確保。 F_v2_1 / F_v5_2 対応 | ✅ released |
-| **v3.2.0** | **Mode B Self-Clarify Protocol** | executor.md に Mode B 不明確時の停止 + clarification.md format + 5 trigger 明示。 commands/pev-execute.md に受領 logic + `--use-defaults` flag | (current) |
-| v3.3+ | Mode B verify protocol skill 化 / Gemini CLI 対応 | (TBD) | v3.2 dog food verify 後 |
+| **v3.2.0** | **Mode B Self-Clarify Protocol** | executor.md に Mode B 不明確時の停止 + clarification.md format + 5 trigger 明示。 commands/pev-execute.md に受領 logic + `--use-defaults` flag | ✅ released |
+| **v3.2.1** | **F_v13_2 hotfix (Mode B Self-Clarify hardening)** | trigger を「MUST stop」 hard-fail tone に / 自走 OK case を 3 条件すべて該当に厳格化 / execute.log に self-clarify check 記録必須化 | (current) |
+| v3.3+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 | (TBD) | v3.2.x dog food verify 後 |
 
 ---
 

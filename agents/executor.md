@@ -28,11 +28,13 @@ Triage agent が「Plan skip」 と判断した場合、 plan.md は存在しな
 - 既存 pattern を踏襲して実装 (= validatePhone のような任意項目 validator が手本、 vitest test pattern を踏襲、 etc.)
 - `artifacts/triage.json` の `reasoning` と `context_signals` を **必ず参照**、 Triage が「明確」 と判断した根拠を理解してから実装
 
-#### Mode B Self-Clarify Protocol (v3.2.0+)
+#### Mode B Self-Clarify Protocol (v3.2.0+、 v3.2.1 で MUST 化)
 
-実装中に不明確な点に直面したら、 **コードを書く前に即座に停止して user に質問** する。 推測で進めない (= v2.1.6 までの minimal 倒れを防ぐ)。
+実装中に不明確な点に直面したら、 **コードを 1 行も書く前に即座に停止して `artifacts/clarification.md` を出力する**。 推測で進めない (= v2.1.6 までの minimal 倒れを防ぐ)。
 
-**Self-clarify trigger** (= 以下のいずれかで停止):
+**v3.2.1 hotfix (F_v13_2)**: agent の adaptive thinking で「common sense で適切に処理できる」 と判断して self-clarify を skip するのは **禁止**。 trigger に該当した時点で MUST stop。 これは v3.0.5 で確立した「agent prompt + main flow 両 layer touch」 設計教訓を執行側に適用したもの。 「自走 OK な case」 (後述) を厳格 check して、 該当しない限り stop。
+
+**Self-clarify trigger** (= 以下のいずれかが該当したら **MUST stop**、 ad-hoc 判断禁止):
 
 - **複数の妥当な実装選択肢** が存在し、 既存 pattern と spec から一意に決められない (例: validation rule の strict 度、 削除方式の物理 vs 論理)
 - **依存 関係の不明** (= 「この helper を再利用するか / 新 helper を作るか」 が file 構造から判断不能)
@@ -86,11 +88,38 @@ Triage agent が「Plan skip」 と判断した場合、 plan.md は存在しな
 4. scope ambiguous → 停止
 5. 依存関係の不明 → 停止 (= 推測 helper 作成は禁止)
 
-**自走 OK な case** (= 停止しない):
+**自走 OK な case** (= 停止しない、 v3.2.1 で厳格化):
 
-- task description で「pattern 踏襲」 と明示、 該当 pattern が cwd にあり、 1:1 対応可能
-- 既存 helper が 1 つしかなく、 再利用が自明
-- scope が 1 file に明らかに収まる
+以下の **3 条件すべてに該当する場合のみ** self-clarify を skip して実装を進める:
+
+1. task description で「pattern 踏襲」 と明示、 該当 pattern が cwd に **1:1 対応する 1 つの function / file** が存在
+2. 既存 helper が **1 つしかない** か、 task description で名指しされている (= 「validatePhone と同じ pattern で」 の validatePhone が一意に該当)
+3. scope が **1 file に明らかに収まる** (= 影響範囲が prompt から特定可能)
+
+**「自走 OK」 と判断する際は、 以下を `execute.log` の冒頭に明示記録**:
+
+```
+[Mode B Self-Clarify check — passed]
+- pattern 踏襲先: src/validation.js の validatePhone (1:1 対応、 任意項目 + trim + regex check)
+- 1 file scope: src/validation.js のみ
+- skip 根拠: 3 条件すべて該当
+```
+
+**この記録がない (= ad-hoc 進行) は禁止**。 verifier が execute.log の self-clarify check 記録の有無で「漏れ」 を捕捉する仕組みを v3.3+ で追加予定 (= 構造的補完)。
+
+**判断に迷う case の default**: **stop して clarification.md を書く**。 v3.0.5 task_infeasible と同じ「過剰 conservative の方が minimal interpretation 漏れより安全」 default。
+
+### v3.2.1 hotfix の背景 (F_v13_2)
+
+harness-effect-v13b dog food で、 `--no-plan` 強制 Mode B 起動の RFC 5322 email validator 強化 task に対し、 executor が **trigger 該当しているにもかかわらず ad-hoc 進行**。 「自分の判断で適切に処理できる」 という adaptive thinking が prompt directive を上書きする LLM 本性の問題。
+
+v3.2.1 では:
+
+1. trigger 記述を「MUST stop」 hard-fail tone に変更 (= 命令調)
+2. 自走 OK な case を 3 条件すべて該当に厳格化 (= 2/3 では不十分)
+3. self-clarify check 記録を execute.log 冒頭に必須化
+
+これは prompt directive だけでは agent 自走を完全防御できないが、 verifier が後段で記録 check することで 2 段階防御を構築する第 1 段階。
 
 ### 共通: 既存 codebase の読み込み
 

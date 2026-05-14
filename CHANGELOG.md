@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
 - Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
 
+## [3.2.1] - 2026-05-14
+
+**F_v13_2 hotfix**。 harness-effect-v13b dog food で、 v3.2.0 の Mode B Self-Clarify Protocol を executor が **adaptive thinking で上書き**、 trigger 該当時にも推測実装で進む事象が観測された。 v3.0.5 F_v10_1 と類似の構造問題 (= prompt directive 単体では agent 自走判断を完全防御できない)。 v3.2.1 で agents/executor.md の self-clarify directive を MUST 化 + 自走 OK case を 3 条件すべて該当に厳格化 + self-clarify check 記録を execute.log 冒頭に必須化。
+
+### Changed
+
+- **`agents/executor.md` "Mode B Self-Clarify Protocol"** を v3.2.1 で hardening:
+  - trigger 記述を **「MUST stop」 hard-fail tone** に変更 (= 命令調、 ad-hoc 判断禁止)
+  - 自走 OK な case を **3 条件 すべて該当** に厳格化 (= pattern 踏襲先 1:1 / 既存 helper 一意 / 1 file scope)
+  - `execute.log` 冒頭に self-clarify check 記録を **必須化** (= 自走判断の根拠を documented、 verifier が後段で check 可能)
+
+### Verified via dog food
+
+- experiments/harness-effect-v13/: v13b で `--no-plan` 強制 Mode B 起動の email validator 強化 task で F_v13_2 検出 (= executor が ad-hoc 進行)
+
+### Reference
+
+- [experiments/harness-effect-v13/reports/SUMMARY.md](experiments/harness-effect-v13/reports/SUMMARY.md)
+
+### 設計教訓
+
+agent prompt directive 単体では agent 自走を完全防御できない (= LLM 本性に近い hard problem)。 v3.3+ で verifier 側で execute.log の self-clarify check 記録の有無を check する 2 段階防御の追加候補。
+
 ## [3.2.0] - 2026-05-14
 
 **Mode B Self-Clarify Protocol 新設**。 v3.0 で導入した Mode B (= plan-less Execute) は、 実装中に不明確点に直面した時の handling が抽象的だった (= 「停止して質問」 とだけ書かれていた)。 v3.2.0 で **具体的 trigger + format + main flow 統合** を実装。 task_infeasible (v3.0.5) と同じ「agent + commands 両 layer touch」 設計教訓を踏襲。
