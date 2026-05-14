@@ -13,6 +13,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
 - Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
 
+## [3.3.0] - 2026-05-15
+
+**Linear issue-first workflow 新設**。 `.linear-config.yml` が存在する project で、 **実装前に必ず Linear issue を作成し、 Linear が発行する branch 名で実装する** 経路を追加。 「issue を立ててから実装」 を formal channel として強制。
+
+### Added
+
+- **`skills/pev-linear-sync` "Direction 1.5: Issue-first"** — 4 つ目の sync direction:
+  - `.linear-config.yml` 存在 + 自然文 task + issue 未作成 の時に commands/pev.md Gate L から呼ばれる
+  - plan.md (あれば) or task description + triage.json から issue body を組み立て
+  - `mcp__plugin_linear_linear__save_issue` で新規 issue 作成 → branchName 取得 → `git checkout -b <branchName>`
+  - `artifacts/linear/branch_name.txt` を新規追加
+  - 冪等性: `issue_id.txt` があれば再作成せず branch checkout のみ
+- **`commands/pev.md` Step 3.5 (Gate L)** — `.linear-config.yml` 存在時、 Execute 前に issue-first を強制起動
+
+### Changed
+
+- `skills/pev-linear-sync/SKILL.md`: description を 3 方向 → 4 方向に、 `sync_state.json` に `created_at` / `branch_name` / `branch_checked_out` field 追加
+- `commands/pev.md`: フロー概要に Gate L を追加 (Triage → Plan? → Gate A → **Gate L** → Execute → Verify)
+
+### Scope
+
+- **`.linear-config.yml` がある時のみ必須**。 不在なら Gate L 全体を skip (= OSS user / sample-project への影響なし)
+- inbound case (`/pev <linear-url>`) は既存 issue の branch checkout のみ
+- Linear MCP unavailable / git 管理外 では best-effort (= warning + skip、 pipeline は止めない)
+
 ## [3.2.1] - 2026-05-14
 
 **F_v13_2 hotfix**。 harness-effect-v13b dog food で、 v3.2.0 の Mode B Self-Clarify Protocol を executor が **adaptive thinking で上書き**、 trigger 該当時にも推測実装で進む事象が観測された。 v3.0.5 F_v10_1 と類似の構造問題 (= prompt directive 単体では agent 自走判断を完全防御できない)。 v3.2.1 で agents/executor.md の self-clarify directive を MUST 化 + 自走 OK case を 3 条件すべて該当に厳格化 + self-clarify check 記録を execute.log 冒頭に必須化。

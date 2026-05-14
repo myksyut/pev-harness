@@ -183,6 +183,7 @@ agent `agents/verifier.md`：
 | Gate | 位置 | 挙動 |
 |---|---|---|
 | **A** | Plan → Execute (= Plan が起動された場合のみ) | `permissionMode` 判定。auto時スキップ、default時停止、plan時終了。 v3.0+ では Triage が `plan_skip` した場合 Gate A 自体を skip して直接 Execute |
+| **L** | Gate A → Execute (= `.linear-config.yml` 存在時のみ、 v3.3.0+) | Linear issue-first。 実装前に Linear issue を作成し、 Linear 発行 branch を checkout。 不在なら skip |
 | **B** | Execute → Verify | Stop hookが自動でverifier起動 |
 | **Retry** | Verify FAIL時 | plan.md と diff を planner に戻す、最大3回 (= plan.md がない Mode B では Triage に戻す or 単発再 Execute、 v3.1+ で詳細詰め) |
 
@@ -394,8 +395,9 @@ v2.0 で reviewer mode を 4 種に拡張:
 | **v3.0.5** | **F_v10_1 patch (commands/pev.md と task_infeasible 統合)** | commands/pev.md に task_infeasible 受領 logic + 「main は必ず triage agent invoke、 自走判定禁止」 directive 追加。 harness-effect-v10 で F_v8_1 が agent prompt だけでは不発動と判明 | ✅ released |
 | **v3.1.0** | **bin/pev-interactive helper script 新設** | claude を stream-json input mode で wrap する helper、 質問返し channel を 1 cmd で確保。 F_v2_1 / F_v5_2 対応 | ✅ released |
 | **v3.2.0** | **Mode B Self-Clarify Protocol** | executor.md に Mode B 不明確時の停止 + clarification.md format + 5 trigger 明示。 commands/pev-execute.md に受領 logic + `--use-defaults` flag | ✅ released |
-| **v3.2.1** | **F_v13_2 hotfix (Mode B Self-Clarify hardening)** | trigger を「MUST stop」 hard-fail tone に / 自走 OK case を 3 条件すべて該当に厳格化 / execute.log に self-clarify check 記録必須化 | (current) |
-| v3.3+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 | (TBD) | v3.2.x dog food verify 後 |
+| **v3.2.1** | **F_v13_2 hotfix (Mode B Self-Clarify hardening)** | trigger を「MUST stop」 hard-fail tone に / 自走 OK case を 3 条件すべて該当に厳格化 / execute.log に self-clarify check 記録必須化 | ✅ released |
+| **v3.3.0** | **Linear issue-first workflow** | pev-linear-sync に Direction 1.5 (issue 作成 + branch checkout) / commands/pev.md に Gate L (Step 3.5)。 `.linear-config.yml` 存在時、 実装前に必ず Linear issue を立てて Linear 発行 branch で実装 | (current) |
+| v3.4+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 | (TBD) | v3.3 dog food verify 後 |
 
 ---
 

@@ -42,11 +42,13 @@ Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済み�
    - `decision = plan_skip` → Step 4 (Execute) へ直行
 3. **Phase 1 (Plan、 on-demand)**: planner agent → `artifacts/plan.md` (= Triage が plan_required と判定した場合のみ)
 4. **Gate A**: `permissionMode` 判定で auto / 停止 / 終了 を分岐 (= Plan が走った場合のみ)
-5. **Phase 2 (Execute)**: executor agent → コード変更 + `artifacts/execute.log`
+5. **Gate L (Linear issue-first、 v3.3.0+)**: `.linear-config.yml` 存在時、 Execute 前に Linear issue 作成 + branch checkout
+6. **Phase 2 (Execute)**: executor agent → コード変更 + `artifacts/execute.log`
    - plan.md があれば計画ベース、 なければ task description + cwd context ベース
-6. **Gate B**: Stop hook が verifier を促す
-7. **Phase 3 (Verify)**: verifier agent (`--strict` 時は `pev-dual-review`) → `artifacts/verify.json`
-8. **Retry Gate**: PASS → 完了 / FAIL → planner (もしくは Triage) に戻る (max 3回)
+   - Gate L で branch checkout 済みなら Linear 発行 branch 上で実装
+7. **Gate B**: Stop hook が verifier を促す
+8. **Phase 3 (Verify)**: verifier agent (`--strict` 時は `pev-dual-review`) → `artifacts/verify.json`
+9. **Retry Gate**: PASS → 完了 / FAIL → planner (もしくは Triage) に戻る (max 3回)
 
 ### Flag による flow override (v3.0+)
 
@@ -192,10 +194,50 @@ fi
 - **不適切**: production-impacting な変更、 first-time skill 利用、 user が結果を見ずに進める手抜き
 - 規約: planner 自身が override を判断するのは引き続き禁止。 ユーザー (or 上位 command) が **explicit に flag を立てる** ことが必須。 dog food log (v1.4+v1.5、 finding 4) で発覚した「prompt 自然言語での transgress」 を formal channel に置き換える。
 
+### Step 3.5 — Gate L (Linear issue-first、 v3.3.0+)
+
+`.linear-config.yml` が cwd に存在する場合、 **Execute の前に必ず Linear issue を作成し、 Linear が発行する branch 名で実装する**。 「実装前に必ず issue を立てる」 を formal channel として強制。
+
+```bash
+# .linear-config.yml の存在 check
+if [ -f .linear-config.yml ]; then
+  # 既に Linear issue がある場合 (= inbound case、 もしくは再実行) は issue 作成 skip
+  if [ -f artifacts/linear/issue_id.txt ]; then
+    BRANCH=$(cat artifacts/linear/branch_name.txt 2>/dev/null)
+    if [ -n "$BRANCH" ]; then
+      echo "[PEV] Gate L: 既存 Linear issue branch に checkout: $BRANCH"
+      git checkout "$BRANCH" 2>/dev/null || echo "[PEV] Gate L: branch checkout skip (git 管理外 or branch なし)"
+    fi
+  else
+    # issue-first: pev-linear-sync の Direction 1.5 を invoke
+    echo "[PEV] Gate L: .linear-config.yml 検出 — 実装前に Linear issue を作成します"
+    # pev-linear-sync skill (issue-first direction) を起動:
+    #   1. .linear-config.yml から workspace / team.id を読む
+    #   2. plan.md (あれば) or task description + triage.json から issue body 組み立て
+    #   3. mcp__plugin_linear_linear__save_issue で新規 issue 作成
+    #   4. issue の branchName を取得
+    #   5. git checkout -b <branchName>
+    #   6. artifacts/linear/{issue_id,issue_url,branch_name}.txt + sync_state.json 書き出し
+    invoke_pev_linear_sync_issue_first
+    BRANCH=$(cat artifacts/linear/branch_name.txt 2>/dev/null)
+    echo "[PEV] Gate L: Linear issue 作成完了、 branch=$BRANCH で実装を進めます"
+    echo "[$(date -u +%FT%TZ)] Gate L: Linear issue created, branch=$BRANCH" >> artifacts/recap.log
+  fi
+fi
+```
+
+**Gate L の規約**:
+
+- `.linear-config.yml` が **存在する時のみ** 必須。 不在なら この Gate 全体を skip して従来 flow (= OSS user / sample-project への影響なし)
+- inbound case (= `/pev <linear-url>`) は既に `issue_id.txt` があるので issue 作成は skip、 branch checkout のみ
+- Linear MCP plugin が unavailable / 認証失敗 の場合は warning を出して branch checkout を skip (= issue-first を best-effort、 pipeline は止めない)
+- git 管理外の cwd では branch checkout を skip (= issue 作成のみ)
+- Plan が走った場合 (= plan_required) は plan.md の Goal/Constraints/AC を issue body に、 plan_skip (= Mode B) なら task description + triage.json を issue body に
+
 ### Step 4 — Phase 2 (Execute)
 
 executor agent (model: sonnet, effort: high) を起動 (`--parallel` 時は最大3並列)。
-コード変更 + `artifacts/execute.log` 記録。
+コード変更 + `artifacts/execute.log` 記録。 **Gate L で branch checkout 済みなら、 実装は Linear 発行 branch 上で走る**。
 
 ### Step 5 — Gate B (Stop hookで自動)
 
