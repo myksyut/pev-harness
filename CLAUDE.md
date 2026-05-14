@@ -144,12 +144,28 @@ claude --plugin-dir ~/oss/pev-harness   # interactive
 # > /pev-harness:pev <task> --no-plan   # Triage skip + 必ず plan-less Execute
 ```
 
+**Linear path (Gate L / outbound sync) を verify する場合 (v3.3.0+)**:
+
+dog food subprocess は親の Linear MCP 認証を継承しない (F_v16_1)。 Gate L の実 Linear write を verify するには:
+
+```bash
+# subprocess に Linear MCP を明示渡し
+claude --plugin-dir ~/oss/pev-harness \
+  --mcp-config '{"mcpServers":{"linear":{"url":"https://mcp.linear.app/mcp"}}}' \
+  --input-format stream-json --output-format stream-json ...
+# ※ Linear MCP の認証 (OAuth) が subprocess 側で別途必要
+# 認証なしの場合 Gate L は degraded mode (= warning + skip、 pipeline は止めない) で動く
+```
+
+`.linear-config.yml` を dog food fixture に置く場合は workspace=emuni-kyoto / team.id=TES (累積 test data)。
+
 **dog food 後は必ず reset**:
 
 ```bash
 cd ~/oss/pev-harness/examples/sample-project
 rm -rf artifacts/ playwright-report/ test-results/
 # 追加 feature (multiply / inquiry 等) は手で削除して form fixture を初期状態に
+# .linear-config.yml を置いた場合は削除 (= .example のみ commit する運用)
 ```
 
 ## 4. CI 構成 ([.github/workflows/ci.yml](./.github/workflows/ci.yml))
@@ -205,6 +221,7 @@ rm -rf artifacts/ playwright-report/ test-results/
 | `state` parameter (Linear) | ID? name? 曖昧 | **name 文字列でOK** (e.g., `"Done"`) |
 | `save_comment` (Linear) | (制約なし記載) | **issueId 必須、 project 直接コメント不可** → `linear-project-workflow` Update(C) で 4 段階代替パス |
 | init-agents で生成される path | `.github/` (古い doc) | **`.claude/agents/` + `.mcp.json` + `specs/`** |
+| dog food subprocess の Linear MCP | 「subprocess の Claude が Linear MCP を使う」 (§7.3 当時の想定) | **subprocess は親の Linear MCP 認証を継承しない**。 `--plugin-dir` は pev-harness を読むが Linear MCP は別 plugin。 dog food で Linear write path (Gate L issue 作成 / outbound sync) を verify するには `--mcp-config <linear-mcp-config>` で明示渡しが必要 (harness-effect-v16 / F_v16_1 で判明) |
 
 ## 7. tools の使い分け (このセッションで確立)
 

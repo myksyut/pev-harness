@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
 - Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
 
+## [3.3.2] - 2026-05-15
+
+**F_v16_1 docs patch**。 harness-effect-v16 dog food で「dog food subprocess が親の Linear MCP 認証を継承しない」 ことが判明 (= CLAUDE.md §7.3 当時の暗黙の前提が部分的に誤り)。 v3.3.2 で CLAUDE.md を修正。
+
+### Documented
+
+- **`CLAUDE.md` §6「暗黙の前提」 table** に「dog food subprocess の Linear MCP」 row 追加。 `--plugin-dir` は pev-harness を読むが Linear MCP は別 plugin、 `--mcp-config` で明示渡しが必要
+- **`CLAUDE.md` §3.3 dog food 手順** に「Linear path (Gate L / outbound sync) を verify する場合」 section 追加。 `--mcp-config '{"mcpServers":{"linear":{"url":"https://mcp.linear.app/mcp"}}}'` の例 + 認証なし時は Gate L が degraded mode で動くことを明記
+
+### Verified via dog food
+
+- `experiments/harness-effect-v16/`: v3.3.1 の Gate L 配置修正は functional (= Gate L に到達、 degraded mode fallback も設計通り)、 ただし実 Linear write は subprocess の Linear MCP 認証不在で未検証 → F_v16_1
+
 ## [3.3.1] - 2026-05-15
 
 **F_v15_1 hotfix**。 v3.3.0 で新設した Gate L (Linear issue-first) を Gate A の **後** (Step 3.5) に配置していたが、 Gate A は `permissionMode=default` で `exit 0` 停止するため、 default mode で Gate L が完全に dead path になっていた。 harness-effect-v15 dog food で検出。 v3.3.1 で Gate L を Gate A の **前** (Step 2.5) に移動。
