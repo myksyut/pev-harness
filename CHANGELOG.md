@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
 - Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
 
+## [3.2.0] - 2026-05-14
+
+**Mode B Self-Clarify Protocol 新設**。 v3.0 で導入した Mode B (= plan-less Execute) は、 実装中に不明確点に直面した時の handling が抽象的だった (= 「停止して質問」 とだけ書かれていた)。 v3.2.0 で **具体的 trigger + format + main flow 統合** を実装。 task_infeasible (v3.0.5) と同じ「agent + commands 両 layer touch」 設計教訓を踏襲。
+
+### Added
+
+- **`agents/executor.md` "Mode B Self-Clarify Protocol (v3.2.0+)"** section 追加:
+  - **trigger** 5 種類: 複数妥当選択肢 / 依存関係不明 / 重要 fields 欠落 / 既存 pattern 不在 / scope ambiguous
+  - **stop & ask format**: `artifacts/clarification.md` を確認質問 + default 案 + 影響範囲 で書き出して exit
+  - **自走 OK な case**: pattern 踏襲明示 + cwd で 1:1 対応 / 既存 helper 1 つで自明 / scope が 1 file 明確
+- **`commands/pev-execute.md` Mode B Self-Clarify 受領** section 追加:
+  - executor が clarification.md を書いた場合の main session 挙動
+  - resume 3 pattern: (A) 質問回答で resume / (B) `--use-defaults` で default 採用 / (C) discard
+  - Stop hook の Verify auto-trigger は skip
+
+### Changed
+
+- `commands/pev-execute.md` に `--use-defaults` flag を追加 (v3.2.0+、 clarification.md の default 採用)
+
+### Motivation
+
+Mode B の唯一の欠点 (= 不明確時の挙動が abstractive) を formal protocol で解決。 v3.0 〜 v3.1 で確立した「agent prompt + main flow 両方 touch」 設計教訓 (= F_v10_1) を適用、 user が clarification を formal channel で受け取れるようにする。
+
 ## [3.1.0] - 2026-05-14
 
 **bin/pev-interactive helper script 新設** (= v3.1 minor release)。 claude を `--input-format stream-json` で wrap、 質問返し channel を確保する helper。 v3.0 設計で見えた「`--print` + text input で planner / triage の質問返しが skip される」 問題 (F_v2_1 / F_v5_2) を 1 コマンドで解決。

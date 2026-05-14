@@ -27,7 +27,70 @@ Triage agent が「Plan skip」 と判断した場合、 plan.md は存在しな
 - **cwd context** (既存 codebase、 team-conventions.md、 spec doc) を Read で確認
 - 既存 pattern を踏襲して実装 (= validatePhone のような任意項目 validator が手本、 vitest test pattern を踏襲、 etc.)
 - `artifacts/triage.json` の `reasoning` と `context_signals` を **必ず参照**、 Triage が「明確」 と判断した根拠を理解してから実装
-- 不明確な点に直面したら、 即座に **停止して user に質問** (= 推測で進めない、 v2.1.6 の minimal 倒れを防ぐ)
+
+#### Mode B Self-Clarify Protocol (v3.2.0+)
+
+実装中に不明確な点に直面したら、 **コードを書く前に即座に停止して user に質問** する。 推測で進めない (= v2.1.6 までの minimal 倒れを防ぐ)。
+
+**Self-clarify trigger** (= 以下のいずれかで停止):
+
+- **複数の妥当な実装選択肢** が存在し、 既存 pattern と spec から一意に決められない (例: validation rule の strict 度、 削除方式の物理 vs 論理)
+- **依存 関係の不明** (= 「この helper を再利用するか / 新 helper を作るか」 が file 構造から判断不能)
+- **重要 fields の欠落** (= function signature / data shape / error handling の details が prompt / cwd context から導出できない)
+- **既存 pattern の不在** (= 「`既存 pattern を踏襲` と言われたが、 該当 pattern が cwd にない」)
+- **scope ambiguous** (= 「1 file 修正で済むか、 複数 file 影響あるか」 が判断難)
+
+**Stop & ask format**:
+
+1. **コード変更を 1 行も書かない** で停止
+2. `artifacts/clarification.md` を以下 format で書き出す:
+
+   ```markdown
+   # Mode B Clarification Request
+
+   > Status: **pending** — user 回答後に再開
+
+   ## 確認質問
+
+   1. **<質問 1>**: 選択肢 (a) ... / (b) ...
+   2. **<質問 2>**: ...
+
+   ## 既存 pattern から提案する default
+
+   (回答無き場合の default 案)
+
+   - Q1: (a)
+   - Q2: ...
+
+   ## 影響範囲 (Q 回答による変化)
+
+   - Q1 (a) の場合: src/foo.js のみ修正
+   - Q1 (b) の場合: src/foo.js + tests/foo.test.js + index.html 影響
+
+   ## 続行方法
+
+   - 質問に回答: `/pev-harness:pev <answers>` で resume
+   - default で進める: `/pev-execute --use-defaults` で再 invoke (v3.2.0+)
+   ```
+
+3. 標準出力に `[PEV] Mode B clarification needed: artifacts/clarification.md` を 1 行 echo
+4. **exit して main session に決定を委ねる** (= 自走で「とりあえず default」 と進めるのは禁止)
+
+**意図**: Mode B は plan.md のない実装 path だが、 「Plan が必要な領域」 を発見した時に planner.md の「## 確認質問」 と同等の質問 protocol を executor が担う。 main session (commands/pev.md / commands/pev-execute.md) は clarification.md の存在を check して user 通知する責務を持つ (= v3.2.0+)。
+
+**triggers の優先度**:
+
+1. 重要 fields の欠落 (= データ破損 risk あり) → 必ず停止
+2. 既存 pattern の不在 → 必ず停止
+3. 複数の妥当な選択肢 → 停止 (default 提示 + 質問)
+4. scope ambiguous → 停止
+5. 依存関係の不明 → 停止 (= 推測 helper 作成は禁止)
+
+**自走 OK な case** (= 停止しない):
+
+- task description で「pattern 踏襲」 と明示、 該当 pattern が cwd にあり、 1:1 対応可能
+- 既存 helper が 1 つしかなく、 再利用が自明
+- scope が 1 file に明らかに収まる
 
 ### 共通: 既存 codebase の読み込み
 
