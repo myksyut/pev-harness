@@ -13,6 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
 - Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
 
+## [3.3.3] - 2026-05-15
+
+**F_v17_2/3 patch**。 harness-effect-v17 で実 Linear write path を ground-truth 検証 (= 親 session が Direction 1.5 を手動 walk through、 TES-1 作成 → branchName 取得 → git checkout → Done 遷移 まで実機確認)。 検出した 2 件の finding を反映。
+
+### Changed
+
+- **`skills/pev-linear-sync/SKILL.md` Direction 1.5 — branch 名取得を pin (F_v17_3)**: branch 名の field は `gitBranchName`、 **`save_issue` の戻り値に含まれる** (= `get_issue` 再取得は不要、 fallback のみ)。 v3.3.0 では `branchName` / `gitBranchName` / `git_branch_name` のいずれか、 と曖昧に書いていた
+- **`skills/pev-linear-sync/SKILL.md` + `commands/pev.md` Gate L — degraded mode 条件を refine (F_v17_2)**: 「Linear MCP が configured but unauthed」 「headless (`-p`) mode で OAuth 完了不可」 を degraded mode の条件に追加。 **headless mode で OAuth 認証 URL を出して停止するのは禁止** (= pipeline ブロックを防ぐ)、 degraded mode に倒して通常 flow 続行
+
+### Verified via dog food
+
+- `experiments/harness-effect-v17/`: Direction 1.5 の全ステップ (save_issue → gitBranchName 取得 → git checkout -b → artifacts/linear/ 生成 → Done 遷移) を実 Linear (emuni-kyoto/test team、 TES-1) で ground-truth 検証
+- **F_v17_1** (= headless subprocess は hosted MCP OAuth を完了できない) は構造的制約として記録、 patch 対象外 (= Claude Code の MCP アーキテクチャ制約)
+
 ## [3.3.2] - 2026-05-15
 
 **F_v16_1 docs patch**。 harness-effect-v16 dog food で「dog food subprocess が親の Linear MCP 認証を継承しない」 ことが判明 (= CLAUDE.md §7.3 当時の暗黙の前提が部分的に誤り)。 v3.3.2 で CLAUDE.md を修正。

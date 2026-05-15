@@ -398,7 +398,8 @@ v2.0 で reviewer mode を 4 種に拡張:
 | **v3.2.1** | **F_v13_2 hotfix (Mode B Self-Clarify hardening)** | trigger を「MUST stop」 hard-fail tone に / 自走 OK case を 3 条件すべて該当に厳格化 / execute.log に self-clarify check 記録必須化 | ✅ released |
 | **v3.3.0** | **Linear issue-first workflow** | pev-linear-sync に Direction 1.5 (issue 作成 + branch checkout) / commands/pev.md に Gate L。 `.linear-config.yml` 存在時、 実装前に必ず Linear issue を立てて Linear 発行 branch で実装 | ✅ released |
 | **v3.3.1** | **F_v15_1 hotfix (Gate L 配置修正)** | Gate L を Gate A の後 (Step 3.5) → 前 (Step 2.5) に re-order。 v3.3.0 では default mode で Gate A 停止により Gate L が dead path だった | ✅ released |
-| **v3.3.2** | **F_v16_1 docs patch (subprocess Linear MCP)** | CLAUDE.md §6/§3.3 に「dog food subprocess は親の Linear MCP 認証を継承しない、 `--mcp-config` で明示渡し」 を追記。 harness-effect-v16 で判明 | (current) |
+| **v3.3.2** | **F_v16_1 docs patch (subprocess Linear MCP)** | CLAUDE.md §6/§3.3 に「dog food subprocess は親の Linear MCP 認証を継承しない、 `--mcp-config` で明示渡し」 を追記。 harness-effect-v16 で判明 | ✅ released |
+| **v3.3.3** | **F_v17_2/3 patch (Gate L degraded 条件 + gitBranchName pin)** | pev-linear-sync に branch field=`gitBranchName` (save_issue 戻り値) を pin / Gate L degraded mode 条件に「configured but unauthed」 「headless OAuth 不可」 を追加。 harness-effect-v17 で実 Linear write path を ground-truth 検証 | (current) |
 | v3.4+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 | (TBD) | v3.3.x dog food verify 後 |
 
 ---

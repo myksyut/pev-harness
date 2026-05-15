@@ -178,7 +178,10 @@ fi
 - `.linear-config.yml` が **存在する時のみ** 必須。 不在なら この Gate 全体を skip して従来 flow (= OSS user / sample-project への影響なし)
 - **配置 (v3.3.1+)**: Gate A の **前**。 plan_required path では `Plan → Gate L → Gate A`、 plan_skip path では `Triage → Gate L → Execute` (= Gate A は元々 skip)
 - inbound case (= `/pev <linear-url>`) は既に `issue_id.txt` があるので issue 作成は skip、 branch checkout のみ
-- Linear MCP plugin が unavailable / 認証失敗 の場合は warning を出して branch checkout を skip (= issue-first を best-effort、 pipeline は止めない)
+- **degraded mode (v3.3.3+ で refine、 F_v17_2)**: 以下のいずれも degraded mode (= warning を出して issue 作成 / branch checkout を skip、 pipeline は止めない):
+  - Linear MCP plugin が unavailable (= 完全に install されていない)
+  - Linear MCP が **OAuth 未認証 / token expired** (= configured but unauthed)
+  - **headless (`-p`) mode で起動されており OAuth フローを完了できない** — この場合 OAuth 認証 URL を出して停止するのは **禁止**。 headless subprocess はブラウザ OAuth を完了できないため (harness-effect-v17 / F_v17_1)、 degraded mode に倒して通常 flow で続行する
 - git 管理外の cwd では branch checkout を skip (= issue 作成のみ)
 - Plan が走った場合 (= plan_required) は plan.md の Goal/Constraints/AC を issue body に、 plan_skip (= Mode B) なら task description + triage.json を issue body に
 - **副作用**: default mode で user が plan.md レビュー後に「やめる」 と判断しても Linear issue は残る。 issue は「実装予定 task」 を表すので意味的に問題なし (= user が手動 archive)。 「default mode で Gate L が dead」 (v3.3.0 バグ) より遥かに軽微

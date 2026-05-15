@@ -137,9 +137,9 @@ inbound 失敗時 (404 / network / validation 等) の合図:
    - `description`: 上記 body
    - `stateId`: team workflow の "In Progress" 系 (= `list_issue_statuses` で解決、 fallback chain `In Progress → Started → Todo`)
 4. 作成された issue の **branch 名を取得**:
-   - `save_issue` の戻り値、 もしくは `mcp__plugin_linear_linear__get_issue` で issue を再取得
-   - Linear issue オブジェクトの `branchName` field (= Linear が自動生成、 例: `myksyut/tes-123-add-healthz-endpoint`)
-   - field 名が MCP server version で異なる場合あり (`branchName` / `gitBranchName` / `git_branch_name`)。 いずれかを探す
+   - **`save_issue` の戻り値に `gitBranchName` field が含まれる** (= harness-effect-v17 で実機確認)。 別途 `get_issue` での再取得は **不要**
+   - `gitBranchName` の例: `shotamiyaki/tes-1-pev-dog-food-v17-...` (= Linear が自動生成、 `<assignee-handle>/<issue-id>-<slug>` 形式)
+   - 万一 `save_issue` 戻り値に `gitBranchName` が無い場合のみ `mcp__plugin_linear_linear__get_issue` で再取得 (= get_issue は「including ... git branch name」 と返す)
 5. `git checkout -b <branchName>` で branch を切る:
    - branch が既に存在する場合 (= 再実行) は `git checkout <branchName>` で switch
    - git 管理外の cwd なら warning を出して branch checkout は skip (issue 作成のみ)
@@ -158,6 +158,16 @@ inbound 失敗時 (404 / network / validation 等) の合図:
 **outbound sync との連携**: 後続の Direction 2 (outbound success) / Direction 3 (outbound fail) は、 issue-first で作成した issue に対しても同様に動く (= `artifacts/linear/issue_id.txt` を読む共通 path)。
 
 **冪等性**: `artifacts/linear/issue_id.txt` が既に存在する場合は issue を再作成せず、 既存 issue の branch に checkout するだけ。
+
+**degraded mode 条件 (v3.3.3+ で refine、 F_v17_2)**: 以下のいずれも「Linear MCP が使えない」 とみなし、 **degraded mode** (= warning + issue 作成 / branch checkout を skip、 pipeline は止めない) に倒す:
+
+- Linear MCP plugin が install されていない (= 完全 unavailable)
+- Linear MCP plugin はあるが **OAuth 未認証 / token expired** (= configured but unauthed)
+- **headless (`-p`) mode で起動されており、 OAuth フローを完了できない**
+
+特に重要: **headless mode で Linear MCP が未認証の場合、 OAuth 認証 URL を出して停止するのは禁止**。 headless subprocess (= dog food / CI 自動化) はブラウザ OAuth を完了できないため、 OAuth を試みると pipeline がブロックする (harness-effect-v17 / F_v17_1 で観測)。 この場合は degraded mode に倒して「Linear 連携は skip、 通常 flow で続行」 と warning を出す。
+
+interactive session で Linear MCP が未認証の場合のみ、 user に `/mcp` での再認証を案内してよい (= この場合は user が OAuth を完了できる)。
 
 ### Direction 2: Outbound success (PASS verdict)
 
