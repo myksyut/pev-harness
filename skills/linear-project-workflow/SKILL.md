@@ -120,6 +120,24 @@ PEV 対応:
 | **Project** | PEV の **Goal + Why + 上位 AC** |
 | Issue | PEV の 1 task (細粒度 AC + 作業ステップ) |
 
+## 命名規則 (title、 v3.4.0+)
+
+Project title は **目的を動詞で表現** する。 表現の型: **Who wants What, Why** (= 誰が / 何を実現したい / なぜ)。
+
+良い例:
+
+- 「ステージング即時 deploy ボタンを QA に提供する」 (= QA が / 即時 deploy したい / リリース前検証を加速)
+- 「予約一覧の重複表示を解消する」 (= ユーザーが / 重複なく一覧を見れる / 入力ミス防止)
+- 「Slack 通知で承認 fallback を可能にする」 (= 承認者が / Slack で承認応答できる / 出張中の停滞回避)
+
+悪い例:
+
+- 「UX improvement」 (= 動詞なし、 抽象、 Who / What / Why 全部不明)
+- 「Add audit log」 (= 機能列挙、 「誰のため」 「なぜ」 が title から読めない)
+- 「Refactor billing module」 (= 内部実装視点、 ユーザーアウトカム不在)
+
+title 文字数の目安: 15-40 字。 長過ぎる場合は description の Why に詳細を寄せる。 「リファクタ系 / 内部改善」 で Who / What を user 視点で書きにくい場合でも「保守側 (= 開発者) が」 を Who として表現可能 (例: 「開発者が新規 endpoint を 5 分で追加できる base controller を提供する」)。
+
 ## Project template
 
 Linear Project の description に以下の構造を使う:

@@ -128,13 +128,16 @@ inbound 失敗時 (404 / network / validation 等) の合図:
 **手順**:
 
 1. `.linear-config.yml` から `workspace` / `team.id` を読む
-2. issue body を組み立てる:
-   - `artifacts/plan.md` が存在する (= plan_required path だった) → plan.md の Goal / Constraints / AC を issue description に転記
-   - plan.md がない (= plan_skip / Mode B path) → task description + triage.json の reasoning を issue description に
+2. **`linear-issue-workflow` skill の template + 命名規則に従って issue body と title を組み立てる** (v3.4.0+):
+   - title 命名規則: **具体的な作業内容を動詞で表現** (= How、 詳細は `linear-issue-workflow` SKILL.md 参照)
+   - description は 6 section template (概要 / 背景・現状 / やること / やらないこと / 完了条件 / 参考情報)
+   - 入力源:
+     - `artifacts/plan.md` が存在する (= plan_required path だった) → Goal を 概要、 Constraints/Risks を 背景・現状、 File-level changes を やること、 scope 外を やらないこと、 AC を 完了条件 にマッピング
+     - plan.md がない (= plan_skip / Mode B path) → task description を 概要、 `artifacts/triage.json` の reasoning / context_signals を 背景・現状、 推定実装 step を やること、 AC を task description から導出
 3. `mcp__plugin_linear_linear__save_issue` で **新規 issue を作成**:
    - `teamId`: `.linear-config.yml` の `team.id` から解決
-   - `title`: task の Goal (= 1 行サマリ)
-   - `description`: 上記 body
+   - `title`: 上記 命名規則の動詞句
+   - `description`: 上記 6 section template
    - `stateId`: team workflow の "In Progress" 系 (= `list_issue_statuses` で解決、 fallback chain `In Progress → Started → Todo`)
 4. 作成された issue の **branch 名を取得**:
    - **`save_issue` の戻り値に `gitBranchName` field が含まれる** (= harness-effect-v17 で実機確認)。 別途 `get_issue` での再取得は **不要**
@@ -358,8 +361,11 @@ dog food (Phase 2-3) で確認された原則: **skill は state を artifacts �
 
 ## Related
 
+- `skills/linear-issue-workflow/SKILL.md` (= issue 命名規則 / template 6 section、 v3.4.0+)
+- `skills/linear-project-workflow/SKILL.md` (= project 命名規則 / template 5 section)
+- `skills/linear-project-tracker/SKILL.md` (= project 進捗監視)
 - SPEC.md §9 `artifacts/linear/`
-- commands/pev.md (Linear URL 引数検出)
+- commands/pev.md (Linear URL 引数検出 + Gate L)
 - agents/planner.md (Linear spec 受入)
 - agents/verifier.md (outbound sync trigger)
 - Issue #8 (v1.1 origination)

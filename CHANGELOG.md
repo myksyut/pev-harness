@@ -13,6 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
 - Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
 
+## [3.4.0] - 2026-05-16
+
+**Linear issue / project の命名規則 + template を正式化**。 v3.3 までは project template (Who/What/Why/完了条件/スコープ外) は `linear-project-workflow` にあったが title 命名規則は未明文化、 issue 側は `linear-issue-workflow` skill が **参照だけされて実在しない gap** (= 単一 source of truth 原則違反) だった。 v3.4.0 で両方を正式化。
+
+### Added
+
+- **`skills/linear-issue-workflow/`** 新設 (gap 解消):
+  - **命名規則**: 「具体的な作業内容を動詞で表現する (= How)」
+  - **template 6 section**: 概要 / 背景・現状 / やること / やらないこと / 完了条件 / 参考情報
+  - 各 field の AI annotation (書く / 書かない)、 Field 制約、 list bullet 正規化規約
+  - Good / Bad の実例
+  - `linear-project-workflow` / `pev-linear-sync` との責務分離 + Read / Write / Update operation 規約
+
+### Changed
+
+- **`skills/linear-project-workflow/SKILL.md`** に「**命名規則 (title、 v3.4.0+)**」 section 追加: 「目的を動詞で表現 (Who wants What, Why)」 + Good / Bad 例。 既存 5 section template はそのまま
+- **`skills/pev-linear-sync/SKILL.md`** Direction 1.5 を `linear-issue-workflow` の template + 命名規則を参照する形に更新。 plan.md → 6 section へのマッピングを明示
+
+### 命名規則 summary
+
+| layer | 命名規則 |
+|---|---|
+| **Project** | 目的を動詞で表現 (Who wants What, Why) — 例: 「ステージング即時 deploy ボタンを QA に提供する」 |
+| **Issue** | 具体的な作業内容を動詞で表現 (How) — 例: 「`validateInquiry` 純関数を `src/validation.js` に追加する」 |
+
+### Reference
+
+- [skills/linear-project-workflow/SKILL.md](skills/linear-project-workflow/SKILL.md) (project 規約)
+- [skills/linear-issue-workflow/SKILL.md](skills/linear-issue-workflow/SKILL.md) (issue 規約、 v3.4.0+ 新設)
+- [skills/pev-linear-sync/SKILL.md](skills/pev-linear-sync/SKILL.md) (issue ↔ PEV pipeline sync)
+
 ## [3.3.3] - 2026-05-15
 
 **F_v17_2/3 patch**。 harness-effect-v17 で実 Linear write path を ground-truth 検証 (= 親 session が Direction 1.5 を手動 walk through、 TES-1 作成 → branchName 取得 → git checkout → Done 遷移 まで実機確認)。 検出した 2 件の finding を反映。

@@ -269,6 +269,10 @@ agent `agents/verifier.md`：
 | **pev-bootstrap-playwright** | Playwright + agents の one-time setup (v1.4+) | `/pev-init-e2e` / E2E preflight 未setup |
 | **pev-bootstrap-project** | project 全体の初期 setup (team-conventions / .gitignore / 言語検知) (v1.9+) | `/pev-init` |
 | **empirical-prompt-tuning** | skill / slash command / プロンプトを subagent で実走させ自己申告 + 指示側メトリクスで反復改善 (v2.1+) | skill / プロンプト新規作成・大幅改訂直後 |
+| **pev-linear-sync** | Linear Issue ↔ PEV pipeline の双方向 sync (inbound / issue-first / outbound success / outbound fail の 4 direction、 v3.3.0+) | Linear URL 起動 / `.linear-config.yml` 存在時 (Gate L) / verifier 完了時 |
+| **linear-project-workflow** | Linear Project の規約 / template (5 section: Who/What/Why/完了条件/スコープ外) + title 命名規則 (Who wants What, Why、 v3.4.0+) | project の Read / Write / Update 時 |
+| **linear-issue-workflow** | Linear Issue の規約 / template (6 section: 概要/背景・現状/やること/やらないこと/完了条件/参考情報) + title 命名規則 (How、 v3.4.0+) | issue の Read / Write / Update 時、 pev-linear-sync から呼ばれる |
+| **linear-project-tracker** | Linear Project の進捗監視と完了判定 | outbound success 後の after-hook |
 
 ---
 
@@ -399,8 +403,9 @@ v2.0 で reviewer mode を 4 種に拡張:
 | **v3.3.0** | **Linear issue-first workflow** | pev-linear-sync に Direction 1.5 (issue 作成 + branch checkout) / commands/pev.md に Gate L。 `.linear-config.yml` 存在時、 実装前に必ず Linear issue を立てて Linear 発行 branch で実装 | ✅ released |
 | **v3.3.1** | **F_v15_1 hotfix (Gate L 配置修正)** | Gate L を Gate A の後 (Step 3.5) → 前 (Step 2.5) に re-order。 v3.3.0 では default mode で Gate A 停止により Gate L が dead path だった | ✅ released |
 | **v3.3.2** | **F_v16_1 docs patch (subprocess Linear MCP)** | CLAUDE.md §6/§3.3 に「dog food subprocess は親の Linear MCP 認証を継承しない、 `--mcp-config` で明示渡し」 を追記。 harness-effect-v16 で判明 | ✅ released |
-| **v3.3.3** | **F_v17_2/3 patch (Gate L degraded 条件 + gitBranchName pin)** | pev-linear-sync に branch field=`gitBranchName` (save_issue 戻り値) を pin / Gate L degraded mode 条件に「configured but unauthed」 「headless OAuth 不可」 を追加。 harness-effect-v17 で実 Linear write path を ground-truth 検証 | (current) |
-| v3.4+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 | (TBD) | v3.3.x dog food verify 後 |
+| **v3.3.3** | **F_v17_2/3 patch (Gate L degraded 条件 + gitBranchName pin)** | pev-linear-sync に branch field=`gitBranchName` (save_issue 戻り値) を pin / Gate L degraded mode 条件に「configured but unauthed」 「headless OAuth 不可」 を追加。 harness-effect-v17 で実 Linear write path を ground-truth 検証 | ✅ released |
+| **v3.4.0** | **Linear issue / project の命名規則 + template 正式化** | `linear-issue-workflow` skill 新設 (gap 解消、 命名規則=How、 template 6 section) / `linear-project-workflow` に title 命名規則 (Who wants What, Why) 追加 / pev-linear-sync Direction 1.5 を template 整合 | (current) |
+| v3.5+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 | (TBD) | v3.4 dog food verify 後 |
 
 ---
 
