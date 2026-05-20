@@ -1,20 +1,20 @@
 ---
 name: pev-bootstrap-codex
-description: OpenAI Codex CLI を pev-harness の external reviewer として導入する one-time setup skill。 codex CLI install 確認 (npm i -g @openai/codex または brew install --cask codex)、 CODEX_API_KEY 環境変数の存在確認、 codex exec --json で sanity test、 settings.local.json の PEV_REVIEWER_MODE 雛形提案までを 1 操作で完了する。 v1.4 pev-bootstrap-playwright + v1.9 pev-bootstrap-project と並列の sibling。
+description: OpenAI Codex CLI を pev-harness の external reviewer (Verify phase) / external executor (Execute phase) として導入する one-time setup skill。 codex CLI install 確認 (npm i -g @openai/codex または brew install --cask codex)、 CODEX_API_KEY 環境変数の存在確認、 codex exec --json で sanity test、 settings.local.json の PEV_REVIEWER_MODE / PEV_EXECUTOR_MODE 雛形提案までを 1 操作で完了する。 v1.4 pev-bootstrap-playwright + v1.9 pev-bootstrap-project と並列の sibling。
 disable-model-invocation: true
 ---
 
 # pev-bootstrap-codex
 
-`/pev-init-codex` で呼ばれる **one-time setup** skill。 v2.0 で導入された `pev-external-reviewer` skill を使えるようにする preflight setup。 v1.4 で確立した `pev-bootstrap-playwright` pattern を external reviewer に拡張した sibling。
+`/pev-init-codex` で呼ばれる **one-time setup** skill。 v2.0 で導入された `pev-external-reviewer` skill と v3.5.0 で導入された `pev-external-executor` skill を使えるようにする preflight setup。 v1.4 で確立した `pev-bootstrap-playwright` pattern を external reviewer / executor に拡張した sibling。 codex CLI の install / 認証は reviewer と executor で共通のため、 本 skill 1 つで両方を setup する。
 
 ## When to Use
 
 起動すべき場面:
 
 - `/pev-init-codex` が user に呼ばれた時
-- `pev-external-reviewer` skill の Preflight で「codex CLI 未setup」 を検知した時 (auto-propose)
-- v2.0 + `PEV_REVIEWER_MODE=dual-codex|codex-only` を有効化したい時
+- `pev-external-reviewer` / `pev-external-executor` skill の Preflight で「codex CLI 未setup」 を検知した時 (auto-propose)
+- `PEV_REVIEWER_MODE=dual-codex|codex-only` (v2.0+) または `PEV_EXECUTOR_MODE=codex` (v3.5.0+) を有効化したい時
 
 起動すべきでない場面:
 
@@ -113,16 +113,17 @@ echo "$RESULT" | tail -5
 
 ### Step 5: settings.local.json 雛形提案
 
-AskUserQuestion で multi-select:
+AskUserQuestion で multi-select。 codex は Reviewer (Verify phase) と Executor (Execute phase) の両方で使えるため、 両方の default を 1 回で決める:
 
 ```text
-Q: PEV reviewer 設定の default を決めますか? (.claude/settings.local.json に書く)
-- [ ] PEV_REVIEWER_MODE=dual-codex   (--strict 時 A=claude-opus + B=codex)
-- [ ] PEV_REVIEWER_MODE=codex-only  (codex 単独 verifier、 cost 削減)
+Q: codex を pev-harness のどこで使う default にしますか? (.claude/settings.local.json に書く)
+- [ ] PEV_REVIEWER_MODE=dual-codex   (--strict 時 A=claude-opus + B=codex で verify)
+- [ ] PEV_REVIEWER_MODE=codex-only   (codex 単独 verifier、 cost 削減)
+- [ ] PEV_EXECUTOR_MODE=codex        (Execute phase の実 file 編集を codex に委譲、 v3.5.0+)
 - [ ] 設定しない (毎回 CLI flag で指定)
 ```
 
-選択された値を `.claude/settings.local.json` の `env.PEV_REVIEWER_MODE` に書き込み (既存があれば merge)。
+選択された値を `.claude/settings.local.json` の `env` に書き込み (既存があれば merge)。 `PEV_REVIEWER_MODE` と `PEV_EXECUTOR_MODE` は独立した設定で、 両方選択しても良い (codex で実装して codex で review、 という構成も可能)。
 
 ### Step 6: Result summary
 
@@ -138,14 +139,20 @@ Detected:
 
 Configured:
   .claude/settings.local.json: env.PEV_REVIEWER_MODE = dual-codex
+  .claude/settings.local.json: env.PEV_EXECUTOR_MODE = codex
 
-Next steps:
+Next steps (reviewer):
   1. /pev "Your task" --reviewer-mode=dual-codex   # 1回試す
   2. /pev "Your task" --strict                     # PEV_REVIEWER_MODE が dual-codex なので codex も走る
   3. verify.json.reviewers[] で codex 結果を確認
 
+Next steps (executor, v3.5.0+):
+  1. /pev "Your task" --executor-mode=codex        # 実装を codex に委譲して 1 回試す
+  2. execute.log の [Executor: codex] block で結果を確認
+
 Fallback behavior:
-  codex CLI が runtime に fail した場合、 自動で dual-claude に degrade、 verify.json.fallback_reason に記録
+  codex CLI が runtime に fail した場合、 reviewer は自動で dual-claude に degrade (verify.json.fallback_reason)、
+  executor は自動で Claude native 実装に degrade (execute.log の fallback_reason)
 ```
 
 `--dry-run` 時は実 install / 書き込み行わず予定のみ出力。
@@ -198,6 +205,7 @@ claude --plugin-dir ~/pev-harness --print '/pev-harness:pev-init-codex --force'
 ## Related
 
 - [`pev-external-reviewer`](../pev-external-reviewer/SKILL.md) — v2.0 codex を Reviewer として呼ぶ skill (本 skill が setup する対象)
+- [`pev-external-executor`](../pev-external-executor/SKILL.md) — v3.5.0 codex を Executor として呼ぶ skill (本 skill が setup する対象)
 - [`pev-bootstrap-playwright`](../pev-bootstrap-playwright/SKILL.md) — v1.4 sibling (E2E 専用)
 - [`pev-bootstrap-project`](../pev-bootstrap-project/SKILL.md) — v1.9 sibling (project 全体)
 - `commands/pev-init-codex.md` — 本 skill の薄い CLI ラッパー

@@ -7,11 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v3.1+
-- Triage 判定基準の dog food tuning (v3.0-alpha で集めた精度データを反映)
-- Plan-less mode の executor self-clarify (= 実装中に不明確点が出たら user へ質問)
-- bin/pev-interactive helper script (= no-harness 側でも質問返し path を mitigate)
-- Gemini CLI 対応 (元 v2.2+ スコープ、 v3.x で再評価)
+### Planned for v3.6+
+- verifier 側で self-clarify 漏れ検出 (= execute.log の self-clarify check 記録の有無を verify、 2 段階防御)
+- Mode B verify protocol の skill 化
+- Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
+- codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
+
+## [3.5.0] - 2026-05-20
+
+**Codex executor mode**。 v2.0 で codex を external reviewer (Verify phase) として統合したが、 codex は本来コーディングエージェント。 v3.5.0 で codex を **Execute phase の実装エンジン** としても使えるようにした。 executor agent は wrapper として残り (= `execute.log` / DRY self-review / judgment trace / Self-Clarify は Claude 担当)、 codex は raw な file 編集のみを担う。
+
+### Added
+
+- **`skills/pev-external-executor/`** 新設: codex CLI を Execute phase の実装エンジンとして subprocess invoke する skill。 v2.0 `pev-external-reviewer` の対称形 (reviewer ではなく executor 版)
+  - Preflight (codex CLI 存在 / 認証 / schema file) → fail 時は executor agent に fallback signal
+  - prompt 構築 (Mode A: plan.md File-level changes / Mode B: task description + triage.json + cwd context) + team-conventions 注入
+  - `codex exec --json --output-schema --sandbox workspace-write` で codex が実 file を編集
+  - exit code handling (0 / 124 timeout / non-zero)、 timeout 時の部分編集破棄
+- **`schemas/codex-executor-output.json`** 新設: codex executor の structured JSON output schema (status / files_changed / ambiguity_detected / commit_message 等)。 OpenAI structured outputs strict 仕様準拠
+- **`--executor-mode=codex|claude` flag** + **`PEV_EXECUTOR_MODE` env var**: Execute phase の実装担当を切り替え。 優先順は flag > env > settings default (`claude`)
+- **ADR-009**: codex executor mode で Claude executor を wrapper として残す設計判断 (audit 成果物の rubric 整合 / Self-Clarify ambiguity gate を plan-aware な Claude が持つ)
+
+### Changed
+
+- **`agents/executor.md`** に「Codex delegation mode」 section 追加: wrapper flow (Self-Clarify pre-check → codex 委譲 → git diff 読み直し → DRY review / judgment trace / execute.log authoring)、 execute.log の Codex meta block、 fallback path。 DRY self-review section に codex diff も review 対象になる旨を追記
+- **`commands/pev.md` / `commands/pev-execute.md`**: `--executor-mode` flag + executor mode 解決 logic を追記
+- **`skills/pev-bootstrap-codex/SKILL.md`**: reviewer 専用 setup → reviewer + executor 両用に拡張。 Step 5 で `PEV_EXECUTOR_MODE` の雛形提案を追加、 description / result summary を executor 言及に拡張
+- **`commands/pev-init-codex.md`**: executor mode の setup / next steps を追記
+- **`settings.json`**: `PEV_EXECUTOR_MODE` (default `claude`) + `PEV_CODEX_EXEC_TIMEOUT` (default 600) を `env` に追加
+- **`SPEC.md`**: §4 Phase 2 (Codex delegation mode bullet) / §8 commands / §10 「Codex executor 統合」 subsection / §11 roadmap / §7 skills table (codex 3 skill を追記) / ADR-009
+- **`.claude-plugin/plugin.json` + `marketplace.json`**: version 3.5.0 同期、 marketplace description に external-executor 追記
+
+### Verified via dog food
+
+`examples/sample-project` の複製で `--executor-mode=codex --no-plan` を実機 invoke:
+
+- **end-to-end 成功**: Triage skip → Execute (codex=`gpt-5.5`、 workspace-write sandbox) → Verify **PASS** (25 tests / AC 7 件全 met)。 codex が `validateRemarks` を `validatePhone` の任意項目 pattern 通りに実装、 Claude wrapper が Self-Clarify pre-check / DRY self-review / judgment trace / execute.log を担当 (= 責務分離が設計通り機能)
+- **F_v35_1 (反映済)**: executor agent が独自に `codex exec --model o4-mini` を付けて起動 → `o4-mini is not supported ... ChatGPT account` (HTTP 400) で fail → retry。 ChatGPT subscription 認証は codex-family model のみ可。 `pev-external-executor` skill に「`--model` を付けない、 pin は `PEV_CODEX_MODEL` のみ」 を明記、 `CLAUDE.md` §6 にも追記
+- **F_v35_2 (反映済)**: executor agent が skill の canonical invocation (`--json --output-schema -o OUTPUT --ephemeral`) を踏襲せず簡略形で起動。 結果は正しいが `--output-schema` が機能せず。 skill に「canonical invocation を簡略化しない、 ただし diff の source of truth は常に `git diff`」 を明記
+
+### Reference
+
+- [skills/pev-external-executor/SKILL.md](skills/pev-external-executor/SKILL.md)
+- [agents/executor.md](agents/executor.md) — Codex delegation mode (wrapper flow)
+- [SPEC.md](SPEC.md) §10 Codex executor 統合 + ADR-009
 
 ## [3.4.0] - 2026-05-16
 

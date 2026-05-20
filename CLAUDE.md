@@ -142,7 +142,10 @@ claude --plugin-dir ~/oss/pev-harness   # interactive
 # > /pev-harness:pev <task>            # default: Triage 経由
 # > /pev-harness:pev <task> --with-plan # v2.x 互換 (Triage skip + 必ず Plan)
 # > /pev-harness:pev <task> --no-plan   # Triage skip + 必ず plan-less Execute
+# > /pev-harness:pev <task> --executor-mode=codex # Execute の実 file 編集を Codex CLI に委譲 (v3.5.0+)
 ```
+
+**Codex executor mode (Execute phase 委譲) を verify する場合 (v3.5.0+)**: dog food subprocess は親環境の codex CLI / 認証 (`~/.codex/`) をそのまま使える (= Linear MCP と違い plugin ではなく独立 CLI のため、 `--mcp-config` 不要)。 codex 未認証の環境では Codex delegation mode は fallback path (= Claude native 実装に degrade) で動く。
 
 **Linear path (Gate L / outbound sync) を verify する場合 (v3.3.0+)**:
 
@@ -222,6 +225,7 @@ rm -rf artifacts/ playwright-report/ test-results/
 | `save_comment` (Linear) | (制約なし記載) | **issueId 必須、 project 直接コメント不可** → `linear-project-workflow` Update(C) で 4 段階代替パス |
 | init-agents で生成される path | `.github/` (古い doc) | **`.claude/agents/` + `.mcp.json` + `specs/`** |
 | dog food subprocess の Linear MCP | 「subprocess の Claude が Linear MCP を使う」 (§7.3 当時の想定) | **subprocess は親の Linear MCP 認証を継承しない**。 `--plugin-dir` は pev-harness を読むが Linear MCP は別 plugin。 dog food で Linear write path (Gate L issue 作成 / outbound sync) を verify するには `--mcp-config <linear-mcp-config>` で明示渡しが必要 (harness-effect-v16 / F_v16_1 で判明) |
+| codex executor の `--model` | 任意の OpenAI model を指定可と想定 | **ChatGPT subscription 認証では codex-family model のみ利用可**、 `--model o4-mini` 等の汎用 model は HTTP 400 reject (v3.5.0 dog food F_v35_1)。 `pev-external-executor` は `--model` を付けず codex default に委ねる、 pin したい場合のみ `PEV_CODEX_MODEL` env var |
 
 ## 7. tools の使い分け (このセッションで確立)
 

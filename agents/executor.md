@@ -125,6 +125,55 @@ v3.2.1 では:
 
 両 mode で、 cwd の既存実装 (src/ / tests/) と team-conventions.md / spec doc / CLAUDE.md を **必ず読んでから** 実装開始する。 これは v2.1.6 までは Mode A の planner 経由で間接的に行っていたが、 v3.0 Mode B では executor が直接担う。
 
+## Codex delegation mode (PEV_EXECUTOR_MODE=codex、 v3.5.0+)
+
+main session (commands/pev.md / pev-execute.md) が `--executor-mode` flag > `PEV_EXECUTOR_MODE` env var > settings.json default の優先順で解決した executor mode を `PEV_EXECUTOR_MODE` 経由で受け取る。 値が `codex` の場合、 **実 file 編集を OpenAI Codex CLI に委譲** する。
+
+`PEV_EXECUTOR_MODE=claude` (default) ではこの section 全体が無効、 上記 Mode A / Mode B の native flow をそのまま実行する。
+
+codex mode でも executor agent は **wrapper** として残る: codex は raw な file 編集だけを担い、 `execute.log` の authoring / DRY self-review / judgment traceability / Self-Clarify は引き続き executor agent (= Claude) が担当する。 Mode A / Mode B (= 入力契約) と codex / claude (= 実装担当) は直交する 2 軸で、 4 通りすべて成立する。
+
+### wrapper flow
+
+1. **team-conventions + cwd context 読み込み** (= 上記「共通」 section)。 codex prompt 構築と Self-Clarify pre-check の両方に必要
+2. **Self-Clarify pre-check (Mode B のみ)**: Mode B は plan.md がないため、 codex に委譲する前に executor agent 自身が上記 Self-Clarify trigger を check する。 trigger 該当なら `artifacts/clarification.md` を書いて **codex を起動せず exit**。 Mode A は plan.md (= planner が確定済) があるため pre-check 不要。 「自走 OK」 と判断する時は `[Mode B Self-Clarify check — passed]` 記録を execute.log 冒頭に残す (= native flow と同じ規約)
+3. **codex 委譲**: `pev-external-executor` skill の Invocation pattern に従い `codex exec` を起動。 codex が `workspace-write` sandbox 内で file を編集する
+4. **Preflight fallback**: skill が fallback signal (`codex_not_installed` / `codex_not_authenticated` / `schema_missing`) を返したら、 **Claude native 実装に degrade** する (= この section を抜けて Mode A / Mode B native flow を実行)。 execute.log 冒頭に `fallback_reason` を記録
+5. **timeout fallback**: codex が exit 124 (timeout) の場合、 部分編集が残っている可能性があるため `git checkout -- .` で破棄してから native 実装に degrade
+6. **codex 成功後の wrapper 責務**: codex が `status=implemented` を返したら、 executor agent が:
+   - `git diff` で codex の編集内容を読む
+   - **DRY self-review** を codex の diff に対して実施 (= 下記「DRY / duplication self-review」 の 5 項目)。 重複 / dead を検知したら executor agent が Edit で直接修正する (codex 再起動はしない)
+   - **judgment traceability** (Mode A: plan.md の「任意」 項目の採用 / 不採用) を execute.log に記録
+   - codex が `ambiguity_detected=true` (`status=ambiguity_stop`) を返した場合、 codex の `ambiguity_note` を元に `artifacts/clarification.md` を書き、 execute.log を finalize せず exit (= codex が pre-check で漏れた不明確点を実装中に発見した case)
+7. **execute.log authoring**: 下記「出力契約」 に従い execute.log を書く。 冒頭に下記の Codex meta block を足す
+
+### execute.log の Codex meta block
+
+codex mode の execute.log は冒頭に以下を記録する:
+
+```
+[Executor: codex] (PEV_EXECUTOR_MODE=codex)
+- executor_mode: codex
+- intended_executor_mode: codex
+- fallback_reason: null
+- codex model: gpt-5.3-codex
+- codex exit: 0
+- codex self-report: 2 files changed
+```
+
+fallback した場合:
+
+```
+[Executor: codex → claude (fallback)]
+- executor_mode: claude
+- intended_executor_mode: codex
+- fallback_reason: codex_not_authenticated
+```
+
+### 責務分離の意図 (v3.5.0 設計判断、 ADR-009)
+
+codex は実装エンジンとして優秀だが、 `execute.log` / DRY self-review / judgment trace は **後段の verifier が前提とする pipeline の audit 成果物**。 これらを codex に委ねると plan↔execute↔verify の rubric 整合が崩れる (= ADR-007 の Reviewer A=claude 固定と同じ論理)。 Mode B Self-Clarify の ambiguity gate も plan-aware な Claude が持つ方が安全。 よって codex は raw 編集に限定し、 audit 成果物は wrapper の Claude が authoring する。
+
 ## 動作原則
 
 1. **計画に従う**: plan.md の File-level changes 通りに変更する。drive-byリファクタ禁止
@@ -219,7 +268,7 @@ plan.md に「任意」「executor 判断」「必要に応じて」「検討」
 
 **意図**: harness-effect-v1 dog food (F2) で、 with-harness が `broadcast()` 関数を定義した直後の message handler 内で `wss.clients.forEach()` を直接書いて重複 logic を作っていた。 plan には書かれていないが、 executor が自分のコードを 1 度通読すれば気付くレベル。 verifier に渡す前の self-check で潰すべき。
 
-self-review は **自分が直前に書いたファイル** が対象。 過去 commit や別 executor の生成物は対象外 (Phase 2 の責務範囲を超える)。
+self-review は **自分が直前に書いたファイル** が対象。 過去 commit や別 executor の生成物は対象外 (Phase 2 の責務範囲を超える)。 **codex delegation mode (PEV_EXECUTOR_MODE=codex) の場合**、 当該 task で codex が編集した diff が self-review 対象 (= wrapper の executor agent が codex の生成物を review する、 上記「Codex delegation mode」 step 6 参照)。
 
 ## 禁止事項
 

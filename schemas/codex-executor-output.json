@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/myksyut/pev-harness/blob/main/schemas/codex-executor-output.json",
+  "title": "Codex executor output schema (v3.5.0+)",
+  "description": "Structured JSON that codex CLI must return when invoked as the Execute-phase implementer via `codex exec --output-schema`. pev-external-executor skill parses this; the Claude executor agent then reads `git diff` and authors execute.log / DRY self-review / judgment trace itself (= wrapper model). OpenAI structured outputs strict 仕様に従い、 全 properties が required (optional は型に null を含めて表現)、 additionalProperties: false、 oneOf/anyOf 不使用。",
+  "type": "object",
+  "required": ["status", "summary", "files_changed", "ambiguity_detected", "ambiguity_note", "commit_message", "model", "notes"],
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["implemented", "ambiguity_stop", "no_change"],
+      "description": "implemented = codex edited files per the brief; ambiguity_stop = codex hit an unresolvable ambiguity and edited NO files; no_change = brief required no edit"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Short prose summary of what was implemented (or why it stopped), <= 500 chars"
+    },
+    "files_changed": {
+      "type": "array",
+      "description": "Files codex created / modified / deleted. Empty array when status is ambiguity_stop or no_change.",
+      "items": {
+        "type": "object",
+        "required": ["path", "change_type", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string", "description": "Repo-relative file path" },
+          "change_type": { "type": "string", "enum": ["created", "modified", "deleted"] },
+          "description": { "type": "string", "description": "One-line description of the change, <= 120 chars" }
+        }
+      }
+    },
+    "ambiguity_detected": {
+      "type": "boolean",
+      "description": "true when codex encountered an ambiguity it could not resolve from the brief + cwd context. When true, codex must NOT edit files and must set status=ambiguity_stop."
+    },
+    "ambiguity_note": {
+      "type": ["string", "null"],
+      "description": "When ambiguity_detected is true, the questions / options the Claude executor should surface as artifacts/clarification.md; null otherwise"
+    },
+    "commit_message": {
+      "type": ["string", "null"],
+      "description": "Proposed conventional-commit message for the change; null when no_change / ambiguity_stop. The Claude executor may refine it in execute.log."
+    },
+    "model": {
+      "type": ["string", "null"],
+      "description": "Codex internal model identifier if exposed (e.g., 'gpt-5.3-codex'); null when not exposed"
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Optional free-form notes for the Claude executor (assumptions made, follow-ups), <= 500 chars; null when none"
+    }
+  }
+}

@@ -164,6 +164,7 @@ agent `agents/executor.md`：
 - 並列化: 公式 B1 「Spawn multiple subagents in the same turn when fanning out across items or reading multiple files」 に準拠。 **default は直列 1**、 fan-out / independent items が plan.md に明示されている時のみ並列 (上限 3 = `PEV_PARALLEL_EXECUTOR_MAX`、 ADR-004)
 - DRY self-review (v2.1.6+): 同関数の再実装 / loop pattern 重複 / dead import / dead branch / dead comment を実装直後に self-check
 - Subagent memory: `~/.claude/pev/{task_id}/executor-{N}.md`
+- **Codex delegation mode (v3.5.0+)**: `PEV_EXECUTOR_MODE=codex` の時、 実 file 編集を OpenAI Codex CLI に委譲。 executor agent は wrapper として残り、 `execute.log` / DRY self-review / judgment trace / Mode B Self-Clarify を担当。 codex 未 setup / 未認証 / timeout 時は Claude native 実装に自動 degrade。 Mode A/B (= 入力軸) と直交し 4 通り成立。 詳細は `skills/pev-external-executor/SKILL.md` + ADR-009
 
 ### Phase 3: Verify
 
@@ -265,9 +266,12 @@ agent `agents/verifier.md`：
 | **pev-recap** | phase完了時に短い recap を `artifacts/recap.log` に追記 | 各phase終了時 |
 | **pev-subagent-memory** | `~/.claude/pev/{task_id}/` 配下のmemoryディレクトリ規約 | executor並列起動時 |
 | **pev-dual-review** | santa-method軽量版。Reviewer A=Opus / B=Sonnet (model alias diversity) | `--strict` 指定時 |
+| **pev-external-reviewer** | 外部 LLM CLI (Codex) を Reviewer B として subprocess invoke (v2.0+) | `PEV_REVIEWER_MODE` が dual-codex / codex-only の時 |
+| **pev-external-executor** | 外部 LLM CLI (Codex) に Execute phase の実 file 編集を委譲、 executor agent は wrapper (v3.5.0+) | `PEV_EXECUTOR_MODE=codex` の時 |
 | **pev-team-conventions** | `team-conventions.md` を読み込み planner/executor に注入 | Plan/Execute起動時 |
 | **pev-bootstrap-playwright** | Playwright + agents の one-time setup (v1.4+) | `/pev-init-e2e` / E2E preflight 未setup |
 | **pev-bootstrap-project** | project 全体の初期 setup (team-conventions / .gitignore / 言語検知) (v1.9+) | `/pev-init` |
+| **pev-bootstrap-codex** | Codex CLI を reviewer + executor として導入する one-time setup (v2.0+ / v3.5.0+) | `/pev-init-codex` / codex preflight 未setup |
 | **empirical-prompt-tuning** | skill / slash command / プロンプトを subagent で実走させ自己申告 + 指示側メトリクスで反復改善 (v2.1+) | skill / プロンプト新規作成・大幅改訂直後 |
 | **pev-linear-sync** | Linear Issue ↔ PEV pipeline の双方向 sync (inbound / issue-first / outbound success / outbound fail の 4 direction、 v3.3.0+) | Linear URL 起動 / `.linear-config.yml` 存在時 (Gate L) / verifier 完了時 |
 | **linear-project-workflow** | Linear Project の規約 / template (5 section: Who/What/Why/完了条件/スコープ外) + title 命名規則 (Who wants What, Why、 v3.4.0+) | project の Read / Write / Update 時 |
@@ -283,6 +287,7 @@ agent `agents/verifier.md`：
 | `/pev <task>` | フルpipeline (v3.0+)。 Triage → (Plan?) → Execute → Verify、 Gate A/B で停止判定 |
 | `/pev <task> --with-plan` | Triage を skip して必ず Plan を起動 (= v2.x 互換挙動) |
 | `/pev <task> --no-plan` | Triage を skip して必ず Plan-less Execute (= 最短 path) |
+| `/pev <task> --executor-mode=codex` | Execute phase の実 file 編集を OpenAI Codex CLI に委譲 (v3.5.0+)、 executor agent は wrapper |
 | `/pev-plan <task>` | Plan のみ実行、`artifacts/plan.md` 出力 |
 | `/pev-execute` | 既存 plan.md があれば読んで実装、 なければ task description ベースで Mode B 実装 (v3.0+) |
 | `/pev-verify` | 検証のみ実行 |
@@ -360,6 +365,19 @@ v2.0 で reviewer mode を 4 種に拡張:
 - v2.0+ (dual-codex): 異 vendor (Anthropic + OpenAI) で training corpus + RLHF policy + tokenization の独立性、 blind spot 共有が低減
 - 残る共通制約: 両者とも LLM ベースなので「LLM 全般の苦手分野」 (e.g., precise counting、 deep mathematical reasoning) は両者で同時に外しうる、 これは v2.x 範疇外
 
+### Codex executor 統合 (v3.5.0+)
+
+v2.0 の codex reviewer 統合に対し、 v3.5.0 で codex を **Execute phase の実装エンジン** としても使えるようにした (`PEV_EXECUTOR_MODE=codex` / `--executor-mode=codex`)。 reviewer mode (= model diversity 仮説) とは目的が異なり、 「codex を実装に使いたい team / path への対応」 が主眼。
+
+- CLI: `codex exec --json --output-schema schemas/codex-executor-output.json -o <out.json> --ephemeral --sandbox workspace-write --skip-git-repo-check "<prompt>"`
+- 認証 / install / fallback の基本機構は reviewer と共通 (= `pev-bootstrap-codex` で reviewer + executor 両方を 1 回 setup)
+- **責務分離 (ADR-009)**: codex は raw な file 編集のみ。 `execute.log` authoring / DRY self-review / judgment trace / Mode B Self-Clarify は Claude executor agent (wrapper) が担当
+- timeout: `PEV_CODEX_EXEC_TIMEOUT` default 600 (reviewer の `PEV_CODEX_TIMEOUT` 300 の倍、 実装は review より時間を要するため)
+- fallback: codex CLI 不在 / 未認証 / timeout / non-zero exit / schema 違反 → Claude native 実装に degrade、 `execute.log` の `fallback_reason` に記録
+- `--parallel` 非対応: codex は 1 invocation で複数 file を編集できるため、 並列 subprocess 化はしない
+
+詳細プロトコルは `skills/pev-external-executor/SKILL.md`、 codex 出力 schema は `schemas/codex-executor-output.json`。
+
 ---
 
 ## 11. ロードマップ
@@ -404,8 +422,9 @@ v2.0 で reviewer mode を 4 種に拡張:
 | **v3.3.1** | **F_v15_1 hotfix (Gate L 配置修正)** | Gate L を Gate A の後 (Step 3.5) → 前 (Step 2.5) に re-order。 v3.3.0 では default mode で Gate A 停止により Gate L が dead path だった | ✅ released |
 | **v3.3.2** | **F_v16_1 docs patch (subprocess Linear MCP)** | CLAUDE.md §6/§3.3 に「dog food subprocess は親の Linear MCP 認証を継承しない、 `--mcp-config` で明示渡し」 を追記。 harness-effect-v16 で判明 | ✅ released |
 | **v3.3.3** | **F_v17_2/3 patch (Gate L degraded 条件 + gitBranchName pin)** | pev-linear-sync に branch field=`gitBranchName` (save_issue 戻り値) を pin / Gate L degraded mode 条件に「configured but unauthed」 「headless OAuth 不可」 を追加。 harness-effect-v17 で実 Linear write path を ground-truth 検証 | ✅ released |
-| **v3.4.0** | **Linear issue / project の命名規則 + template 正式化** | `linear-issue-workflow` skill 新設 (gap 解消、 命名規則=How、 template 6 section) / `linear-project-workflow` に title 命名規則 (Who wants What, Why) 追加 / pev-linear-sync Direction 1.5 を template 整合 | (current) |
-| v3.5+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 | (TBD) | v3.4 dog food verify 後 |
+| **v3.4.0** | **Linear issue / project の命名規則 + template 正式化** | `linear-issue-workflow` skill 新設 (gap 解消、 命名規則=How、 template 6 section) / `linear-project-workflow` に title 命名規則 (Who wants What, Why) 追加 / pev-linear-sync Direction 1.5 を template 整合 | ✅ released |
+| **v3.5.0** | **Codex executor mode (実装を Codex CLI に委譲)** | `pev-external-executor` skill 新設 + `codex-executor-output` schema / `executor.md` に Codex delegation mode (wrapper flow) / `--executor-mode` flag + `PEV_EXECUTOR_MODE` env / `pev-bootstrap-codex` を reviewer + executor 両用に拡張 / ADR-009 | ✅ released |
+| v3.6+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 (reviewer + executor) | (TBD) | — |
 
 ---
 
@@ -488,3 +507,13 @@ v2.0 で Reviewer B を codex に切替できるようにしたが、 Reviewer A
 - **rubric の安定性**: 手順が固定だと plan/verify 間の rubric 整合性 (ADR-007 と同根) が保てる、 verifier が「creative に手順を変える」 と reviewer mode 切替時に再現性が崩れる
 
 別解釈として「verifier も engineer 扱いで delegation すべき」 案もありうるが、 dog food (v1.3/v1.6) では deterministic verifier の方が flaky 率が低かった (経験則、 1次情報根拠なし)。 v3.x で creative verifier の選択肢を別 mode として提供する案は roadmap 候補。
+
+### ADR-009: なぜ codex executor mode で Claude executor を wrapper として残すか (v3.5.0 で新規)
+
+v3.5.0 で codex を Execute phase の実装に使えるようにした際、 2 案があった: (a)「codex に Execute phase を完全に所有させる (= execute.log も codex が出力)」、 (b)「codex は raw 編集のみ、 Claude executor が wrapper として audit 成果物を authoring」。 (b) を採用:
+
+- **`execute.log` / DRY self-review / judgment trace は後段 verifier が前提とする pipeline の audit 成果物**。 これらを codex に委ねると、 plan↔execute↔verify 間の rubric 整合 (ADR-007 で Reviewer A=claude 固定としたのと同じ論理) が崩れる
+- **Mode B Self-Clarify の ambiguity gate** は plan-aware な Claude が持つ方が安全。 codex に委譲する前に Claude executor が pre-check することで、 不明確な task が codex に渡る前に停止できる
+- codex は実装エンジンとして優秀なので **raw な file 編集** を担わせ、 wrapper の Claude が diff を読み直して DRY review / judgment trace / execute.log を書く
+
+trade-off: codex の編集後に Claude が diff 全体を読むため、 完全委譲より token を消費する。 ただし Execute phase の LLM 推論コストに対し diff 読み直しは相対的に小さく、 audit 一貫性の価値が上回ると判断。 「codex 完全所有」 mode は roadmap 候補として残す。 この設計判断は user (= 開発者) との設計確認で確定 (v3.5.0 開発セッション)。

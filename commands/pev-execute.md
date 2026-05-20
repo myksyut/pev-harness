@@ -9,9 +9,10 @@ description: Run only the Execute phase. Reads artifacts/plan.md and implements 
 ## Usage
 
 ```text
-/pev-execute                 # Mode A: plan.md ベース (= 従来挙動)
-/pev-execute --parallel      # 独立ファイル変更を並列実行 (最大3)
-/pev-execute --plan-less     # Mode B (v3.0+): plan.md なしで task description + cwd context から実装
+/pev-execute                       # Mode A: plan.md ベース (= 従来挙動)
+/pev-execute --parallel            # 独立ファイル変更を並列実行 (最大3)
+/pev-execute --plan-less           # Mode B (v3.0+): plan.md なしで task description + cwd context から実装
+/pev-execute --executor-mode=codex # 実 file 編集を OpenAI Codex CLI に委譲 (v3.5.0+)
 ```
 
 ## 前提条件
@@ -36,6 +37,7 @@ description: Run only the Execute phase. Reads artifacts/plan.md and implements 
 3. executor agent (model: sonnet, effort: high) を起動
    - 並列モード: 同一メッセージ内で複数 Agent tool calls (最大 `PEV_PARALLEL_EXECUTOR_MAX`、default 3)
    - 順次モード: 1 executor が順に変更
+   - codex mode (`PEV_EXECUTOR_MODE=codex` / `--executor-mode=codex`、 v3.5.0+): executor agent が wrapper となり、 `pev-external-executor` skill 経由で codex に実 file 編集を委譲。 codex 未 setup なら Claude native に degrade
 4. 各executor は `~/.claude/pev/{task_id}/executor-{N}.md` に memory 書き込み
 5. 全完了後、`artifacts/execute.log` に変更ファイル一覧 + 提案コミットメッセージ
 6. Stop hook が `/pev-verify` を促す
@@ -70,6 +72,7 @@ Mode B (= plan-less) 実装中に executor が `artifacts/clarification.md` を�
 - このコマンドは git commit を打たない (人間が境界を決める)
 - `--strict` フラグはここでは無視 (Verify phase のみで効く)
 - `--use-defaults` flag (v3.2.0+): Mode B clarification.md の「default 案」 を採用して再 invoke
+- `--executor-mode=codex|claude` flag (v3.5.0+): 実装担当を切り替える。 優先順は flag > `PEV_EXECUTOR_MODE` env > settings default (`claude`)。 詳細は `skills/pev-external-executor/SKILL.md`
 
 ## Implementation note
 
