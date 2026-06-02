@@ -430,7 +430,8 @@ v2.0 の codex reviewer 統合に対し、 v3.5.0 で codex を **Execute phase 
 | **v3.7.0** | **Execute phase default を codex に正式化** | settings.json PEV_EXECUTOR_MODE default = codex / pev.md fallback (:-codex) / 関連 doc (pev.md / pev-execute.md / executor.md / pev-external-executor / SPEC §4) + ONBOARDING データ送信ポリシー追記。 codex 未 setup は claude に自動 degrade | ✅ released |
 | **v3.7.1** | **Claude Code 必須 version を v2.1.154 に bump** | 一次裏取り (code.claude.com/docs/en/errors 「Opus 4.8 needs v2.1.154 or later」 + workflows doc 「require v2.1.154 or later」) で確定、 Opus 4.8 pin と compat の不整合を解消。 plugin.json compat / README badge / ONBOARDING / ROLLOUT / CLAUDE.md / SPEC P3 注記を更新 | ✅ released |
 | **v3.7.2** | **必須 version を v2.1.156 に格上げ** | <2.1.156 + Opus 4.8 は通常 tool 使用で 400 (errors page 「Versions before v2.1.156 can trigger this error during normal tool use」、 CHANGELOG v2.1.156 で fix)。 tool-heavy な harness の実 floor として compat / badge / docs を v2.1.156 へ | ✅ released |
-| v3.8+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 (reviewer + executor) / pev-focus-mode の 4.8 現存性確認 | (TBD) | — |
+| **v3.7.3** | **pev-focus-mode skill 正確性補正** | focus mode / `/focus` は現存・現役と一次ソース確定 (commands reference + CHANGELOG v2.1.118〜152)。 skill に fullscreen 専用 caveat + `viewMode` 設定を追記、 version 表記中立化。 v3.6.0 の「現存性未確認」 false negative を解消 | ✅ released |
+| v3.8+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 (reviewer + executor) | (TBD) | — |
 
 ---
 

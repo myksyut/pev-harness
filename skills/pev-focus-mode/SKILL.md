@@ -17,9 +17,11 @@ Execute phase が長くなる時、`/focus` モードでターミナルを最終
 
 ### Focus Mode とは
 
-Claude Code v2.1.x の機能。`/focus` で切替可能。中間ステップ (tool calls、思考、検索結果) を隠して、最終的なテキスト応答のみ表示する。
+Claude Code の現役機能 (v3.7.x 時点で active、 CHANGELOG で継続 maintain)。`/focus` で切替。直近の prompt + 1 行の tool-call サマリ (edit diffstat 付き) + 最終応答のみを表示し、中間ステップ (tool calls / 思考 / 検索結果) を畳む。
 
-Opus 4.7では「モデルを信頼してプロセスより結果を見る」設計思想に基づき推奨されている。
+公式仕様 ([commands reference](https://code.claude.com/docs/en/commands)): 「Toggle the focus view, which shows only your last prompt, a one-line tool-call summary with edit diffstats, and the final response」。**fullscreen rendering でのみ利用可能**、 選択は session を跨いで保持され、 settings の `viewMode` で既定を上書きできる。
+
+「プロセスより結果に集中する」 ワークフローに合う UI 機能 (model version 非依存)。
 
 ### このskillの役割
 
@@ -67,6 +69,7 @@ pev-recap が recap.log にphase完了を書き込む際、`/focus` 中でも最
 
 ## 注意点
 
+- **fullscreen rendering 専用**: 非 fullscreen の terminal では `/focus` は無効 (公式 commands reference)。 `viewMode` 設定でも既定を制御できる
 - `/focus` を ON にしても、エラー時の prompt は表示される
 - `/focus` ON時、ユーザーが Enter を押すと次の最終出力まで待機する
 - ユーザーが何が起こっているか不安になったら `/focus` で OFF に戻せる

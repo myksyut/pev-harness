@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
 
+## [3.7.3] - 2026-06-02
+
+**`pev-focus-mode` skill の正確性補正**。 v3.6.0 で「focus mode の 4.8 現存性が未確認」 として保留していた懸念を一次ソースで検証し、 **focus mode / `/focus` は現存・現役** と確定 (= skill の前提は正しかった)。 検証で判明した記載ギャップ (fullscreen 専用制約 / `viewMode` 設定) を skill に補正。
+
+### Verified via primary source
+
+- **`/focus` は実在**: [code.claude.com/docs/en/commands](https://code.claude.com/docs/en/commands) 「Toggle the focus view, which shows only your last prompt, a one-line tool-call summary with edit diffstats, and the final response ... Only available in fullscreen rendering」
+- **現役**: `anthropics/claude-code` CHANGELOG v2.1.118〜152 で focus mode を継続 maintain (「Fixed focus mode showing a spurious 'N messages hidden' count」 等)
+- v3.6.0 の「未確認」 は model docs のみ調査した false negative。 Claude Code commands reference で確定
+
+### Changed
+
+- **`skills/pev-focus-mode/SKILL.md`**: 公式仕様の逐語引用 + **fullscreen rendering 専用** caveat + `viewMode` 設定 + cross-session 保持 を追記。 「Opus 4.7 設計思想」 → 「model version 非依存の UI 機能」 (version 表記の v3.6.0 保留分も解消)
+- version 3.7.3 同期 (plugin.json / marketplace.json / README badge)
+
+### Notes
+
+- これで Opus 4.8 移行に伴う v3.8+ の宿題 (Claude Code version 周り = v3.7.1 / v3.7.2、 focus mode 現存性 = 本 patch) はすべて解消
+
 ## [3.7.2] - 2026-06-02
 
 **必須 Claude Code version を v2.1.156 に格上げ**。 v3.7.1 で floor を v2.1.154 (Opus 4.8 の認識最小) にしたが、 一次ソースで **v2.1.154〜155 + Opus 4.8 は通常の tool 使用で 400 エラーになる既知バグ** を確認 (v2.1.156 で修正済)。 harness は全 agent が tool-use 前提のため、 実用 floor を v2.1.156 に格上げ。
