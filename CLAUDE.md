@@ -4,7 +4,7 @@
 
 ## 0. このリポジトリは何か
 
-Claude Opus 4.7 native の **(Triage →) Plan → Execute → Verify (PEV) coding harness** Claude Code plugin。 v0.1 → v3.0.1 (現在) まで dog food 駆動で漸進的に成長させてきた。 v1.0 で OSS public 化済 (<https://github.com/myksyut/pev-harness>)。
+Claude Opus 4.8 native の **(Triage →) Plan → Execute → Verify (PEV) coding harness** Claude Code plugin。 v0.1 → v3.0.1 (現在) まで dog food 駆動で漸進的に成長させてきた。 v1.0 で OSS public 化済 (<https://github.com/myksyut/pev-harness>)。
 
 **v3.0 で根本見直し済**: ハーネスの value proposition を「user の頭の中の spec を引き出す」 に再定義。 v2.x までは Plan を必ず起動する 3-phase pipeline だったが、 v3.0 で Phase 0 (Triage) を新設、 Plan を on-demand 化、 質問判定強化、 F1 Defensive default の scope 限定 を実施。 詳細: [experiments/v3.0-design.md](./experiments/v3.0-design.md) + [experiments/harness-effect-v1 to v5](./experiments/) の 5 件の根拠実験。
 
@@ -43,7 +43,7 @@ Claude Opus 4.7 native の **(Triage →) Plan → Execute → Verify (PEV) codi
 
 ## 2. 絶対遵守の規約
 
-### 2.1 4.7-native (禁止フレーズ)
+### 2.1 4.X-native (禁止フレーズ)
 
 `agents/` / `skills/` / `commands/` に以下を **書かない**:
 
@@ -51,7 +51,7 @@ Claude Opus 4.7 native の **(Triage →) Plan → Execute → Verify (PEV) codi
 - `double-check` / `verify your output`
 - `be thorough` / `be careful` / `take your time`
 
-理由: Opus 4.7 は adaptive thinking で自動実施、 明示は逆効果。 CI で `Check for forbidden 4.6-style scaffolding` step が grep で検出 → fail。 詳細: [rules/4.7-native.md](./rules/4.7-native.md)。
+理由: Opus 4.X は adaptive thinking で自動実施、 明示は逆効果。 CI で `Check for forbidden 4.6-style scaffolding` step が grep で検出 → fail。 詳細: [rules/native-prompting.md](./rules/native-prompting.md)。
 
 ### 2.2 Gate respect ([rules/pev-conventions.md §0](./rules/pev-conventions.md))
 
@@ -75,7 +75,7 @@ chore(deps): <Dependabot>
 
 <body, HEREDOC で multi-line>
 
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
 ```
 
 ## 3. dog food fixture (examples/sample-project/)
@@ -131,7 +131,7 @@ PROMPT="/pev-harness:pev <task description>"
 INIT=$(jq -nc --arg t "$PROMPT" '{type:"user",message:{role:"user",content:[{type:"text",text:$t}]}}')
 echo "$INIT" | claude --plugin-dir ~/oss/pev-harness \
   --input-format stream-json --output-format stream-json --include-partial-messages \
-  --permission-mode bypassPermissions --verbose --model claude-opus-4-7 -p \
+  --permission-mode bypassPermissions --verbose --model claude-opus-4-8 -p \
   > /tmp/dogfood-turn1.log 2>&1
 # Triage → (Plan ?) → Gate A (Plan あり時のみ) → Execute → Verify
 # Plan で「## 確認質問」 が出たら、 同 cwd で claude --continue で次 turn を送る
@@ -189,7 +189,7 @@ rm -rf artifacts/ playwright-report/ test-results/
 - MD037 (`__%` 等 emphasis marker 衝突) → backtick quote へ
 - MD040 (fenced code language なし) → `.markdownlint.json` 緩和済
 - MD056 (table column 数不一致) → cell 内 `|` を `\|` escape または text 変更
-- Forbidden phrase → 引用形式の場合は `rules/4.7-native.md` 参照に置換
+- Forbidden phrase → 引用形式の場合は `rules/native-prompting.md` 参照に置換
 
 ## 5. release procedure
 
@@ -279,7 +279,7 @@ rm -rf artifacts/ playwright-report/ test-results/
 ### 8.4 forbidden phrase で CI fail
 
 - agents/skills/commands 配下に「禁止フレーズの説明」自体が grep に hit するケースあり
-- v0.1 release で発覚済、 rules/4.7-native.md 参照に置換すれば clean
+- v0.1 release で発覚済、 rules/native-prompting.md 参照に置換すれば clean
 
 ## 9. このリポジトリで「やらないこと」
 
@@ -304,7 +304,7 @@ rm -rf artifacts/ playwright-report/ test-results/
 - 公開向け: [README.md](./README.md)
 - 社内展開: [ONBOARDING.md](./ONBOARDING.md) + [guide/ROLLOUT-CHECKLIST.md](./guide/ROLLOUT-CHECKLIST.md) + [guide/FEEDBACK-TEMPLATE.md](./guide/FEEDBACK-TEMPLATE.md)
 - 脆弱性: [SECURITY.md](./SECURITY.md)
-- 規約: [rules/pev-conventions.md](./rules/pev-conventions.md) (Gate respect 等) + [rules/4.7-native.md](./rules/4.7-native.md) (禁止フレーズ) + [rules/error-patterns.md](./rules/error-patterns.md) (エラー推測 catalog)
+- 規約: [rules/pev-conventions.md](./rules/pev-conventions.md) (Gate respect 等) + [rules/native-prompting.md](./rules/native-prompting.md) (禁止フレーズ) + [rules/error-patterns.md](./rules/error-patterns.md) (エラー推測 catalog)
 - **v3.0 設計**: [experiments/v3.0-design.md](./experiments/v3.0-design.md) + [experiments/RFC-v3.0.md](./experiments/RFC-v3.0.md)
 - **v3.0 dog food 根拠**: [experiments/harness-effect-v1 to v5](./experiments/) (= 5 件の比較実験、 各 reports/SUMMARY.md に詳細)
 - 旧 dog food レポート (v1.x 当時): [guide/dogfood-v1.3-report.md](./guide/dogfood-v1.3-report.md) / [guide/TEST-PLAN-linear-v1.3.md](./guide/TEST-PLAN-linear-v1.3.md)

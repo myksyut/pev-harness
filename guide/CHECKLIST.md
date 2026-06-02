@@ -34,7 +34,7 @@ cd ~/pev-harness && find . -type f -not -path './.git/*' -not -path './node_modu
 - [ ] `skills/*/SKILL.md` — 8 files
 - [ ] `commands/*.md` — 5 files
 - [ ] `hooks/hooks.json` — 3 hooks
-- [ ] `rules/*.md` — 3 files (pev-conventions, 4.7-native, error-patterns)
+- [ ] `rules/*.md` — 3 files (pev-conventions, native-prompting, error-patterns)
 - [ ] `examples/` — 9 files (各 phase の example artifact + sample-project)
 - [ ] `guide/` — `CHECKLIST.md` (このファイル) / `ROLLOUT-CHECKLIST.md` / `FEEDBACK-TEMPLATE.md` / `dogfood-v1.3-report.md` / `TEST-PLAN-linear-v1.3.md`
 - [ ] root: `SPEC.md` / `README.md` / `CLAUDE.md` / `ONBOARDING.md` / `CHANGELOG.md` / `CONTRIBUTING.md` / `SECURITY.md` / `LICENSE` / `settings.json`
@@ -45,9 +45,9 @@ cd ~/pev-harness && find . -type f -not -path './.git/*' -not -path './node_modu
 
 `SPEC.md` を一読して、以下の判断に違和感がないか確認:
 
-- [ ] **§1 設計原則 P1-P5**: ミニマル維持、4.7-native、No backwards compat、Convention over configuration、Hook-driven
+- [ ] **§1 設計原則 P1-P5**: ミニマル維持、4.X-native、No backwards compat、Convention over configuration、Hook-driven
 - [ ] **§4 Phase Gates**: Gate A (permissionMode判定)、Gate B (Stop hook)、Retry Gate (最大3回)
-- [ ] **§6 settings.json**: model=opus-4-7, effort=xhigh, permissionMode=default (安全側) で良いか
+- [ ] **§6 settings.json**: model=opus-4-8, effort=xhigh, permissionMode=default (安全側) で良いか
 - [ ] **§7 Skills 8つ**: 過不足ないか
 - [ ] **§10 Dual Review**: Claude単独 model alias (A=Opus / B=Sonnet) で OK か
 - [ ] **§11 ロードマップ**: v0.2 → v1.0 → v2.0 のマイルストーン妥当性

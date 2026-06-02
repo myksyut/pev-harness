@@ -5,7 +5,7 @@ description: ~/.claude/pev/{task_id}/ 配下にsubagent (主にexecutor) の mem
 
 # pev-subagent-memory
 
-executor が並列起動された時、互いに直接対話せず memory file 経由でのみ協調する仕組み。Opus 4.7 の subagent memory field 思想に準拠。
+executor が並列起動された時、互いに直接対話せず memory file 経由でのみ協調する仕組み。Opus 4.8 の subagent memory field 思想に準拠。
 
 ## When to Use
 

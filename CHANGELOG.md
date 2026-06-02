@@ -7,11 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v3.6+
+### Planned for v3.7+
 - verifier 側で self-clarify 漏れ検出 (= execute.log の self-clarify check 記録の有無を verify、 2 段階防御)
 - Mode B verify protocol の skill 化
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
+
+## [3.6.0] - 2026-06-02
+
+**Opus 4.8 native 化**。 Claude Opus 4.8 (`claude-opus-4-8`, 2026-05-28 GA) のリリースに伴い、 harness の model pin / 対外表記 / prompting 規約を 4.8 へ整合。 4.8 は 4.7 の **breaking-change なし後継** のため挙動前提 (literal instruction-following / xhigh / adaptive thinking) は維持・強化され、 本 release は (1) model 文字列の 4.8 化、 (2) prompting 規約の version 中立化、 (3) scoped self-verify 例外の明文化 が主軸。 5 角度の Web リサーチ + 影響マトリクスに基づく。
+
+### Changed
+
+- **`settings.json`**: `model` を `claude-opus-4-7` → `claude-opus-4-8` (実行 pin)。 `effortLevel: xhigh` は据え置き — 4.8 で effort default は high に下がったが coding/agentic は xhigh 推奨のため明示 pin の価値が増した
+- **`rules/4.7-native.md` → `rules/native-prompting.md`** に改名 (version 中立名)。 anti-scaffolding の核は 4.X 共通で、 model world view が上がるたびの改名を不要化。 全 cross-reference (CLAUDE.md / CONTRIBUTING / PR template / CHECKLIST / SPEC / README / agents / pev-conventions) を追従更新
+- **設計原則 P2 `4.7-native` → `4.X-native`** (version 中立化、 SPEC §1 / README / CLAUDE.md / CHECKLIST / pev-conventions)
+- **`rules/native-prompting.md`**: 「Opus 4.8 での再評価」 節を追加 — anti-scaffolding 核は 4.8 公式 prompting doc が支持 (肯定形優先 / `CRITICAL: You MUST` 系の過剰強調を弱める / general instruction > prescriptive step) と確認。 ただし scoped self-verify (`verify against [test criteria]`) は 4.8 公式が推奨のため、 blanket な double-check / be-thorough のみ禁止し targeted verify は許可する例外を明文化。 CI grep (`verify your output` = output 限定) は変更不要
+- **`.claude-plugin/plugin.json` + `marketplace.json`**: description を `Opus 4.8 native` へ、 tag `opus-4-7` → `opus-4-8`、 version 3.6.0 同期
+- **version 文字列の 4.8 化** (内容維持): agent/skill の description + 例 JSON の `claude-opus-4-7` → `claude-opus-4-8` (planner / verifier / executor / pev-dual-review / pev-external-reviewer / pev-spec-template / pev-subagent-memory / `examples/verify.strict.example.json`)。 companion model `claude-sonnet-4-6` / `claude-haiku-4-5` は最新のため据え置き
+- **`.github/PULL_REQUEST_TEMPLATE.md` + `CONTRIBUTING.md`**: forbidden-phrase checklist に scoped verify 許容を明記
+- **`CLAUDE.md`**: Co-Authored-By trailer を `Claude Opus 4.8 (1M context)` へ、 dog food invoke の `--model claude-opus-4-7` → `claude-opus-4-8`
+
+### Verified via research
+
+- Opus 4.8 = `claude-opus-4-8` (date-suffix なし)、 1M context GA (beta header 不要)、 価格 4.7 と同一 ($5/$25 per MTok)、 4.7 は 2027-04-16 まで Active で breaking change なし
+- 4.8 固有の改善: 自コード欠陥見逃し約 1/4、 literal instruction-following 強化、 tool triggering 改善、 code-review harness-effect (保守的 filter 指示で recall 低下) — verifier は finding 抑制指示を持たないため影響なし
+- companion model: 4.8 と同時の新 Sonnet/Haiku なし (Sonnet 4.6 / Haiku 4.5 が最新) → verifier / Reviewer B の表記据え置きが正
+
+### Not changed (要追補)
+
+- **Claude Code 必須 version** (`compatibility.claudeCode >=2.1.111` / README badge): Opus 4.8 / Dynamic Workflows は v2.1.154+ 必須との情報があるが**二次ソース**のため、 一次裏取り後に別 patch で bump
+- **`skills/pev-focus-mode/`**: focus mode の 4.8 文脈での現存性が公式 doc で確認できず据え置き (別名 plan mode / Dynamic Workflows の可能性、 要確認)
+- **`skills/pev-task-budget/SKILL.md`** L14: 公式 B3 の逐語引用のため `Claude Opus 4.7` 表記を保持 (引用整合性優先、 4.8 でも Claude Code 非サポートは継続)
+- 歴史的記録 (CHANGELOG 過去 entry / experiments / dogfood-report / SPEC §11 過去行 / B1-B5 citations) は当時の事実として保持
+
+### Reference
+
+- [Introducing Claude Opus 4.8](https://www.anthropic.com/news/claude-opus-4-8) / [What's new in Claude Opus 4.8](https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-8) / [Prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices) / [Best practices for Claude Code](https://code.claude.com/docs/en/best-practices)
 
 ## [3.5.0] - 2026-05-20
 

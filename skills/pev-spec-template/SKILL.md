@@ -1,11 +1,11 @@
 ---
 name: pev-spec-template
-description: タスク開始時の初回プロンプト雛形を提示。Goal/Constraints/Acceptance Criteria の3要素を強制し、Opus 4.7のliteral instruction-followingに最適化された入力を作る
+description: タスク開始時の初回プロンプト雛形を提示。Goal/Constraints/Acceptance Criteria の3要素を強制し、Opus 4.8のliteral instruction-followingに最適化された入力を作る
 ---
 
 # pev-spec-template
 
-初回プロンプトを「4.7が literal に解釈しても期待通り動く」形に整形するスキル。
+初回プロンプトを「4.8が literal に解釈しても期待通り動く」形に整形するスキル。
 
 ## When to Use
 
@@ -15,7 +15,7 @@ description: タスク開始時の初回プロンプト雛形を提示。Goal/Co
 
 ## なぜ必要か
 
-Opus 4.7は**暗黙の文脈を補完しない**。4.6なら「READMEを更新して」だけで動いてくれたが、4.7は文字通り「READMEを更新する何か」をする。曖昧な指示は曖昧な結果を生む。
+Opus 4.8は**暗黙の文脈を補完しない**(4.8 で literal instruction-following は更に強化)。4.6なら「READMEを更新して」だけで動いてくれたが、4.8は文字通り「READMEを更新する何か」をする。曖昧な指示は曖昧な結果を生む。
 
 このskillは、自然文タスクを以下の4要素に分解する:
 

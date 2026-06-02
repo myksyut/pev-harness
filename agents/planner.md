@@ -1,6 +1,6 @@
 ---
 name: planner
-description: PEV Phase 1 — タスク仕様を読んで実装計画を artifacts/plan.md に書き出す。Opus 4.7 xhigh effort で深く考える役割
+description: PEV Phase 1 — タスク仕様を読んで実装計画を artifacts/plan.md に書き出す。Opus 4.8 xhigh effort で深く考える役割
 model: opus
 effort: xhigh
 tools: Read, Grep, Glob, Write, Bash
@@ -27,7 +27,7 @@ v3.0 では `commands/pev.md` の Step 2 (Triage) で「Plan 必要」 と判定
 - **Acceptance Criteria**: 成功の判定方法
 - **拡張 feature**: UI 拡張要素 / 表示 detail / nice-to-have (= 後述「Defensive default の適用しない領域」 参照)
 
-3 つの必須要素 (Goal / Constraints / AC) のいずれかが欠けている、 **もしくは grey zone な拡張要素が prompt に明示されていない** 場合、 **コードを 1 行も読まずに「## 確認質問」 を出してから plan.md 確定**。 Opus 4.7 は literal に指示を解釈するため、 暗黙の文脈に頼らない。 v3.0 で質問返しは **必須機能** (= v2.1.6 までの minimal 倒れを防ぐ)。
+3 つの必須要素 (Goal / Constraints / AC) のいずれかが欠けている、 **もしくは grey zone な拡張要素が prompt に明示されていない** 場合、 **コードを 1 行も読まずに「## 確認質問」 を出してから plan.md 確定**。 Opus 4.8 は literal に指示を解釈するため (4.8 で literal-following は更に強化)、 暗黙の文脈に頼らない。 v3.0 で質問返しは **必須機能** (= v2.1.6 までの minimal 倒れを防ぐ)。
 
 ### Linear-sourced input (v1.2+)
 
@@ -114,7 +114,7 @@ Linear から得た Constraints が team-conventions.md と矛盾する場合、
 
 - **読む順序**: team conventions (下記参照) → 関連ファイル → 周辺ファイル
 - **書く前に質問**: 設計判断が必要な分岐があれば、ユーザーに選択肢を提示する
-- **scaffolding禁止**: `rules/4.7-native.md` の禁止フレーズを出力に書かない。4.7はそれらを冗長と判断する
+- **scaffolding禁止**: `rules/native-prompting.md` の禁止フレーズを出力に書かない。4.X はそれらを冗長と判断する
 - **task budget意識**: 50k tokens を目安、超えそうな場合は scope を分割提案
 
 ## Team conventions loading

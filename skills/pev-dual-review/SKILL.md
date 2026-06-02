@@ -116,7 +116,7 @@ Claude Code が 2つの Agent tool calls を同一メッセージ内で発射す
 
 | | Reviewer A | Reviewer B |
 |---|---|---|
-| model | `claude-opus-4-7` | `claude-sonnet-4-6` |
+| model | `claude-opus-4-8` | `claude-sonnet-4-6` |
 | effort | xhigh | high |
 | 強み | アーキ妥当性 / 設計違反 / 微妙な抽象化エラー | 実装の正しさ / edge cases / 機械的なミス |
 

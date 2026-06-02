@@ -2,19 +2,19 @@
 
 [![CI](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml)
 [![GitHub stars](https://img.shields.io/github/stars/myksyut/pev-harness?style=social)](https://github.com/myksyut/pev-harness/stargazers)
-![version](https://img.shields.io/badge/version-3.4.0-blue)
+![version](https://img.shields.io/badge/version-3.6.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![claude--code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5v2.1.111-purple)
 
-**A Claude Code plugin for Claude Opus 4.7 — (Triage →) Plan → Execute → Verify pipeline (v3.0+).**
+**A Claude Code plugin for Claude Opus 4.8 — (Triage →) Plan → Execute → Verify pipeline (v3.0+).**
 
 > ⭐ **If you find this useful, please [star the repo](https://github.com/myksyut/pev-harness/stargazers)** — it helps other Claude Code users discover the project.
 
 ## Why this exists
 
-Claude Opus 4.7 が出てから「step by step」「double-check」のような 4.6 時代の prompting scaffolding が **逆効果** になることが公式に明示された。一方 Claude Code 側にも `xhigh` effort / Auto Mode / Focus Mode / Task Budget など 4.7 native 機能が増えた。
+Claude Opus 4.7 以降「step by step」「double-check」のような 4.6 時代の prompting scaffolding が **逆効果** になることが公式に明示された (4.8 でも同方針、 むしろ literal instruction-following が強化された)。一方 Claude Code 側にも `xhigh` effort / Auto Mode / Focus Mode / Task Budget など 4.X native 機能が増えた。
 
-これらを前提に **ゼロベースで再設計** した結果が pev-harness。 既存のコーディングハーネスを4.7向けに改造するのではなく、4.7時代に**最初から書くなら何が必要か**を抜き出した。
+これらを前提に **ゼロベースで再設計** した結果が pev-harness。 既存のコーディングハーネスを 4.X 向けに改造するのではなく、4.X 時代に**最初から書くなら何が必要か**を抜き出した。
 
 ## What it does (v3.0+)
 
@@ -137,7 +137,7 @@ Acceptance Criteria: 成功の判定方法
 Files: 既知の関連パス (任意)
 ```
 
-不足要素があれば、planner はコードを1行も読まずに**まず質問返し**する。Opus 4.7 は literal instruction-following が強いので、暗黙の文脈には頼らない。
+不足要素があれば、planner はコードを1行も読まずに**まず質問返し**する。Opus 4.8 は literal instruction-following が強いので (4.8 で更に強化)、暗黙の文脈には頼らない。
 
 ## Components
 
@@ -147,7 +147,7 @@ Files: 既知の関連パス (任意)
 | **skills** (18) | pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, pev-test-design, pev-e2e-verify, pev-bootstrap-playwright, pev-bootstrap-project (v1.9), **pev-bootstrap-codex** (v2.0), **pev-external-reviewer** (v2.0), pev-linear-sync, linear-project-workflow, linear-project-tracker, **empirical-prompt-tuning** (v2.1) |
 | **commands** (9) | `/pev`, `/pev-plan`, `/pev-execute`, `/pev-verify`, `/pev-verify-e2e`, `/pev-status`, `/pev-init-e2e`, `/pev-init` (v1.9), **`/pev-init-codex`** (v2.0) |
 | **hooks** (3) | PreToolUse (destructive cmd block) / Stop (recap auto-append) / SessionStart (task resume) |
-| **rules** (3) | `pev-conventions.md` (Gate respect 等) / `4.7-native.md` (禁止フレーズリスト) / `error-patterns.md` (エラー推測 catalog) |
+| **rules** (3) | `pev-conventions.md` (Gate respect 等) / `native-prompting.md` (禁止フレーズリスト + 4.8 scoped-verify 例外) / `error-patterns.md` (エラー推測 catalog) |
 
 ## Documentation
 
@@ -165,7 +165,7 @@ Files: 既知の関連パス (任意)
 | | |
 |---|---|
 | **P1** | Single source of truth — 1 phase に 1 agent / 1 skill |
-| **P2** | 4.7-native — `xhigh` / adaptive thinking / task budget / auto mode 前提 |
+| **P2** | 4.X-native — `xhigh` / adaptive thinking / task budget / auto mode 前提 |
 | **P3** | No backwards compat — Claude Code v2.1.111+ 必須、4.6 以前と互換しない |
 | **P4** | Convention over configuration — settings.json デフォルトで動く |
 | **P5** | Hook-driven verification — 検証は prompt ではなく hook で強制 |

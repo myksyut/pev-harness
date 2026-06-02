@@ -1,6 +1,6 @@
 # pev-harness Specification
 
-Claude Opus 4.7時代のコーディングハーネス。 **v3.0 で「(Triage →) Plan → Execute → Verify」 pipeline に再設計**。 v2.x までの 3-phase 固定から、 Plan を on-demand 化 + 質問判定強化 + F1 Defensive default の scope 限定 で「user の頭の中の spec を引き出す」 を主要 value に再定義。 4.7 の native 機能 (xhigh effort, adaptive thinking, task budget, auto mode) を前提として設計する。
+Claude Opus 4.8 時代のコーディングハーネス。 **v3.0 で「(Triage →) Plan → Execute → Verify」 pipeline に再設計**。 v2.x までの 3-phase 固定から、 Plan を on-demand 化 + 質問判定強化 + F1 Defensive default の scope 限定 で「user の頭の中の spec を引き出す」 を主要 value に再定義。 4.X の native 機能 (xhigh effort, adaptive thinking, task budget, auto mode) を前提として設計する。
 
 - **対象**: チーム内共有
 - **配布**: Claude Code plugin単独
@@ -13,7 +13,7 @@ Claude Opus 4.7時代のコーディングハーネス。 **v3.0 で「(Triage �
 | # | 原則 | 反対パターン |
 |---|---|---|
 | **P1** | **Single source of truth** — 1 phaseに1 agent / 1 skill。重複させない | "continuous-learning" と "continuous-learning-v2" の並立 |
-| **P2** | **4.7-native** — xhigh / adaptive thinking / task budget / auto modeを前提 | 4.6以前のscaffolding (`"step by step"` 等) を **prompt 本文** に書く |
+| **P2** | **4.X-native** — xhigh / adaptive thinking / task budget / auto modeを前提 | 4.6以前のscaffolding (`"step by step"` 等) を **prompt 本文** に書く |
 | **P3** | **No backwards compat** — レガシー考慮ゼロ。Claude Code v2.1.111+ (社内検証で確認、 公式 1次情報での明示なし) | 新旧両対応の分岐コード |
 | **P4** | **Convention over configuration** — settings.jsonデフォルトで動く | 環境変数を10個要求するhook |
 | **P5** | **External verification mechanism** — 検証は agent prompt の自己宣言ではなく、 外部仕組み (hook / skill / test runner) で担保する | "verify before returning" を agent prompt に書く |
@@ -25,10 +25,12 @@ Claude Opus 4.7時代のコーディングハーネス。 **v3.0 で「(Triage �
 | 原則 | 1次情報根拠 | 補足 |
 |---|---|---|
 | P1 | 直接的記述なし、 PEV-harness 独自原則 | B1 の "more judicious about when to delegate to subagents" と矛盾しない |
-| P2 | xhigh (B1) / adaptive thinking (B1) / task budget (B3 ※Claude Code 非サポート) / auto mode (B4 Tip 1) | 「step-by-step を一切書かない」は **prompt 本文限定の社内規約**。 B1 は thinking hint としての "Think carefully and step-by-step" を実は許容している ([rules/4.7-native.md](./rules/4.7-native.md) §公式 1次情報との関係 参照) |
+| P2 | xhigh (B1) / adaptive thinking (B1) / task budget (B3 ※Claude Code 非サポート) / auto mode (B4 Tip 1) | 「step-by-step を一切書かない」は **prompt 本文限定の社内規約**。 B1 は thinking hint としての "Think carefully and step-by-step" を実は許容している ([rules/native-prompting.md](./rules/native-prompting.md) §公式 1次情報との関係 参照) |
 | P3 | 1次情報では具体的 version 番号の明示なし。 B1 「If you're an existing Claude Code user but you haven't manually set your effort level, you'll be upgraded to xhigh automatically」 が間接的根拠 | v2.1.111 は社内検証値 |
 | P4 | 直接的記述なし、 汎用設計原則 | — |
 | P5 | B1 「Include tests, screenshots, or expected outputs so Claude can check itself」、 B4 Tip 6 (`/go` skill) | 「hook で強制」は PEV-harness の実装選択 (ADR-005)、 原則レベルでは「外部 verification mechanism」 |
+
+> **(v3.6.0 追記) Opus 4.8 での再評価**: B1-B5 は 4.7 期に確立した根拠。 Opus 4.8 リリース時の公式 prompting guidance ([What's new in Claude Opus 4.8](https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-8) / [Prompting best practices](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices)) を調査した結果、 P2 anti-scaffolding の核は 4.8 でも支持され (literal-following 強化でむしろ重要度増)、 ただし scoped self-verify は公式推奨のため [rules/native-prompting.md](./rules/native-prompting.md) に許容例外を追記した。 effort default は 4.7=xhigh → 4.8=high に低下したが、 settings.json は xhigh を明示 pin するため挙動は不変。
 
 ---
 
@@ -41,7 +43,7 @@ Claude Opus 4.7時代のコーディングハーネス。 **v3.0 で「(Triage �
                           ▼
         ┌─────────────────────────────────────┐
         │  PHASE 1: PLAN                       │
-        │  agent: planner   model: opus-4-7    │
+        │  agent: planner   model: opus-4-8    │
         │  effort: xhigh    budget: 50k tokens │
         │  output: artifacts/plan.md           │
         └────────────┬────────────────────────┘
@@ -104,7 +106,7 @@ pev-harness/
 │   └── hooks.json                         # 3 hook
 ├── rules/
 │   ├── pev-conventions.md
-│   ├── 4.7-native.md
+│   ├── native-prompting.md
 │   └── error-patterns.md
 ├── guide/                                  # 開発者向け internal doc
 │   ├── CHECKLIST.md
@@ -177,7 +179,7 @@ agent `agents/verifier.md`：
   3. Acceptance Criteria を1つずつ ✅/❌ チェック
   4. `artifacts/verify.json` に書き出し
   5. FAIL あれば planner に diff + 失敗内容を渡してリトライ (**最大3回 = 経験則、 1次情報根拠なし**)
-- `--strict` モード: `pev-dual-review` skill が起動し、Reviewer A=Opus 4.7、Reviewer B=Sonnet 4.6 を並列実行
+- `--strict` モード: `pev-dual-review` skill が起動し、Reviewer A=Opus 4.8、Reviewer B=Sonnet 4.6 を並列実行
 
 ### Phase Gates
 
@@ -234,7 +236,7 @@ agent `agents/verifier.md`：
 
 ```json
 {
-  "model": "claude-opus-4-7",
+  "model": "claude-opus-4-8",
   "effortLevel": "xhigh",
   "permissions": {
     "defaultMode": "default"
@@ -424,7 +426,8 @@ v2.0 の codex reviewer 統合に対し、 v3.5.0 で codex を **Execute phase 
 | **v3.3.3** | **F_v17_2/3 patch (Gate L degraded 条件 + gitBranchName pin)** | pev-linear-sync に branch field=`gitBranchName` (save_issue 戻り値) を pin / Gate L degraded mode 条件に「configured but unauthed」 「headless OAuth 不可」 を追加。 harness-effect-v17 で実 Linear write path を ground-truth 検証 | ✅ released |
 | **v3.4.0** | **Linear issue / project の命名規則 + template 正式化** | `linear-issue-workflow` skill 新設 (gap 解消、 命名規則=How、 template 6 section) / `linear-project-workflow` に title 命名規則 (Who wants What, Why) 追加 / pev-linear-sync Direction 1.5 を template 整合 | ✅ released |
 | **v3.5.0** | **Codex executor mode (実装を Codex CLI に委譲)** | `pev-external-executor` skill 新設 + `codex-executor-output` schema / `executor.md` に Codex delegation mode (wrapper flow) / `--executor-mode` flag + `PEV_EXECUTOR_MODE` env / `pev-bootstrap-codex` を reviewer + executor 両用に拡張 / ADR-009 | ✅ released |
-| v3.6+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 (reviewer + executor) | (TBD) | — |
+| **v3.6.0** | **Opus 4.8 native 化** | settings model pin / manifest を 4.8 へ / `rules/4.7-native.md` → `native-prompting.md` (version 中立名) + 設計原則 P2 `4.X-native` / scoped self-verify 例外明文化 / version 文字列の 4.8 化。 5 角度 Web リサーチ + 影響マトリクス根拠 | ✅ released |
+| v3.7+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 (reviewer + executor) / Claude Code v2.1.154+ 必須化 (一次裏取り後) / pev-focus-mode の 4.8 現存性確認 | (TBD) | — |
 
 ---
 

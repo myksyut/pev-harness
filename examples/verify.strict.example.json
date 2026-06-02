@@ -38,7 +38,7 @@
   ],
   "reviewer_a": {
     "reviewer": "A",
-    "model": "claude-opus-4-7",
+    "model": "claude-opus-4-8",
     "effort": "xhigh",
     "verdict": "FAIL",
     "checks": [
