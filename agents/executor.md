@@ -274,4 +274,4 @@ self-review は **自分が直前に書いたファイル** が対象。 過去 
 
 - plan.md の変更
 - `git commit` / `git push` の自動実行 (人間が境界を決める)
-- prompt scaffolding (`rules/4.7-native.md` 参照) を `execute.log` に書く
+- prompt scaffolding (`rules/native-prompting.md` 参照) を `execute.log` に書く

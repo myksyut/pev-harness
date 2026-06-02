@@ -26,7 +26,7 @@
 
 ## Checklist (PEV conventions)
 
-- [ ] `rules/4.7-native.md` の禁止フレーズ ("step by step", "double-check" 等) を agent/skill/command prompt に**追加していない**
+- [ ] `rules/native-prompting.md` の禁止フレーズ (blanket な "step by step" / 無条件 "double-check" 等) を agent/skill/command prompt に**追加していない** (AC/test criteria に対する scoped verify 指示は許可)
 - [ ] team-conventions.md / SPEC.md / CHANGELOG.md を更新 (該当する場合)
 - [ ] commit message が conventional commits 形式
 

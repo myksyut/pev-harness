@@ -5,7 +5,7 @@
 ## 哲学
 
 - **ミニマル維持**: 新しい agent / skill / command の追加は慎重に
-- **4.7-native**: 4.6時代のscaffolding (`step by step`, `double-check`等) を絶対書かない
+- **4.X-native**: 4.6時代のscaffolding (`step by step`, blanket な `double-check`等) を絶対書かない (AC/test criteria に対する scoped verify は可)
 - **設計判断は ADR**: SPEC.md Section 12 に追記
 
 ## Branch / Commit ポリシー
@@ -31,7 +31,7 @@ tools: <カンマ区切り>
 
 - `model` 指定は必須 (短縮形 `opus` / `sonnet` でOK、Claude Codeが最新版に解決)
 - `tools` は必要最小限のみ
-- prompt部に**禁止フレーズ**を含めない (`rules/4.7-native.md` 参照)
+- prompt部に**禁止フレーズ**を含めない (`rules/native-prompting.md` 参照)
 
 ### 新しい skill
 

@@ -69,7 +69,7 @@ jobs:
               --exclude-dir=skill-creator \
               --exclude-dir=frontend-design \
               "$FORBIDDEN" agents/ skills/ commands/ 2>/dev/null; then
-            echo "ERROR: Found 4.6-style scaffolding phrases. See rules/4.7-native.md for replacements."
+            echo "ERROR: Found 4.6-style scaffolding phrases. See rules/native-prompting.md for replacements."
             exit 1
           fi
           echo "No forbidden scaffolding found in prompts"

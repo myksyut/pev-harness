@@ -29,7 +29,7 @@ PEV pipeline には以下の Gate / decision point がある:
 - 結論を先に書く、根拠は後
 - リスト形式を優先、長い散文を避ける
 
-## 2. 4.7-native (4.6スタイルの禁止事項)
+## 2. 4.X-native (4.6スタイルの禁止事項)
 
 以下のフレーズを **agent / skill のpromptに絶対に書かない**:
 
@@ -44,9 +44,9 @@ PEV pipeline には以下の Gate / decision point がある:
 - "You are an expert ..."
 - "You are a senior ..."
 
-理由: Opus 4.7 は adaptive thinking で自動的にこれらを実施する。明示すると逆に冗長な scaffolding として解釈され、出力品質が下がる。
+理由: Opus 4.X は adaptive thinking で自動的にこれらを実施する。明示すると逆に冗長な scaffolding として解釈され、出力品質が下がる。
 
-詳細は `rules/4.7-native.md` 参照。
+詳細は `rules/native-prompting.md` 参照 (4.8 で許容される scoped self-verify の例外も同ファイル)。
 
 ## 3. ファイル境界
 
@@ -76,7 +76,7 @@ PEV pipeline には以下の Gate / decision point がある:
 
 - agent / skill / command のドキュメントは英日混在OK
 - 出力 (plan.md, recap.log等) は user の言語に合わせる
-- code内のコメントは原則書かない (rules/4.7-native.md参照)
+- code内のコメントは原則書かない (rules/native-prompting.md参照)
 
 ## 7. team-conventions.md の優先順位
 
