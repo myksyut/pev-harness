@@ -166,7 +166,7 @@ agent `agents/executor.md`：
 - 並列化: 公式 B1 「Spawn multiple subagents in the same turn when fanning out across items or reading multiple files」 に準拠。 **default は直列 1**、 fan-out / independent items が plan.md に明示されている時のみ並列 (上限 3 = `PEV_PARALLEL_EXECUTOR_MAX`、 ADR-004)
 - DRY self-review (v2.1.6+): 同関数の再実装 / loop pattern 重複 / dead import / dead branch / dead comment を実装直後に self-check
 - Subagent memory: `~/.claude/pev/{task_id}/executor-{N}.md`
-- **Codex delegation mode (v3.5.0+)**: `PEV_EXECUTOR_MODE=codex` の時、 実 file 編集を OpenAI Codex CLI に委譲。 executor agent は wrapper として残り、 `execute.log` / DRY self-review / judgment trace / Mode B Self-Clarify を担当。 codex 未 setup / 未認証 / timeout 時は Claude native 実装に自動 degrade。 Mode A/B (= 入力軸) と直交し 4 通り成立。 詳細は `skills/pev-external-executor/SKILL.md` + ADR-009。 **v3.7.0 候補で本 mode を default 化** (settings.json `PEV_EXECUTOR_MODE` default = `codex`、 未 setup は claude degrade)
+- **Codex delegation mode (v3.5.0+)**: `PEV_EXECUTOR_MODE=codex` の時、 実 file 編集を OpenAI Codex CLI に委譲。 executor agent は wrapper として残り、 `execute.log` / DRY self-review / judgment trace / Mode B Self-Clarify を担当。 codex 未 setup / 未認証 / timeout 時は Claude native 実装に自動 degrade。 Mode A/B (= 入力軸) と直交し 4 通り成立。 詳細は `skills/pev-external-executor/SKILL.md` + ADR-009。 **v3.7.0 で本 mode を default 化** (settings.json `PEV_EXECUTOR_MODE` default = `codex`、 未 setup は claude degrade)
 
 ### Phase 3: Verify
 
@@ -427,7 +427,8 @@ v2.0 の codex reviewer 統合に対し、 v3.5.0 で codex を **Execute phase 
 | **v3.4.0** | **Linear issue / project の命名規則 + template 正式化** | `linear-issue-workflow` skill 新設 (gap 解消、 命名規則=How、 template 6 section) / `linear-project-workflow` に title 命名規則 (Who wants What, Why) 追加 / pev-linear-sync Direction 1.5 を template 整合 | ✅ released |
 | **v3.5.0** | **Codex executor mode (実装を Codex CLI に委譲)** | `pev-external-executor` skill 新設 + `codex-executor-output` schema / `executor.md` に Codex delegation mode (wrapper flow) / `--executor-mode` flag + `PEV_EXECUTOR_MODE` env / `pev-bootstrap-codex` を reviewer + executor 両用に拡張 / ADR-009 | ✅ released |
 | **v3.6.0** | **Opus 4.8 native 化** | settings model pin / manifest を 4.8 へ / `rules/4.7-native.md` → `native-prompting.md` (version 中立名) + 設計原則 P2 `4.X-native` / scoped self-verify 例外明文化 / version 文字列の 4.8 化。 5 角度 Web リサーチ + 影響マトリクス根拠 | ✅ released |
-| v3.7+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 (reviewer + executor) / Claude Code v2.1.154+ 必須化 (一次裏取り後) / pev-focus-mode の 4.8 現存性確認 | (TBD) | — |
+| **v3.7.0** | **Execute phase default を codex に正式化** | settings.json PEV_EXECUTOR_MODE default = codex / pev.md fallback (:-codex) / 関連 doc (pev.md / pev-execute.md / executor.md / pev-external-executor / SPEC §4) + ONBOARDING データ送信ポリシー追記。 codex 未 setup は claude に自動 degrade | ✅ released |
+| v3.8+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 (reviewer + executor) / Claude Code v2.1.154+ 必須化 (一次裏取り後) / pev-focus-mode の 4.8 現存性確認 | (TBD) | — |
 
 ---
 

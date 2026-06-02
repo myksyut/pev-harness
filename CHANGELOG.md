@@ -7,15 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed (committed, not yet released)
-
-- **Execute phase の default executor を `claude` → `codex` に変更** (`settings.json` `PEV_EXECUTOR_MODE`)。 codex setup 済環境では Execute phase が既定で OpenAI Codex CLI に委譲され (= 編集対象 file が OpenAI に送信される)、 codex 未 setup / 未認証は自動で Claude native に degrade (graceful fallback)。 `--executor-mode=claude` / `PEV_EXECUTOR_MODE=claude` で override 可。 `commands/pev.md` の fallback (`:-codex`) + 関連 doc (pev.md / pev-execute.md / executor.md / pev-external-executor / SPEC §4) を追従。 次 minor (v3.7.0 候補) で正式 release 予定
-
-### Planned for v3.7+
+### Planned for v3.8+
 - verifier 側で self-clarify 漏れ検出 (= execute.log の self-clarify check 記録の有無を verify、 2 段階防御)
 - Mode B verify protocol の skill 化
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
+
+## [3.7.0] - 2026-06-02
+
+**Execute phase の default executor を codex に正式化**。 v3.5.0 で opt-in 追加した codex executor mode を、 v3.7.0 で **shipped default** に変更 (`settings.json` `PEV_EXECUTOR_MODE` default = `codex`)。 codex setup 済環境では Execute phase が既定で OpenAI Codex CLI に委譲され、 codex 未 setup / 未認証は Claude native に自動 degrade (graceful fallback)。 既存挙動からの差分は **default のみ** で、 `--executor-mode=claude` / `PEV_EXECUTOR_MODE=claude` で従来の Claude native 実装に戻せる。
+
+### Changed
+
+- **`settings.json`**: `PEV_EXECUTOR_MODE` `claude` → `codex` (shipped default)
+- **`commands/pev.md`**: executor mode 解決 fallback `:-claude` → `:-codex`、 usage / フロー / Executor mode 節 / 優先順の default 記述を反転 (claude を override として明記)
+- **`commands/pev-execute.md` / `agents/executor.md` / `skills/pev-external-executor/SKILL.md` / `SPEC.md` §4**: default = codex に追従、 claude は override 表記
+- **`ONBOARDING.md`**: §1.5 Codex CLI section にデータ送信ポリシーを明記 (Execute phase の編集対象 file が既定で OpenAI に送信される / 無効化は `PEV_EXECUTOR_MODE=claude`)
+- **version 3.7.0 同期** (`plugin.json` / `marketplace.json` / README badge)
+
+### Notes
+
+- データ送信を避けたい team は install 後に `.claude/settings.local.json` で `PEV_EXECUTOR_MODE=claude` を設定。 codex 未 setup 環境は無変更 (自動 degrade)
+- breaking change なし。 Mode A/B (= 入力軸) や reviewer mode とは直交
 
 ## [3.6.0] - 2026-06-02
 

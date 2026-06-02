@@ -124,7 +124,7 @@ Linear 連携を使わないチームは skip 可。 install しないまま `/p
 
 `/pev-init-e2e` 実行時に `pev-bootstrap-playwright` skill が project の `.mcp.json` を auto 生成 (`examples/sample-project/.mcp.json` 参照)。 個人 install は不要、 project ごとの setup。
 
-### Codex CLI (`--reviewer dual-codex` を使う場合)
+### Codex CLI (Execute phase の default executor / `--reviewer dual-codex` で使う場合)
 
 ```bash
 brew install openai/tap/codex
@@ -132,6 +132,8 @@ codex auth login
 ```
 
 `/pev-init-codex` で project 側の wire-up 完了。 個人ごとに 1 回 `codex auth login` が必要。
+
+> **⚠️ データ送信ポリシー (v3.7.0+, Execute phase default = `codex`)**: v3.7.0 で **Execute phase の default executor が `codex` になりました**。 codex を setup 済の環境では、 実装時に **編集対象 file の内容が OpenAI (Codex) に送信される** のが既定挙動です (Claude 経由でも同様の送信は発生しますが、 team policy で「OpenAI への送信は禁止」 のケースあり)。 OpenAI への送信を避けたい場合は `.claude/settings.local.json` の env に `PEV_EXECUTOR_MODE=claude` を設定するか、 `/pev <task> --executor-mode=claude` で都度 override してください。 codex 未 setup の環境は自動で Claude native 実装に degrade します (= 何もしなければ従来どおり)。
 
 ## 2. プロジェクトへの導入
 
