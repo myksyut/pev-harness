@@ -16,7 +16,7 @@
 
 各メンバーごとに確認:
 
-- [ ] Claude Code ≥ v2.1.154 がインストール済み (`claude --version`)
+- [ ] Claude Code ≥ v2.1.156 がインストール済み (`claude --version`)
 - [ ] GitHub アカウントが `myksyut/pev-harness` への access ありcollaborator追加済み
 - [ ] `~/.claude/plugins/repos/myksyut/pev-harness` に clone or `--plugin-dir` で session 起動できる
 - [ ] `/pev-harness:pev` がコマンド一覧に出る (`/help` で確認)

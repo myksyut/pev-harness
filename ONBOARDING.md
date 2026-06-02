@@ -7,7 +7,7 @@
 導入前に以下を確認:
 
 ```bash
-# Claude Code のバージョン (≥ v2.1.154 必須 — Opus 4.8 pin のため)
+# Claude Code のバージョン (≥ v2.1.156 必須 — Opus 4.8 pin + <2.1.156 の tool-use bug 回避)
 claude --version
 
 # pev-harness のリポジトリへアクセスできるか (private repo)

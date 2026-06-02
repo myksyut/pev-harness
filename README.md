@@ -2,9 +2,9 @@
 
 [![CI](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml)
 [![GitHub stars](https://img.shields.io/github/stars/myksyut/pev-harness?style=social)](https://github.com/myksyut/pev-harness/stargazers)
-![version](https://img.shields.io/badge/version-3.7.1-blue)
+![version](https://img.shields.io/badge/version-3.7.2-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
-![claude--code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5v2.1.154-purple)
+![claude--code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5v2.1.156-purple)
 
 **A Claude Code plugin for Claude Opus 4.8 — (Triage →) Plan → Execute → Verify pipeline (v3.0+).**
 
@@ -166,7 +166,7 @@ Files: 既知の関連パス (任意)
 |---|---|
 | **P1** | Single source of truth — 1 phase に 1 agent / 1 skill |
 | **P2** | 4.X-native — `xhigh` / adaptive thinking / task budget / auto mode 前提 |
-| **P3** | No backwards compat — Claude Code v2.1.154+ 必須 (Opus 4.8 pin)、4.6 以前と互換しない |
+| **P3** | No backwards compat — Claude Code v2.1.156+ 必須 (Opus 4.8 pin + <2.1.156 の tool-use bug 回避)、4.6 以前と互換しない |
 | **P4** | Convention over configuration — settings.json デフォルトで動く |
 | **P5** | Hook-driven verification — 検証は prompt ではなく hook で強制 |
 

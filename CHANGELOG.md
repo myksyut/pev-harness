@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
 
+## [3.7.2] - 2026-06-02
+
+**必須 Claude Code version を v2.1.156 に格上げ**。 v3.7.1 で floor を v2.1.154 (Opus 4.8 の認識最小) にしたが、 一次ソースで **v2.1.154〜155 + Opus 4.8 は通常の tool 使用で 400 エラーになる既知バグ** を確認 (v2.1.156 で修正済)。 harness は全 agent が tool-use 前提のため、 実用 floor を v2.1.156 に格上げ。
+
+### Verified via primary source
+
+- [code.claude.com/docs/en/errors](https://code.claude.com/docs/en/errors) (Tool use or thinking block mismatch): 「**Versions before v2.1.156 can trigger this error during normal tool use, and `/rewind` does not clear it**」 (Opus 4.7 / 4.8 対象)
+- `anthropics/claude-code` CHANGELOG **v2.1.156**: 「Fixed an issue when using Opus 4.8 where thinking blocks were modified, leading to API errors」
+
+### Changed
+
+- **`.claude-plugin/plugin.json`**: `compatibility.claudeCode` `>=2.1.154` → `>=2.1.156`
+- README badge + 設計原則 P3 / ONBOARDING §0 / ROLLOUT-CHECKLIST / CLAUDE.md §9 / SPEC P3 + §1 1次情報表 + §11 roadmap を v2.1.156 へ
+- version 3.7.2 同期 (plugin.json / marketplace.json / README badge)
+
+### Notes
+
+- docs に 2 段の区別を保持: **v2.1.154** = Opus 4.8 が認識される最小 / **v2.1.156** = tool-use が健全に動く最小 (= tool-heavy な harness の実 floor)
+- v3.7.1 (v2.1.154 floor) は本 patch で上書き
+
 ## [3.7.1] - 2026-06-02
 
 **Claude Code 必須 version を v2.1.154 に bump**。 v3.6.0 で `settings.json` の model を `claude-opus-4-8` に pin したため、 harness を shipped 状態で動かすには Opus 4.8 をサポートする Claude Code v2.1.154+ が実質必須 (= 現 compat `>=2.1.111` と不整合だった)。 v3.6.0 で「二次ソース止まり」 として保留していた v2.1.154 を **一次ソースで確定**し、 compat を実態に合わせた (設計原則 P3 No backwards compat とも整合)。

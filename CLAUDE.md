@@ -286,7 +286,7 @@ rm -rf artifacts/ playwright-report/ test-results/
 - 言語別 patterns (python-patterns 等) の bundle
 - 自動 fmt / lint helper
 - 50+ agents の追加 (ミニマル原則違反)
-- 後方互換性 (Claude Code v2.1.154+ 必須 = Opus 4.8 pin のため、 4.6 互換しない)
+- 後方互換性 (Claude Code v2.1.156+ 必須 = Opus 4.8 pin + <2.1.156 の tool-use bug 回避のため、 4.6 互換しない)
 - カスタム Node.js ヘルパー (plugin 単独で完結)
 
 ## 10. 開発者の心構え (これまでのセッションで確立)

@@ -14,7 +14,7 @@ Claude Opus 4.8 時代のコーディングハーネス。 **v3.0 で「(Triage 
 |---|---|---|
 | **P1** | **Single source of truth** — 1 phaseに1 agent / 1 skill。重複させない | "continuous-learning" と "continuous-learning-v2" の並立 |
 | **P2** | **4.X-native** — xhigh / adaptive thinking / task budget / auto modeを前提 | 4.6以前のscaffolding (`"step by step"` 等) を **prompt 本文** に書く |
-| **P3** | **No backwards compat** — レガシー考慮ゼロ。Claude Code v2.1.154+ 必須 (Opus 4.8 pin のため、 一次ソース確定) | 新旧両対応の分岐コード |
+| **P3** | **No backwards compat** — レガシー考慮ゼロ。Claude Code v2.1.156+ 必須 (Opus 4.8 pin + <2.1.156 の tool-use 400 bug 回避、 一次ソース確定) | 新旧両対応の分岐コード |
 | **P4** | **Convention over configuration** — settings.jsonデフォルトで動く | 環境変数を10個要求するhook |
 | **P5** | **External verification mechanism** — 検証は agent prompt の自己宣言ではなく、 外部仕組み (hook / skill / test runner) で担保する | "verify before returning" を agent prompt に書く |
 
@@ -26,7 +26,7 @@ Claude Opus 4.8 時代のコーディングハーネス。 **v3.0 で「(Triage 
 |---|---|---|
 | P1 | 直接的記述なし、 PEV-harness 独自原則 | B1 の "more judicious about when to delegate to subagents" と矛盾しない |
 | P2 | xhigh (B1) / adaptive thinking (B1) / task budget (B3 ※Claude Code 非サポート) / auto mode (B4 Tip 1) | 「step-by-step を一切書かない」は **prompt 本文限定の社内規約**。 B1 は thinking hint としての "Think carefully and step-by-step" を実は許容している ([rules/native-prompting.md](./rules/native-prompting.md) §公式 1次情報との関係 参照) |
-| P3 | **一次ソースで確定** ([code.claude.com/docs/en/errors](https://code.claude.com/docs/en/errors)): 「Opus 4.7 needs v2.1.111 or later. Opus 4.8 needs v2.1.154 or later」。 Dynamic Workflows も v2.1.154+ ([workflows docs](https://code.claude.com/docs/en/workflows)) | harness は Opus 4.8 pin のため floor は **v2.1.154** (v3.7.1 で bump、 v3.6.0 までは 社内検証値 v2.1.111) |
+| P3 | **一次ソースで確定** ([errors](https://code.claude.com/docs/en/errors)): 「Opus 4.8 needs v2.1.154 or later」、 ただし「Versions before v2.1.156 can trigger [400] error during normal tool use」 (CHANGELOG v2.1.156 で fix)。 Dynamic Workflows も v2.1.154+ ([workflows](https://code.claude.com/docs/en/workflows)) | 2 段: **v2.1.154** = Opus 4.8 認識最小 / **v2.1.156** = tool-use 健全最小。 tool-heavy な harness の floor は **v2.1.156** (v3.7.2、 v3.6.0 までは 社内検証値 v2.1.111) |
 | P4 | 直接的記述なし、 汎用設計原則 | — |
 | P5 | B1 「Include tests, screenshots, or expected outputs so Claude can check itself」、 B4 Tip 6 (`/go` skill) | 「hook で強制」は PEV-harness の実装選択 (ADR-005)、 原則レベルでは「外部 verification mechanism」 |
 
@@ -429,6 +429,7 @@ v2.0 の codex reviewer 統合に対し、 v3.5.0 で codex を **Execute phase 
 | **v3.6.0** | **Opus 4.8 native 化** | settings model pin / manifest を 4.8 へ / `rules/4.7-native.md` → `native-prompting.md` (version 中立名) + 設計原則 P2 `4.X-native` / scoped self-verify 例外明文化 / version 文字列の 4.8 化。 5 角度 Web リサーチ + 影響マトリクス根拠 | ✅ released |
 | **v3.7.0** | **Execute phase default を codex に正式化** | settings.json PEV_EXECUTOR_MODE default = codex / pev.md fallback (:-codex) / 関連 doc (pev.md / pev-execute.md / executor.md / pev-external-executor / SPEC §4) + ONBOARDING データ送信ポリシー追記。 codex 未 setup は claude に自動 degrade | ✅ released |
 | **v3.7.1** | **Claude Code 必須 version を v2.1.154 に bump** | 一次裏取り (code.claude.com/docs/en/errors 「Opus 4.8 needs v2.1.154 or later」 + workflows doc 「require v2.1.154 or later」) で確定、 Opus 4.8 pin と compat の不整合を解消。 plugin.json compat / README badge / ONBOARDING / ROLLOUT / CLAUDE.md / SPEC P3 注記を更新 | ✅ released |
+| **v3.7.2** | **必須 version を v2.1.156 に格上げ** | <2.1.156 + Opus 4.8 は通常 tool 使用で 400 (errors page 「Versions before v2.1.156 can trigger this error during normal tool use」、 CHANGELOG v2.1.156 で fix)。 tool-heavy な harness の実 floor として compat / badge / docs を v2.1.156 へ | ✅ released |
 | v3.8+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 (reviewer + executor) / pev-focus-mode の 4.8 現存性確認 | (TBD) | — |
 
 ---
