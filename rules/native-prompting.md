@@ -102,7 +102,6 @@ Verify the diff against each acceptance criterion in plan.md.
 
 なお verifier agent の検証は依然 hook 駆動が原則 (本ファイル「検証の代わりに hook」 参照)。 本例外は「agent prompt 内に書いてよい verify 指示の形」 を緩めるものであって、 検証を prompt 自己宣言に戻すものではない。
 
-
 ## 公式 1次情報との関係 (v2.1.2 追記)
 
 Anthropic 公式 [Best practices for Claude Opus 4.7 with Claude Code (B1, 2026-04-16)](https://claude.com/blog/best-practices-for-using-claude-opus-4-7-with-claude-code) は実は **adaptive thinking の制御 hint としての "step-by-step" を許容している**:
