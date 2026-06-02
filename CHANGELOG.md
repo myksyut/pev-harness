@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
 
+## [3.7.1] - 2026-06-02
+
+**Claude Code 必須 version を v2.1.154 に bump**。 v3.6.0 で `settings.json` の model を `claude-opus-4-8` に pin したため、 harness を shipped 状態で動かすには Opus 4.8 をサポートする Claude Code v2.1.154+ が実質必須 (= 現 compat `>=2.1.111` と不整合だった)。 v3.6.0 で「二次ソース止まり」 として保留していた v2.1.154 を **一次ソースで確定**し、 compat を実態に合わせた (設計原則 P3 No backwards compat とも整合)。
+
+### Verified via primary source
+
+- **Opus 4.8 → v2.1.154+**: [code.claude.com/docs/en/errors](https://code.claude.com/docs/en/errors) 「Opus 4.7 needs v2.1.111 or later. Opus 4.8 needs v2.1.154 or later」
+- **Dynamic Workflows → v2.1.154+**: [code.claude.com/docs/en/workflows](https://code.claude.com/docs/en/workflows) 「Dynamic workflows are in research preview. They require Claude Code v2.1.154 or later」
+- 両機能は `anthropics/claude-code` CHANGELOG/release **v2.1.154** で同時 debut (「Opus 4.8 is here!」 + 「Introducing dynamic workflows」)。 4 角度の一次ソース probe で相互照合 (二次ソース不使用)
+
+### Changed
+
+- **`.claude-plugin/plugin.json`**: `compatibility.claudeCode` `>=2.1.111` → `>=2.1.154`
+- **`README.md`** (Claude Code badge + 設計原則 P3) / **`ONBOARDING.md`** (§0 pre-flight) / **`guide/ROLLOUT-CHECKLIST.md`** / **`CLAUDE.md`** §9: 必須 version を v2.1.154 へ
+- **`SPEC.md`**: P3 + §1 1次情報根拠表の「社内検証値・公式明示なし」 を一次ソース ([code.claude.com/docs/en/errors](https://code.claude.com/docs/en/errors)) 付きに訂正、 §11 roadmap に v3.7.1 行追加
+- version 3.7.1 同期 (plugin.json / marketplace.json / README badge)
+
+### Notes
+
+- v2.1.111〜153 + Opus 4.7 で使いたい場合は `settings.json` の model を `opus` alias に変更すれば動くが、 shipped default は 4.8-native pin を維持
+- 安定運用は v2.1.156+ 推奨 (v2.1.154〜158 に既知の streaming/tool-use regression、 公式 error reference 言及)
+
 ## [3.7.0] - 2026-06-02
 
 **Execute phase の default executor を codex に正式化**。 v3.5.0 で opt-in 追加した codex executor mode を、 v3.7.0 で **shipped default** に変更 (`settings.json` `PEV_EXECUTOR_MODE` default = `codex`)。 codex setup 済環境では Execute phase が既定で OpenAI Codex CLI に委譲され、 codex 未 setup / 未認証は Claude native に自動 degrade (graceful fallback)。 既存挙動からの差分は **default のみ** で、 `--executor-mode=claude` / `PEV_EXECUTOR_MODE=claude` で従来の Claude native 実装に戻せる。
