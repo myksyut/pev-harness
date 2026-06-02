@@ -72,7 +72,7 @@ Mode B (= plan-less) 実装中に executor が `artifacts/clarification.md` を�
 - このコマンドは git commit を打たない (人間が境界を決める)
 - `--strict` フラグはここでは無視 (Verify phase のみで効く)
 - `--use-defaults` flag (v3.2.0+): Mode B clarification.md の「default 案」 を採用して再 invoke
-- `--executor-mode=codex|claude` flag (v3.5.0+): 実装担当を切り替える。 優先順は flag > `PEV_EXECUTOR_MODE` env > settings default (`claude`)。 詳細は `skills/pev-external-executor/SKILL.md`
+- `--executor-mode=codex|claude` flag (v3.5.0+): 実装担当を切り替える。 優先順は flag > `PEV_EXECUTOR_MODE` env > settings default (`codex`)。 詳細は `skills/pev-external-executor/SKILL.md`
 
 ## Implementation note
 

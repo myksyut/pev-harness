@@ -18,8 +18,8 @@ PEV harnessのメインコマンド。Plan → Execute → Verify を順に実�
 /pev <task> --no-e2e                 # E2E verify を強制 skip (v1.4+)
 /pev <task> --force-auto             # permissionMode default でも Gate A を skip して Phase 2/3 自動進行 (v1.6+)
 /pev <task> --expect-fail            # FAIL 想定タスク (dog food fixture / regression)、 retry loop を skip して即 escalate path (v1.8+)
-/pev <task> --executor-mode=codex    # Execute phase の実 file 編集を OpenAI Codex CLI に委譲 (v3.5.0+)
-/pev <task> --executor-mode=claude   # Execute phase を Claude executor で実行 (= default、 env 上書き用)
+/pev <task> --executor-mode=codex    # Execute phase を OpenAI Codex CLI に委譲 (= default、 v3.5.0+)
+/pev <task> --executor-mode=claude   # Execute phase を Claude executor で実行 (= codex default の override)
 ```
 
 ## Linear URL 検出 (v1.2 で追加)
@@ -48,7 +48,7 @@ Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済み�
 6. **Phase 2 (Execute)**: executor agent → コード変更 + `artifacts/execute.log`
    - plan.md があれば計画ベース、 なければ task description + cwd context ベース
    - Gate L で branch checkout 済みなら Linear 発行 branch 上で実装
-   - **executor mode (v3.5.0+)**: `PEV_EXECUTOR_MODE=codex` or `--executor-mode=codex` の場合、 実 file 編集を Codex CLI に委譲 (executor agent は wrapper として execute.log / DRY review を担当)。 default は `claude`
+   - **executor mode (v3.5.0+)**: default は `codex` (Execute phase の実 file 編集を Codex CLI に委譲、 executor agent は wrapper として execute.log / DRY review を担当)。 `--executor-mode=claude` / `PEV_EXECUTOR_MODE=claude` で Claude native に override。 codex 未 setup 時は claude に自動 degrade
 7. **Gate B**: Stop hook が verifier を促す
 8. **Phase 3 (Verify)**: verifier agent (`--strict` 時は `pev-dual-review`) → `artifacts/verify.json`
 9. **Retry Gate**: PASS → 完了 / FAIL → planner (もしくは Triage) に戻る (max 3回)
@@ -63,9 +63,9 @@ Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済み�
 
 `--executor-mode` は Phase 2 (Execute) の実装担当を切り替える。 Triage / Plan の flow には影響しない (= flow override とは独立の軸):
 
-- `--executor-mode=codex`: 実 file 編集を OpenAI Codex CLI に委譲。 executor agent は wrapper として残り、 `execute.log` / DRY self-review / judgment trace / Mode B Self-Clarify を担当
-- `--executor-mode=claude` (default): Claude executor agent が native に実装
-- 優先順: `--executor-mode` flag > `PEV_EXECUTOR_MODE` env var > settings.json default (`claude`)
+- `--executor-mode=codex` (default): 実 file 編集を OpenAI Codex CLI に委譲。 executor agent は wrapper として残り、 `execute.log` / DRY self-review / judgment trace / Mode B Self-Clarify を担当
+- `--executor-mode=claude`: Claude executor agent が native に実装 (= codex default の override)
+- 優先順: `--executor-mode` flag > `PEV_EXECUTOR_MODE` env var > settings.json default (`codex`)
 - codex CLI が未 setup / 未認証の場合、 自動で Claude native 実装に degrade (= graceful fallback)。 setup は `/pev-init-codex`
 - `--parallel` と併用された場合、 codex mode が優先 (codex は 1 invocation で複数 file 編集可、 並列 subprocess 化しない)
 
@@ -262,9 +262,9 @@ executor agent (model: sonnet, effort: high) を起動 (`--parallel` 時は最�
 **executor mode 解決 (v3.5.0+)**:
 
 ```bash
-# --executor-mode flag > PEV_EXECUTOR_MODE env > settings default (claude)
+# --executor-mode flag > PEV_EXECUTOR_MODE env > settings default (codex)
 EXECUTOR_MODE=$(echo "$*" | grep -oE -- '--executor-mode=[a-z]+' | head -1 | cut -d= -f2)
-EXECUTOR_MODE=${EXECUTOR_MODE:-${PEV_EXECUTOR_MODE:-claude}}
+EXECUTOR_MODE=${EXECUTOR_MODE:-${PEV_EXECUTOR_MODE:-codex}}
 export PEV_EXECUTOR_MODE="$EXECUTOR_MODE"
 echo "[PEV] Phase 2 executor mode: $EXECUTOR_MODE"
 ```

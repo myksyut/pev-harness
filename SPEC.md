@@ -166,7 +166,7 @@ agent `agents/executor.md`：
 - 並列化: 公式 B1 「Spawn multiple subagents in the same turn when fanning out across items or reading multiple files」 に準拠。 **default は直列 1**、 fan-out / independent items が plan.md に明示されている時のみ並列 (上限 3 = `PEV_PARALLEL_EXECUTOR_MAX`、 ADR-004)
 - DRY self-review (v2.1.6+): 同関数の再実装 / loop pattern 重複 / dead import / dead branch / dead comment を実装直後に self-check
 - Subagent memory: `~/.claude/pev/{task_id}/executor-{N}.md`
-- **Codex delegation mode (v3.5.0+)**: `PEV_EXECUTOR_MODE=codex` の時、 実 file 編集を OpenAI Codex CLI に委譲。 executor agent は wrapper として残り、 `execute.log` / DRY self-review / judgment trace / Mode B Self-Clarify を担当。 codex 未 setup / 未認証 / timeout 時は Claude native 実装に自動 degrade。 Mode A/B (= 入力軸) と直交し 4 通り成立。 詳細は `skills/pev-external-executor/SKILL.md` + ADR-009
+- **Codex delegation mode (v3.5.0+)**: `PEV_EXECUTOR_MODE=codex` の時、 実 file 編集を OpenAI Codex CLI に委譲。 executor agent は wrapper として残り、 `execute.log` / DRY self-review / judgment trace / Mode B Self-Clarify を担当。 codex 未 setup / 未認証 / timeout 時は Claude native 実装に自動 degrade。 Mode A/B (= 入力軸) と直交し 4 通り成立。 詳細は `skills/pev-external-executor/SKILL.md` + ADR-009。 **v3.7.0 候補で本 mode を default 化** (settings.json `PEV_EXECUTOR_MODE` default = `codex`、 未 setup は claude degrade)
 
 ### Phase 3: Verify
 

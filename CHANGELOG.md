@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (committed, not yet released)
+
+- **Execute phase の default executor を `claude` → `codex` に変更** (`settings.json` `PEV_EXECUTOR_MODE`)。 codex setup 済環境では Execute phase が既定で OpenAI Codex CLI に委譲され (= 編集対象 file が OpenAI に送信される)、 codex 未 setup / 未認証は自動で Claude native に degrade (graceful fallback)。 `--executor-mode=claude` / `PEV_EXECUTOR_MODE=claude` で override 可。 `commands/pev.md` の fallback (`:-codex`) + 関連 doc (pev.md / pev-execute.md / executor.md / pev-external-executor / SPEC §4) を追従。 次 minor (v3.7.0 候補) で正式 release 予定
+
 ### Planned for v3.7+
 - verifier 側で self-clarify 漏れ検出 (= execute.log の self-clarify check 記録の有無を verify、 2 段階防御)
 - Mode B verify protocol の skill 化

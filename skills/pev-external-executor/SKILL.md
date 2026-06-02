@@ -17,7 +17,7 @@ v3.5.0 で導入された **external executor 起動** skill。 OpenAI Codex CLI
 
 起動すべきでない場面:
 
-- `PEV_EXECUTOR_MODE=claude` (default) — 本 skill は dispatch されず、 executor agent が native に実装する
+- `PEV_EXECUTOR_MODE=claude` (= codex default を override した場合) — 本 skill は dispatch されず、 executor agent が native に実装する
 - codex CLI が未 setup (`pev-bootstrap-codex` が未実行) — Preflight が detect、 fallback signal を返す
 
 ## Preflight check

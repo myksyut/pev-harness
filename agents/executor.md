@@ -129,7 +129,7 @@ v3.2.1 では:
 
 main session (commands/pev.md / pev-execute.md) が `--executor-mode` flag > `PEV_EXECUTOR_MODE` env var > settings.json default の優先順で解決した executor mode を `PEV_EXECUTOR_MODE` 経由で受け取る。 値が `codex` の場合、 **実 file 編集を OpenAI Codex CLI に委譲** する。
 
-`PEV_EXECUTOR_MODE=claude` (default) ではこの section 全体が無効、 上記 Mode A / Mode B の native flow をそのまま実行する。
+`PEV_EXECUTOR_MODE=claude` (= codex default を flag/env で override した場合) ではこの section 全体が無効、 上記 Mode A / Mode B の native flow をそのまま実行する。
 
 codex mode でも executor agent は **wrapper** として残る: codex は raw な file 編集だけを担い、 `execute.log` の authoring / DRY self-review / judgment traceability / Self-Clarify は引き続き executor agent (= Claude) が担当する。 Mode A / Mode B (= 入力契約) と codex / claude (= 実装担当) は直交する 2 軸で、 4 通りすべて成立する。
 
