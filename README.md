@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml)
 [![GitHub stars](https://img.shields.io/github/stars/myksyut/pev-harness?style=social)](https://github.com/myksyut/pev-harness/stargazers)
-![version](https://img.shields.io/badge/version-3.7.3-blue)
+![version](https://img.shields.io/badge/version-4.1.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![claude--code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5v2.1.156-purple)
 
@@ -34,7 +34,7 @@ Claude Opus 4.7 以降「step by step」「double-check」のような 4.6 時�
                             ↓
                          Phase 3 [VERIFY]
        ↓
-  PASS → done    FAIL → planner に戻る (max 3 retries)
+  PASS → done    FAIL → /goal が re-plan → re-implement → verifier 再 dispatch を駆動 (max 3 rounds)
 ```
 
 - **Triage agent (v3.0+)** が cwd 構造 + prompt 曖昧度から Plan 必要性を判定 (= 軽量 router、 多くの実務 task で Plan skip)
@@ -42,6 +42,7 @@ Claude Opus 4.7 以降「step by step」「double-check」のような 4.6 時�
 - **Defensive default の scope 限定 (v3.0+)** — security / data integrity / 状態不整合 のみに適用 (= v2.1.6 の minimal 倒れ問題を解消)
 - **Gate A の人間承認** (Plan 起動時のみ) で、軽微なタスクは `auto` で流し、重要変更は計画レビューを必須化
 - **`--strict` で dual review** (Reviewer A=Opus xhigh + B=Sonnet high) を同一メッセージ内並列起動、structured JSON を merge
+- **`/goal` 駆動の retry (v4.0+)** — FAIL 時の re-plan → re-implement → verify ループを Claude Code 公式 `/goal` primitive に委譲。 ただし「verifier を別 Task として独立 dispatch する」 検証責務は pipeline が握り続ける (executor の自己申告を PASS にしない)。 v4.1.0 で legacy retry_count を撤去し `/goal` に一本化
 - **agent ごとに memory directory** (`~/.claude/pev/{TASK_ID}/`) を持ち、retry や次セッションへの引き継ぎが durable
 
 ### v2.x → v3.0 Migration
@@ -144,7 +145,7 @@ Files: 既知の関連パス (任意)
 | 種類 | 内容 |
 |---|---|
 | **agents** (3) | planner / executor / verifier |
-| **skills** (18) | pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, pev-test-design, pev-e2e-verify, pev-bootstrap-playwright, pev-bootstrap-project (v1.9), **pev-bootstrap-codex** (v2.0), **pev-external-reviewer** (v2.0), pev-linear-sync, linear-project-workflow, linear-project-tracker, **empirical-prompt-tuning** (v2.1) |
+| **skills** (20) | pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, pev-test-design, pev-e2e-verify, pev-bootstrap-playwright, pev-bootstrap-project (v1.9), **pev-bootstrap-codex** (v2.0), **pev-external-reviewer** (v2.0), **pev-external-executor** (v3.5), pev-linear-sync, linear-issue-workflow, linear-project-workflow, linear-project-tracker, **empirical-prompt-tuning** (v2.1) |
 | **commands** (9) | `/pev`, `/pev-plan`, `/pev-execute`, `/pev-verify`, `/pev-verify-e2e`, `/pev-status`, `/pev-init-e2e`, `/pev-init` (v1.9), **`/pev-init-codex`** (v2.0) |
 | **hooks** (3) | PreToolUse (destructive cmd block) / Stop (recap auto-append) / SessionStart (task resume) |
 | **rules** (3) | `pev-conventions.md` (Gate respect 等) / `native-prompting.md` (禁止フレーズリスト + 4.8 scoped-verify 例外) / `error-patterns.md` (エラー推測 catalog) |
@@ -192,7 +193,13 @@ Files: 既知の関連パス (任意)
 | v1.8 | v1.3 + v1.7.1 dog food findings reflection (9 件) | ✅ released |
 | v1.9 | `/pev-init` project bootstrap command (言語検知 + auto-populate) | ✅ released |
 | **v2.0** | **External reviewer (OpenAI Codex CLI) integration** — dual-codex mode で真の model diversity | ✅ released |
-| v2.1+ | Gemini CLI 対応 / planner-executor も外部 model 切替可 | [Issue #9](https://github.com/myksyut/pev-harness/issues/9) continuation |
+| v2.1 | empirical-prompt-tuning skill + project scope install (team 共有) | ✅ released |
+| **v3.0** | **大型再設計** — Phase 0 (Triage) 新設 + Plan on-demand 化 + 質問判定強化 + Defensive default の scope 限定 | ✅ released |
+| **v3.5** | **External executor (Codex CLI) integration** — Execute phase の実 file 編集を Codex CLI に委譲可能に | ✅ released |
+| v3.7 | Execute phase の default executor を `codex` に正式化 (未 setup は claude に自動 degrade) | ✅ released |
+| **v4.0** | **公式 primitive 再配置** — Retry Gate を `/goal` 駆動化 + planner 質問返しに grill-me 統合 | ✅ released |
+| **v4.1** | **`/goal` 前提化** — legacy retry_count 自走ループを撤去、 retry 駆動を `/goal` に一本化 | ✅ released |
+| future | Gemini CLI 対応 (reviewer + executor) / planner-executor も外部 model 切替可 | [Issue #9](https://github.com/myksyut/pev-harness/issues/9) |
 
 ## Contributing
 

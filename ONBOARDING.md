@@ -198,7 +198,7 @@ Acceptance: GET /healthz returns 200 + correct JSON, test added."
 4. ユーザーが plan.md を読み、問題なければ `/pev-harness:pev-execute`
 5. executor が実装 (Mode A = plan ベース / Mode B = plan-less)、 Stop hook が verify を促す
 6. ユーザーが `/pev-harness:pev-verify` を打つ、verifier が `verify.json` 生成
-7. PASS なら完了。FAIL なら自動 retry (最大3回)
+7. PASS なら完了。FAIL なら **`/goal` 駆動の retry** (v4.0+) が re-plan → re-implement → verifier 再 dispatch を自走 (最大3 rounds、 `PEV_MAX_RETRIES`)。 verifier の独立 dispatch は pipeline が握り続ける (executor の自己申告を PASS にしない)。 v4.1.0 で legacy retry_count は撤去、 `--expect-fail` / hooks 無効環境のみ `/goal` を起動せず verify 1 回で停止
 
 **v3.0 flag override**:
 
