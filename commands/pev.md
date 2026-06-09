@@ -20,7 +20,6 @@ PEV harnessのメインコマンド。Plan → Execute → Verify を順に実�
 /pev <task> --expect-fail            # FAIL 想定タスク (dog food fixture / regression)、 retry loop を skip して即 escalate path (v1.8+)
 /pev <task> --executor-mode=codex    # Execute phase を OpenAI Codex CLI に委譲 (= default、 v3.5.0+)
 /pev <task> --executor-mode=claude   # Execute phase を Claude executor で実行 (= codex default の override)
-/pev <task> --no-goal-loop           # Retry を /goal 駆動せず legacy retry_count で回す (v4.0+)
 ```
 
 ## Linear URL 検出 (v1.2 で追加)
@@ -52,7 +51,7 @@ Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済み�
    - **executor mode (v3.5.0+)**: default は `codex` (Execute phase の実 file 編集を Codex CLI に委譲、 executor agent は wrapper として execute.log / DRY review を担当)。 `--executor-mode=claude` / `PEV_EXECUTOR_MODE=claude` で Claude native に override。 codex 未 setup 時は claude に自動 degrade
 7. **Gate B**: Stop hook が verifier を促す
 8. **Phase 3 (Verify)**: verifier agent (`--strict` 時は `pev-dual-review`) → `artifacts/verify.json`
-9. **Retry Gate (v4.0+: /goal 駆動)**: `/goal` が「verifier (別 Task) の独立 PASS + 生 test 出力 exit 0」 を condition に retry を自走駆動 (max `PEV_MAX_RETRIES`)。 verifier の dispatch は pev が握り続ける。 `/goal` unavailable (< v2.1.139 / disableAllHooks / `--no-goal-loop` / `--expect-fail`) は legacy retry_count に degrade
+9. **Retry Gate (/goal 駆動)**: `/goal` が「verifier (別 Task) の独立 PASS + 生 test 出力 exit 0」 を condition に retry を自走駆動 (max `PEV_MAX_RETRIES`)。 verifier の dispatch は pev が握り続ける。 `--expect-fail` / hooks 無効環境では `/goal` を起動せず verify 1 回で停止 (v4.1.0 で `/goal` 前提化、 legacy retry_count は撤去)
 
 ### Flag による flow override (v3.0+)
 
@@ -86,7 +85,6 @@ fi
 mkdir -p artifacts
 TASK_ID="$(date +%s)-$(openssl rand -hex 4 2>/dev/null || printf '%04x%04x' $RANDOM $RANDOM)"
 echo "$TASK_ID" > artifacts/.task_id
-echo "0" > artifacts/.retry_count
 mkdir -p ~/.claude/pev/$TASK_ID
 echo "[PEV] Task started: $TASK_ID"
 ```
@@ -281,30 +279,13 @@ Stop hook が `artifacts/execute.log` 存在を検出し、recap.log にPhase 2�
 verifier agent。`--strict` 指定時は `pev-dual-review` skill 経由でReviewer A/B並列。
 `artifacts/verify.json` 出力。
 
-### Step 7 — Retry Gate (v4.0+: /goal 駆動)
+### Step 7 — Retry Gate (/goal 駆動)
 
-v4.0 で retry の自走駆動を Claude Code 公式 `/goal` primitive に委譲する。 ただし **verifier の独立 dispatch は pev が握り続ける**。 `/goal` evaluator は会話テキストしか読めず、 executor の自己申告と verifier の検証をテキスト上で区別できないため、 「verifier を別 Task として起動する」 ところを `/goal` に丸投げしてはならない。 `/goal` は「ループを継続/停止するか」 の判定のみを担う。
+retry の自走駆動は Claude Code 公式 `/goal` primitive が担う (v4.1.0 で `/goal` 前提化、 legacy retry_count ループは撤去)。 ただし **verifier の独立 dispatch は pev が握り続ける**: `/goal` evaluator は会話テキストしか読めず executor の自己申告と verifier の検証を区別できないため、 「verifier を別 Task として起動する」 ところは `/goal` に丸投げせず pipeline が握る。 `/goal` はループの継続/停止判定のみ。
 
-#### Step 7a — /goal availability check
+必須 Claude Code version は v2.1.156 で `/goal` の floor (v2.1.139) を上回るため version check は不要 (全 user が `/goal` 利用可)。
 
-```bash
-# /goal は Claude Code v2.1.139+ かつ hook 有効環境でのみ使える (公式 docs: Stop hook wrapper)
-GOAL_AVAILABLE=true
-CC_VER=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-if [ -z "$CC_VER" ] || ! printf '%s\n2.1.139\n' "$CC_VER" | sort -V -C 2>/dev/null; then
-  GOAL_AVAILABLE=false   # version 取得不可 or < 2.1.139
-fi
-# disableAllHooks / allowManagedHooksOnly が設定されていると /goal の評価器が無効
-if grep -qs -E '"(disableAllHooks|allowManagedHooksOnly)"[[:space:]]*:[[:space:]]*true' \
-     .claude/settings.json .claude/settings.local.json 2>/dev/null; then
-  GOAL_AVAILABLE=false
-fi
-# --expect-fail / --no-goal-loop 指定時は /goal 駆動を使わず即 legacy path (= retry を回さない / 旧挙動)
-[[ "$*" == *"--expect-fail"* || "$*" == *"--no-goal-loop"* ]] && GOAL_AVAILABLE=false
-echo "[PEV] Retry driver: $([ "$GOAL_AVAILABLE" = true ] && echo '/goal (v4.0+)' || echo 'legacy retry_count (degrade)')"
-```
-
-#### Step 7b — /goal 駆動 (default, GOAL_AVAILABLE=true)
+#### /goal を set (Phase 3 verify の後)
 
 pipeline は Phase 3 (verify) の **後**、 以下の goal を set する (= 以降のターンを公式 evaluator が駆動):
 
@@ -328,32 +309,30 @@ verify rounds.
 PASS / 上限到達時の recap:
 
 ```bash
-RETRY=$(cat artifacts/.retry_count 2>/dev/null || echo 0)
 VERDICT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('artifacts/verify.json','utf8')).verdict)" 2>/dev/null)
 if [ "$VERDICT" = "PASS" ]; then
-  echo "[$(date -u +%FT%TZ)] Task complete via /goal (verdict: PASS, rounds: $RETRY)" >> artifacts/recap.log
+  echo "[$(date -u +%FT%TZ)] Task complete via /goal (verdict: PASS)" >> artifacts/recap.log
 else
   echo "[$(date -u +%FT%TZ)] /goal handed back after max rounds (verdict: $VERDICT) — /pev-status --escalate" >> artifacts/recap.log
   echo "[PEV] /goal handed back — run /pev-status --escalate"
 fi
 ```
 
-#### Step 7c — degrade path (GOAL_AVAILABLE=false、 legacy retry_count = v3.x 挙動)
+#### 例外 — retry を回さない path (`--expect-fail` / hooks 無効環境)
 
-`/goal` が使えない環境 (Claude Code < v2.1.139 / disableAllHooks / `--expect-fail` / `--no-goal-loop`) では従来の bash retry_count ループで回す:
+以下のいずれかでは `/goal` を **起動せず**、 verify 1 回で停止する (retry なし)。 `/goal` evaluator (Stop hook wrapper) が動かない、 もしくは FAIL が想定済の場合:
+
+- `--expect-fail` 指定 (dog food fixture / regression で FAIL が現状の正解)
+- plan.md に `expectFail: true` メタ (planner が書き出す補助記法)
+- hooks 無効環境 (`disableAllHooks` / `allowManagedHooksOnly`) — `/goal` の評価器が無効
 
 ```bash
 VERDICT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('artifacts/verify.json','utf8')).verdict)" 2>/dev/null)
-RETRY=$(cat artifacts/.retry_count 2>/dev/null || echo 0)
-MAX=${PEV_MAX_RETRIES:-3}
 
-# v1.8+ : --expect-fail フラグで retry loop を skip
-# user が「このタスクは FAIL することを想定済 (dog food fixture / regression test)」を
-# 明示するためのフォーマル channel。 retry に時間と token を費やさず即 escalate path に流す
+# user が「このタスクは FAIL することを想定済」を明示するフォーマル channel。
+# retry に時間と token を費やさず即 escalate path に流す
 EXPECT_FAIL=false
 [[ "$*" == *"--expect-fail"* ]] && EXPECT_FAIL=true
-
-# plan.md に `expectFail: true` メタが書かれている場合も同等扱い (planner 側で書き出す補助記法)
 if [ "$EXPECT_FAIL" = "false" ] && grep -qE '^\s*expectFail:\s*true\s*$' artifacts/plan.md 2>/dev/null; then
   EXPECT_FAIL=true
   echo "[PEV] expectFail detected in plan.md (treating as --expect-fail)"
@@ -366,22 +345,18 @@ case "$VERDICT" in
       echo "[$(date -u +%FT%TZ)] Unexpected PASS under --expect-fail (review fixture / spec drift)" >> artifacts/recap.log
     else
       echo "[PEV] Verdict: PASS — task complete"
-      echo "[$(date -u +%FT%TZ)] Task complete (verdict: PASS, retries: $RETRY)" >> artifacts/recap.log
+      echo "[$(date -u +%FT%TZ)] Task complete (verdict: PASS)" >> artifacts/recap.log
     fi
     ;;
   FAIL)
     if [ "$EXPECT_FAIL" = "true" ]; then
-      echo "[PEV] Verdict: FAIL as expected (--expect-fail) — skipping retry, going to escalate path"
-      echo "[$(date -u +%FT%TZ)] Expected FAIL recorded (retries skipped under --expect-fail)" >> artifacts/recap.log
-      echo "[PEV] Run /pev-status --escalate"
-    elif [ "$RETRY" -lt "$MAX" ]; then
-      echo $((RETRY + 1)) > artifacts/.retry_count
-      echo "[PEV] Verdict: FAIL — retry $((RETRY + 1))/$MAX, re-invoking planner"
-      # → Step 2 へループ
+      echo "[PEV] Verdict: FAIL as expected (--expect-fail) — no retry, escalate path"
+      echo "[$(date -u +%FT%TZ)] Expected FAIL recorded (no retry under --expect-fail)" >> artifacts/recap.log
     else
-      echo "[PEV] Verdict: FAIL after $MAX retries — ESCALATING"
-      echo "[PEV] Run /pev-status --escalate"
+      echo "[PEV] Verdict: FAIL but /goal disabled (hooks off) — no auto-retry available"
+      echo "[$(date -u +%FT%TZ)] FAIL with /goal unavailable (hooks off) — manual retry / escalate" >> artifacts/recap.log
     fi
+    echo "[PEV] Run /pev-status --escalate"
     ;;
 esac
 ```

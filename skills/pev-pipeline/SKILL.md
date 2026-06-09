@@ -52,12 +52,12 @@ START
   │   入力: git diff + plan.md (もしくは task description)
   │   出力: artifacts/verify.json
   ▼
-[Retry Gate] (v4.0+: /goal 駆動) verify.verdict:
+[Retry Gate] (/goal 駆動) verify.verdict:
   │   /goal が「verifier (別 Task) 作の verdict PASS + 生 test 出力 exit 0」を condition に自走駆動
   │   PASS                       → goal 自動 clear → DONE
   │   FAIL && round < MAX        → re-plan → re-implement → verifier を別 Task 再 dispatch
   │   FAIL && round >= MAX       → goal hand back → 人間にescalate
-  │   (/goal unavailable 時は legacy retry_count ループに degrade)
+  │   (--expect-fail / hooks 無効環境では /goal を起動せず verify 1 回で停止 = retry なし)
   ▼
 DONE → pev-recap が recap.log に追記
 ```
@@ -106,9 +106,9 @@ MODE=${MODE:-default}
 - `default`: 停止して `cat artifacts/plan.md` を表示、`/pev-execute` で続行
 - `plan`: メッセージ表示してパイプライン終了
 
-### Retry の条件と挙動 (v4.0+: /goal 駆動)
+### Retry の条件と挙動 (/goal 駆動)
 
-v4.0 で retry の自走駆動を Claude Code 公式 `/goal` primitive に委譲する。 **機構 (いつ次ターンを始め / いつ止めるか) は `/goal` に借り、 独立検証の dispatch と判断基準は pev が握る**。
+retry の自走駆動は Claude Code 公式 `/goal` primitive が担う (v4.1.0 で `/goal` 前提化、 legacy retry_count ループは撤去)。 **機構 (いつ次ターンを始め / いつ止めるか) は `/goal` に借り、 独立検証の dispatch と判断基準は pev が握る**。
 
 `/goal` の condition は「pev verifier が **別 Task として** verify.json に verdict PASS を書き、 生 test 出力 exit 0 を会話に提示した」。 各 goal ターンで pipeline は:
 
@@ -121,7 +121,7 @@ PASS → goal 自動 clear → DONE。 `PEV_MAX_RETRIES` (default 3) round を�
 
 **最重要規約**: `/goal` の evaluator は会話テキストしか読めず、 executor の自己申告と verifier の検証を区別できない。 よって「verifier を呼べ」 を condition に書くだけでは agent 分離は保証されない。 verifier を別 Task として起動する責務は **必ず pipeline (pev) が握る**。 `/goal` には継続/停止判定のみ委ねる。
 
-**degrade**: `/goal` unavailable (Claude Code < v2.1.139 / disableAllHooks / `--no-goal-loop` / `--expect-fail`) では従来の bash retry_count ループ (verdict FAIL && retry_count < MAX で planner 再起動、 plan.md を diff ベース更新、 Phase 2 へ) に倒す。 詳細は `commands/pev.md` Step 7c。
+**例外 (retry なし)**: `--expect-fail` / plan.md の `expectFail: true` / hooks 無効環境 (`disableAllHooks` / `allowManagedHooksOnly`) では `/goal` を起動せず verify 1 回で停止する (retry なし → escalate path)。 必須 Claude Code version は v2.1.156 で `/goal` の floor (v2.1.139) を上回るため version による degrade は発生しない。 詳細は `commands/pev.md` Step 7 の「例外」節。
 
 ### --expect-fail flag (v1.8+)
 

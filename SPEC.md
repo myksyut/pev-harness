@@ -432,6 +432,7 @@ v2.0 の codex reviewer 統合に対し、 v3.5.0 で codex を **Execute phase 
 | **v3.7.2** | **必須 version を v2.1.156 に格上げ** | <2.1.156 + Opus 4.8 は通常 tool 使用で 400 (errors page 「Versions before v2.1.156 can trigger this error during normal tool use」、 CHANGELOG v2.1.156 で fix)。 tool-heavy な harness の実 floor として compat / badge / docs を v2.1.156 へ | ✅ released |
 | **v3.7.3** | **pev-focus-mode skill 正確性補正** | focus mode / `/focus` は現存・現役と一次ソース確定 (commands reference + CHANGELOG v2.1.118〜152)。 skill に fullscreen 専用 caveat + `viewMode` 設定を追記、 version 表記中立化。 v3.6.0 の「現存性未確認」 false negative を解消 | ✅ released |
 | **v4.0.0** | **公式 primitive 再配置 (`/goal` 駆動 + grill-me 統合)** | Retry Gate を Claude Code 公式 `/goal` primitive に委譲 (機構は借り、 verifier の別 Task dispatch = 独立検証は pev が握る、 F_v18_5)。 planner 質問返しに grill-me 統合 (推奨答え必須 + コード探索優先)。 `/goal` unavailable は legacy retry_count に degrade。 harness-effect-v18 PoC (positive + negative) で実機検証、 設計は `experiments/v4.0-design.md` | ✅ released |
+| **v4.1.0** | **`/goal` 前提化 (legacy retry_count 撤去)** | v4.0 の自前 retry 自走ループを削除し retry 駆動を `/goal` に一本化。 Step 7 を「`/goal` set + retry を回さない例外」 の 2 構造に簡素化、 `--no-goal-loop` flag 削除。 必須 version v2.1.156 が `/goal` floor (v2.1.139) を上回るため全 user 利用可、 version degrade 不要。 GGV 体制の orchestration 純減 | ✅ released |
 | v3.8+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 (reviewer + executor) | (TBD) | — |
 
 ---

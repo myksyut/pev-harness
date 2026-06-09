@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
 
+## [4.1.0] - 2026-06-09
+
+**`/goal` 前提化 — legacy retry_count 撤去**。 v4.0 では互換のため `/goal` unavailable 時の bash retry_count 自走ループ (Step 7c) を残していたが、 必須 Claude Code version v2.1.156 が `/goal` の floor (v2.1.139) を上回り **全 user が `/goal` を利用可** なため、 legacy degrade path は冗長。 retry 駆動を `/goal` に一本化し orchestration を純減する。
+
+### Changed (breaking)
+
+- **legacy retry_count ループ撤去** (`commands/pev.md` Step 7 / `skills/pev-pipeline`): v4.0 の Step 7a (availability check) / Step 7c (bash retry_count degrade path) を削除。 Step 7 を「`/goal` set」 + 「retry を回さない例外」 の 2 構造に簡素化。 `artifacts/.retry_count` の初期化・参照も撤去 (`/goal` が round を内部駆動するため bash counter は不要)
+- **retry は `/goal` 一本化**: 必須 version v2.1.156 ≥ `/goal` floor v2.1.139 を根拠に version check を撤去 (全 user 利用可、 degrade 不要)
+
+### Removed
+
+- `--no-goal-loop` flag: legacy retry_count path が無くなったため無意味化、 削除
+
+### Kept (例外)
+
+- `--expect-fail` / plan.md の `expectFail: true` / hooks 無効環境 (`disableAllHooks` / `allowManagedHooksOnly`) では `/goal` を起動せず verify 1 回で停止 (retry なし → escalate path)。 UNEXPECTED PASS 検出 (`--expect-fail` 下で PASS) も維持
+
 ## [4.0.0] - 2026-06-09
 
 **公式 primitive への再配置 — Retry Gate を `/goal` 駆動化 + planner に grill-me 統合**。 Claude Code v2.1.139+ の `/goal` (完了条件まで自走) と grill-me skill (要件を質問で引き出す) が pev の自前実装と機構レベルで同型になったため、 **「機構は公式 primitive に借り、 独立検証の dispatch と判断基準は pev が握る」** 形に再配置。 harness-effect-v18 PoC (positive + negative) で設計を実機検証してから実装。

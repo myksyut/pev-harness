@@ -130,9 +130,12 @@ cd $DEST && npm install --silent
 PROMPT="/pev-harness:pev <task description>"
 INIT=$(jq -nc --arg t "$PROMPT" '{type:"user",message:{role:"user",content:[{type:"text",text:$t}]}}')
 echo "$INIT" | claude --plugin-dir ~/oss/pev-harness \
+  --settings '{"outputStyle":"default"}' \
   --input-format stream-json --output-format stream-json --include-partial-messages \
   --permission-mode bypassPermissions --verbose --model claude-opus-4-8 -p \
   > /tmp/dogfood-turn1.log 2>&1
+# ※ --settings '{"outputStyle":"default"}' 必須: 親の Learning style 継承で
+#   executor が Learn by Doing 停止し pipeline が空振りするのを防ぐ (§8.5 / F_v18_6)
 # Triage → (Plan ?) → Gate A (Plan あり時のみ) → Execute → Verify
 # Plan で「## 確認質問」 が出たら、 同 cwd で claude --continue で次 turn を送る
 
@@ -280,6 +283,13 @@ rm -rf artifacts/ playwright-report/ test-results/
 
 - agents/skills/commands 配下に「禁止フレーズの説明」自体が grep に hit するケースあり
 - v0.1 release で発覚済、 rules/native-prompting.md 参照に置換すれば clean
+
+### 8.5 dog food subprocess が親の outputStyle を継承する (F_v18_6、 v4.0 で発覚)
+
+- `claude --plugin-dir ...` で起動する dog food subprocess は親環境の `~/.claude/settings.json` を読むため、 **開発者個人の `outputStyle` (例: `Learning`) を継承する**
+- `Learning` style だと executor phase が「Learn by Doing」 で `TODO(human)` を置いて停止し、 verify / retry / `/goal` が一切走らない (= pipeline が Execute 途中で success 終了)。 `/goal` 駆動や verify の検証が **測定できず空振りする**
+- **対処: dog food は `--settings '{"outputStyle":"default"}'` を必ず付けて起動する**。 §3.3 の起動コマンドにも追加すること
+- harness-effect-v18 D-1 で判明 (v4.0 の `/goal` 検証が最初これで空振り、 verify.json が出ず Learn by Doing で停止していた)
 
 ## 9. このリポジトリで「やらないこと」
 

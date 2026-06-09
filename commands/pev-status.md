@@ -32,12 +32,10 @@ if [ ! -f artifacts/.task_id ]; then
 fi
 
 TASK_ID=$(cat artifacts/.task_id)
-RETRY=$(cat artifacts/.retry_count 2>/dev/null || echo 0)
-MAX=${PEV_MAX_RETRIES:-3}
 
 echo "[PEV Status]"
 echo "Task ID:    $TASK_ID"
-echo "Retry:      $RETRY / $MAX"
+echo "Retry:      driven by /goal (rounds tracked by the official evaluator, max PEV_MAX_RETRIES)"
 echo ""
 echo "Artifacts:"
 for f in plan.md execute.log verify.json recap.log; do
