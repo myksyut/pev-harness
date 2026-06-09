@@ -43,6 +43,19 @@ tools: Read, Bash, Grep, Glob, Write
 }
 ```
 
+### 会話への明示提示 (v4.0+: /goal evaluator 連携)
+
+verify.json への書き出しに加え、 verifier は **生 test 出力 (exit code を含む) と最終 verdict を会話 text にも明示提示する**。 v4.0 の Retry Gate は Claude Code 公式 `/goal` primitive で駆動され、 その evaluator は **会話テキストしか読めない** (ファイルも tool も読まない、 公式 docs 明記)。 verify.json を書くだけでは `/goal` がループ継続/停止を判定できない。
+
+会話の最終 text に必ず含める:
+
+- 実行した test command と **生出力の該当行** (例: `Test Files 2 passed (2) / Tests 30 passed (30)`)
+- **exit code** を明示 (例: `EXIT_CODE: 0`)
+- `verify.json: PASS|FAIL` の verdict
+- この検証は **verifier agent (別 Task) が実行した** ことの明記 (executor の self-report ではない)
+
+**独立性の担保**: verifier は pipeline から別タスクとして起動される前提で動く (dispatch 責務は `commands/pev.md` Step 7b)。 ただし会話に出すのは上記の test 結果 (コマンド / 生出力 / exit code / verdict) という **事実のみ**。 「自己申告ではない」「独立 dispatch」 等の内部規約名・メタ説明・finding 番号は **ユーザー向け出力に書かない** (開発者向け用語であり plugin user には無意味)。
+
 ## FAIL 時の挙動
 
 - 失敗内容を `artifacts/verify.json` に詳細記録
@@ -233,6 +246,7 @@ claude-only mode では `reviewers` は省略可、 verifier 単独結果を `ch
 
 ## 動作原則
 
+- **ユーザー向け発話**: `rules/user-facing-language.md` に従う (finding 番号・内部規約名・PEV 実装の講釈を会話に出さない。 test 結果の事実と verdict のみ簡潔に提示)
 - **計画を信じすぎない**: plan.md の AC が曖昧なら、より厳しい基準で評価する
 - **証拠を出す**: 各 check に対し、コマンド出力の該当行を引用
 - **黙ってPASSしない**: 軽微な suggestions は critical_issues に上げず、別フィールドに

@@ -52,10 +52,12 @@ START
   │   入力: git diff + plan.md (もしくは task description)
   │   出力: artifacts/verify.json
   ▼
-[Retry Gate] verify.verdict:
-  │   PASS                       → DONE
-  │   FAIL && retry_count < 3    → Phase 1 へ戻る (もしくは Triage 経由再判定)
-  │   FAIL && retry_count >= 3   → 人間にescalate
+[Retry Gate] (v4.0+: /goal 駆動) verify.verdict:
+  │   /goal が「verifier (別 Task) 作の verdict PASS + 生 test 出力 exit 0」を condition に自走駆動
+  │   PASS                       → goal 自動 clear → DONE
+  │   FAIL && round < MAX        → re-plan → re-implement → verifier を別 Task 再 dispatch
+  │   FAIL && round >= MAX       → goal hand back → 人間にescalate
+  │   (/goal unavailable 時は legacy retry_count ループに degrade)
   ▼
 DONE → pev-recap が recap.log に追記
 ```
@@ -104,16 +106,22 @@ MODE=${MODE:-default}
 - `default`: 停止して `cat artifacts/plan.md` を表示、`/pev-execute` で続行
 - `plan`: メッセージ表示してパイプライン終了
 
-### Retry の条件と挙動
+### Retry の条件と挙動 (v4.0+: /goal 駆動)
 
-verify.json の `verdict == "FAIL"` かつ retry count < 3 の時:
+v4.0 で retry の自走駆動を Claude Code 公式 `/goal` primitive に委譲する。 **機構 (いつ次ターンを始め / いつ止めるか) は `/goal` に借り、 独立検証の dispatch と判断基準は pev が握る**。
 
-1. `artifacts/retry_count` を increment
-2. planner を起動 (入力に diff と verify.json を追加)
-3. plan.md を**更新**（新規生成ではなく diff ベースで修正）
-4. Phase 2 に進む
+`/goal` の condition は「pev verifier が **別 Task として** verify.json に verdict PASS を書き、 生 test 出力 exit 0 を会話に提示した」。 各 goal ターンで pipeline は:
 
-3回を超えた場合: `/pev-status --escalate` でメッセージ表示、自動継続しない。
+1. (FAIL 再入時) planner を起動し plan.md を diff ベース更新
+2. executor で実装 (Phase 2)
+3. **verifier を必ず別 Task として dispatch** (Phase 3) — executor の self-report で verify.json を書くのは禁止
+4. verifier が verify.json + 生 test 出力を会話に提示 → `/goal` evaluator が PASS/FAIL 判定
+
+PASS → goal 自動 clear → DONE。 `PEV_MAX_RETRIES` (default 3) round を超えても FAIL なら goal が hand back し、 `/pev-status --escalate`。
+
+**最重要規約**: `/goal` の evaluator は会話テキストしか読めず、 executor の自己申告と verifier の検証を区別できない。 よって「verifier を呼べ」 を condition に書くだけでは agent 分離は保証されない。 verifier を別 Task として起動する責務は **必ず pipeline (pev) が握る**。 `/goal` には継続/停止判定のみ委ねる。
+
+**degrade**: `/goal` unavailable (Claude Code < v2.1.139 / disableAllHooks / `--no-goal-loop` / `--expect-fail`) では従来の bash retry_count ループ (verdict FAIL && retry_count < MAX で planner 再起動、 plan.md を diff ベース更新、 Phase 2 へ) に倒す。 詳細は `commands/pev.md` Step 7c。
 
 ### --expect-fail flag (v1.8+)
 

@@ -112,6 +112,7 @@ Linear から得た Constraints が team-conventions.md と矛盾する場合、
 
 ## 動作原則
 
+- **ユーザー向け発話**: `rules/user-facing-language.md` に従う (finding 番号・内部規約名・PEV 実装の講釈を会話に出さない。 設計背景は plan.md 等の成果物に書く)
 - **読む順序**: team conventions (下記参照) → 関連ファイル → 周辺ファイル
 - **書く前に質問**: 設計判断が必要な分岐があれば、ユーザーに選択肢を提示する
 - **scaffolding禁止**: `rules/native-prompting.md` の禁止フレーズを出力に書かない。4.X はそれらを冗長と判断する
@@ -215,26 +216,30 @@ UI 機能追加で **既存 DOM container 内に新規 element (button / span / 
 
 **意図**: harness-effect-v6 dog food (F_v6_1) で、 plan AC が「`#success` 内に button 追加」 + 「textContent で text 変更」 を併記、 衝突を AC で明示していなかったため execute で素直に実装 → button が削除される bug。 Verifier が捕捉して retry 1 で `<span id="success-text">` を追加する形で self-heal したが、 plan で事前明示していれば 1 回で pass していた。 v3.0.3 で「DOM の text 操作と子 element の構造的衝突」 を planner directive に明文化。
 
-#### 質問の形式 (v3.0+)
+#### 質問の形式 (v4.0+: grill-me 統合)
 
-不明確な点は plan.md の冒頭 (Goal の前) に「## 確認質問」 section を作り、 列挙する。 各質問は:
+v4.0 で grill-me 思想を planner default に組込む。 不明確な点は plan.md 冒頭 (Goal の前) に「## 確認質問」 section を作り、 列挙する。 各質問は:
 
 - **選択肢提示型** (Yes/No or 3-5 個の option) を default
+- **推奨答えを必ず付ける (v4.0+)**: 各質問に `(推奨: b — 理由)` を明示。 grill-me の「各質問に推奨答えを付ける」 を踏襲し、 user が「推奨で」 の一言で確定できるようにする
+- **コードで答えられる質問はしない (v4.0+)**: 既存 codebase を Grep/Read で探索すれば判明する事項 (例: 既存の field name 命名規則、 既存 validator の return shape、 既存 pattern) は **質問せず自分で調べて確定**。 grill-me の「コードで答えられるならコードを探索せよ」。 plan.md には「(codebase 探索で確定: X)」 と根拠を残す
 - 1 文で完結、 conversational 過剰回避
 - 1 plan につき **最大 7 個まで** (overkill 防止)
 - 質問の前に「以下を確認させてください、 plan.md は回答後に確定します」 と前置き
+- **逐次対話 channel がある場合 (stream-json 等)**: 依存関係のある質問は 1 問ずつ順に解消してよい (grill-me の decision-tree)。 plan.md channel (列挙) でも推奨答え付き列挙で成立させる
 
-質問返しは v3.0 では **必須機能**: prompt の仕様明示が薄ければ、 必ず質問を投げてから plan.md を確定する。
+質問返しは v4.0 でも **必須機能**: prompt の仕様明示が薄ければ、 必ず質問を投げてから plan.md を確定する。 ただし「コードで答えられるもの」 は質問数に数えず自己解決する (= user に投げるのは真に判断が要る項目のみ)。 これにより質問の S/N 比を上げる (grill-me が codebase 探索を優先する狙いと同じ)。
 
 ```markdown
 # Plan for: <task title>
 
 ## 確認質問 (回答後に plan.md を確定します)
 
-1. **UI 配置**: 新規 textarea は「利用規約に同意します」 の (a) 上 / (b) 下 / (c) 別ブロック のいずれですか?
-2. **文字数カウンタ**: 入力中のリアルタイム文字数表示が (a) 必要 / (b) 不要 のどちらですか?
-3. **色変化**: counter の残り 50 文字以下で warning 色に変えますか? (a) 必要 / (b) 不要
-4. **永続化**: LocalStorage entry の field name は何にしますか? (例: `inquiry`、 `message`、 `note`)
+1. **UI 配置**: 新規 textarea は「利用規約に同意します」 の (a) 上 / (b) 下 / (c) 別ブロック のいずれですか? (推奨: a — 規約同意の前に入力を促す自然な導線)
+2. **文字数カウンタ**: 入力中のリアルタイム文字数表示が (a) 必要 / (b) 不要 のどちらですか? (推奨: b — MVP では不要、 後から追加可能)
+3. **色変化**: counter 残り 50 文字以下で warning 色に変えますか? (a) 必要 / (b) 不要 (推奨: b — counter 不採用なら不要)
+
+> field name は codebase 探索で確定済 (既存 validation.js の命名規則に倣い `inquiry`) — 質問しない
 
 (回答後に Goal / Constraints / AC を確定して plan.md を完成させます)
 

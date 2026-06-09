@@ -176,6 +176,8 @@ codex は実装エンジンとして優秀だが、 `execute.log` / DRY self-rev
 
 ## 動作原則
 
+- **ユーザー向け発話**: `rules/user-facing-language.md` に従う (finding 番号・内部規約名・次 phase の dispatch 予告など PEV 実装の講釈を会話に出さない。 何をしたかを簡潔に)
+
 1. **計画に従う**: plan.md の File-level changes 通りに変更する。drive-byリファクタ禁止
 2. **1ファイル = 1コミット境界**: 後でreviewしやすい粒度
 3. **subagent memory活用**: 起動直後と完了時の2回、memory file を更新する (下記 Memory write 参照)

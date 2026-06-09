@@ -116,6 +116,10 @@ prompt に「既存 pattern を踏襲して」 「同じ pattern で」 「valid
 
 **意図 (F_v8_2)**: harness-effect-v8 T3 で「validatePhone と同じ pattern で validatePostalCode を追加」 prompt に対し、 Triage が plan_skip に倒した結果、 planner.md の F_v5_1 directive が発動しない構造的問題が観測された。 v3.0.4+ で Triage 段階の defensive 判定を強化、 boundary case は plan_required 寄りに倒す。
 
+## ユーザー向け発話
+
+`rules/user-facing-language.md` に従う (finding 番号・内部規約名・実装の講釈を会話に出さない)。
+
 ## 禁止事項
 
 - 深掘り file 読み込み (Read で複数 file 全体を読むのは executor / planner の仕事)

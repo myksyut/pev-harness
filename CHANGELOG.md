@@ -13,6 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
 
+## [4.0.0] - 2026-06-09
+
+**公式 primitive への再配置 — Retry Gate を `/goal` 駆動化 + planner に grill-me 統合**。 Claude Code v2.1.139+ の `/goal` (完了条件まで自走) と grill-me skill (要件を質問で引き出す) が pev の自前実装と機構レベルで同型になったため、 **「機構は公式 primitive に借り、 独立検証の dispatch と判断基準は pev が握る」** 形に再配置。 harness-effect-v18 PoC (positive + negative) で設計を実機検証してから実装。
+
+### Changed (breaking)
+
+- **Retry Gate を `/goal` 駆動に変更** (`commands/pev.md` Step 7 / `skills/pev-pipeline`): 従来の bash retry_count 自走ループを Claude Code 公式 `/goal` primitive に委譲。 condition は「verifier (別 Task) 作の verdict PASS + 生 test 出力 exit 0」。 default flow が変わる breaking change
+- **planner の質問返しに grill-me を統合** (`agents/planner.md`): 各確認質問に **推奨答え** を必須化 + **コードで答えられる質問は探索して問わない** を default 化。 質問の S/N 比を上げる
+
+### Added
+
+- **F_v18_5 規約 (verifier dispatch は pev が握る)**: `/goal` evaluator は会話テキストしか読めず executor の自己申告と verifier の検証を区別できないため、 verifier を別 Task として起動する責務は pipeline が握る。 `commands/pev.md` Step 7b / `skills/pev-pipeline` / `agents/verifier.md` に明記
+- **verifier の会話提示契約** (`agents/verifier.md`): verify.json に加え生 test 出力 + exit code + verdict を会話 text にも提示 (`/goal` evaluator 連携)
+- `--no-goal-loop` flag: Retry を `/goal` 駆動せず legacy retry_count で回す
+
+### Migration (v3.x → v4.0)
+
+- `/goal` が使える環境 (Claude Code v2.1.139+ / hook 有効) では default で Retry が `/goal` 駆動になる
+- `/goal` unavailable (< v2.1.139 / disableAllHooks / headless) は **自動で legacy retry_count に degrade** (= 動作不能にはならない)
+- 旧挙動を明示したい場合は `--no-goal-loop`
+- 必須 Claude Code version は **v2.1.156 のまま** (既に `/goal` の v2.1.139 floor を上回るため bump 不要)
+
+### Verified via dog food
+
+- harness-effect-v18 (positive + negative PoC): F_v18_1 (自走の機構は `/goal` に明け渡せる) / F_v18_3 (condition の test 実行圧力) / F_v18_5 (agent 分離は condition では保証されず pev が dispatch を握る必要) / F_v18_4 (grill-me は6行、 内製化が妥当)
+- 本実装 smoke (改修後 pev.md): pipeline 健全性を確認 (subdomain test 追加 / verify PASS / 独立 `npm test` 26/26 pass)。 ただし `/goal` 実発火・verifier 別 Task dispatch は **headless 小タスクでは未観測** (F_v18_6 = pev の指示ベース性質、 main が近道)。 機構自体は PoC A/B で実証済
+- 設計文書: `experiments/v4.0-design.md`
+
 ## [3.7.3] - 2026-06-02
 
 **`pev-focus-mode` skill の正確性補正**。 v3.6.0 で「focus mode の 4.8 現存性が未確認」 として保留していた懸念を一次ソースで検証し、 **focus mode / `/focus` は現存・現役** と確定 (= skill の前提は正しかった)。 検証で判明した記載ギャップ (fullscreen 専用制約 / `viewMode` 設定) を skill に補正。
