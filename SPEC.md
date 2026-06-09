@@ -69,7 +69,7 @@ Claude Opus 4.8 時代のコーディングハーネス。 **v3.0 で「(Triage 
         │  output: artifacts/verify.json       │
         └────────────┬────────────────────────┘
                      │
-            PASS ◀───┴───▶ FAIL → Plan に戻る (最大3回)
+            PASS ◀───┴───▶ FAIL → /goal が re-plan → re-execute → verifier 再 dispatch を駆動 (最大3 rounds)
               │
               ▼
            [DONE] + recap自動生成
@@ -178,7 +178,7 @@ agent `agents/verifier.md`：
   2. plan.md の Verification strategy を実行
   3. Acceptance Criteria を1つずつ ✅/❌ チェック
   4. `artifacts/verify.json` に書き出し
-  5. FAIL あれば planner に diff + 失敗内容を渡してリトライ (**最大3回 = 経験則、 1次情報根拠なし**)
+  5. FAIL なら pipeline が `/goal` 駆動で re-plan → re-execute → **verifier を別 Task として再 dispatch** を回す (**最大3 rounds = 経験則、 1次情報根拠なし**)。 verifier 自身はループせず verify.json を書くのみ、 retry の自走は `/goal` が担う (v4.0+)
 - `--strict` モード: `pev-dual-review` skill が起動し、Reviewer A=Opus 4.8、Reviewer B=Sonnet 4.6 を並列実行
 
 ### Phase Gates
@@ -188,7 +188,7 @@ agent `agents/verifier.md`：
 | **L** | Plan → Gate A (= `.linear-config.yml` 存在時のみ、 v3.3.0+、 v3.3.1 で配置修正) | Linear issue-first。 実装前に Linear issue を作成し、 Linear 発行 branch を checkout。 **Gate A の前** に置く (v3.3.0 は Gate A の後に置いて default mode で dead path だった、 F_v15_1)。 不在なら skip |
 | **A** | Gate L → Execute (= Plan が起動された場合のみ) | `permissionMode` 判定。auto時スキップ、default時停止、plan時終了。 v3.0+ では Triage が `plan_skip` した場合 Gate A 自体を skip して直接 Execute |
 | **B** | Execute → Verify | Stop hookが自動でverifier起動 |
-| **Retry** | Verify FAIL時 | plan.md と diff を planner に戻す、最大3回 (= plan.md がない Mode B では Triage に戻す or 単発再 Execute、 v3.1+ で詳細詰め) |
+| **Retry** | Verify FAIL時 | `/goal` 駆動 (v4.0+): plan.md と diff を planner に戻し re-execute → verifier 再 dispatch を最大3 rounds 自走。 verifier の独立 dispatch は pipeline が握る。 `--expect-fail` / hooks 無効環境では `/goal` を起動せず verify 1 回で停止 (v4.1.0 で legacy retry_count 撤去)。 plan.md がない Mode B では Triage に戻す or 単発再 Execute |
 
 ---
 

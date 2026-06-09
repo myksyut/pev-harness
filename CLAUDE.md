@@ -4,7 +4,7 @@
 
 ## 0. このリポジトリは何か
 
-Claude Opus 4.8 native の **(Triage →) Plan → Execute → Verify (PEV) coding harness** Claude Code plugin。 v0.1 → v3.0.1 (現在) まで dog food 駆動で漸進的に成長させてきた。 v1.0 で OSS public 化済 (<https://github.com/myksyut/pev-harness>)。
+Claude Opus 4.8 native の **(Triage →) Plan → Execute → Verify (PEV) coding harness** Claude Code plugin。 v0.1 → v4.1.0 (現在) まで dog food 駆動で漸進的に成長させてきた。 v1.0 で OSS public 化済 (<https://github.com/myksyut/pev-harness>)。
 
 **v3.0 で根本見直し済**: ハーネスの value proposition を「user の頭の中の spec を引き出す」 に再定義。 v2.x までは Plan を必ず起動する 3-phase pipeline だったが、 v3.0 で Phase 0 (Triage) を新設、 Plan を on-demand 化、 質問判定強化、 F1 Defensive default の scope 限定 を実施。 詳細: [experiments/v3.0-design.md](./experiments/v3.0-design.md) + [experiments/harness-effect-v1 to v5](./experiments/) の 5 件の根拠実験。
 
@@ -37,7 +37,11 @@ Claude Opus 4.8 native の **(Triage →) Plan → Execute → Verify (PEV) codi
 | v2.x | Linear / Codex / scope install 等の追記強化 | (累積) | dog food 中心 |
 | **v2.1.6** | **harness-effect-v1 dog food**: WebSocket chat | F1 Defensive default + F2 DRY self-review | released |
 | **v3.0** | **大型再設計**: Triage 新設 + Plan on-demand + 質問判定強化 + F1 scope 限定 | harness-effect-v1/v2/v3/v4 (4 件) で根拠提示、 v3-dogfood で再現性確認 | released |
-| **v3.0.1** | **harness-effect-v5 dog food**: 申込キャンセル機能 | F_v5_1 (pattern 踏襲指示でも dialog 等は質問必須) | (current) |
+| **v3.0.1** | **harness-effect-v5 dog food**: 申込キャンセル機能 | F_v5_1 (pattern 踏襲指示でも dialog 等は質問必須) | released |
+| **v3.5** | **External executor (Codex CLI) 委譲**: Execute phase の実 file 編集を codex に | F_v35_1 (ChatGPT 認証では codex-family model のみ、 汎用 model は 400) | released |
+| **v3.7** | Execute default を codex 化 + データ送信ポリシー追記 | (累積) | released |
+| **v4.0** | **公式 primitive 再配置**: Retry Gate を `/goal` 駆動 + planner に grill-me 統合 | harness-effect-v18 PoC (positive + negative)、 F_v18_5 (verifier dispatch は pev が握る) + F_v18_6 (outputStyle 継承汚染) | released |
+| **v4.1** | **`/goal` 前提化**: legacy retry_count 撤去、 retry を `/goal` に一本化 | (v4.0 dog food 継承、 spec 簡素化) | (current) |
 
 **重要**: dog food は **実機 invoke** が原則。 spec review のみで release しない (v1.2 の Linear sync は dog food 未実施で、 v1.3 で 28 findings が一気に出た)。
 
@@ -323,4 +327,4 @@ rm -rf artifacts/ playwright-report/ test-results/
 
 ---
 
-> このファイルは v1.7 で書き換えられた (元は plugin user 向けだったが、 dog food 駆動の開発が確立した v1.6 までを振り返って **開発者向け暗黙知集** として再定義)。 v3.0.2 で v3.0 / v3.0.1 の構造変更 (Triage 新設、 Plan on-demand、 質問判定強化、 F1 scope 限定、 sample-project の form fixture 化) を反映済。
+> このファイルは v1.7 で書き換えられた (元は plugin user 向けだったが、 dog food 駆動の開発が確立した v1.6 までを振り返って **開発者向け暗黙知集** として再定義)。 v3.0.2 で v3.0 / v3.0.1 の構造変更 (Triage 新設、 Plan on-demand、 質問判定強化、 F1 scope 限定、 sample-project の form fixture 化) を反映。 v4.1.0 で v3.5 (Codex executor) / v4.0 (`/goal` 駆動 + grill-me、 §8.5 outputStyle 汚染) / v4.1 (`/goal` 前提化) を反映済。
