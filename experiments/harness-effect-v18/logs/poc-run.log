@@ -1,0 +1,18 @@
+ゴール条件を満たしました。実装者ターンの自己申告ではなく、**独立した pev-harness verifier** が検証した結果が揃っています。
+
+## 完了報告
+
+**実装(追加のみ、既存コードは無変更):**
+- `src/validation.js` — `validatePostalCode(value)` を新規追加。既存 validator と同じ `(value) => string|null` シグネチャ、正規表現 `/^\d{3}-?\d{4}$/` でハイフンあり/なし両対応。
+- `tests/validation.test.js` — 新規 `import` 行 + `describe('validatePostalCode')` を**末尾追記**(既存 import / 既存 describe は1行も触れていない)。境界値: 空・6桁・8桁・数字以外・NNN-NNNN 形式・trim を網羅。
+
+**独立検証(verifier エージェントが実行):**
+- 生の `npm test` 出力 → `Test Files 2 passed (2) / Tests 30 passed (30)`、**exit code 0**
+- `artifacts/verify.json` → **`"verdict": "PASS"`**(verifier が書き出し、上記で実体確認済み)
+
+`★ Insight ─────────────────────────────────────`
+- verifier は git diff が non-git dir で取れない環境でも、既存関数の行範囲を静的に突き合わせて「追加のみ」制約を確認しています。検証は「テストが緑」だけでなく**制約違反がないか**まで見るのが本質。
+- 既存 21 + 新規 9 = 30 tests のうち、新規郵便番号テストが 5 it ブロック=9 assertion 群として既存スイートに非破壊で統合された点が、PEV の「additions only」原則の実証になっています。
+`─────────────────────────────────────────────────`
+
+タスク・検証ともに完了です。
