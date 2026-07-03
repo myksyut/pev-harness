@@ -42,6 +42,7 @@ Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済み�
 - **実装 file (src/ / tests/) を orchestrator turn で Read しない**。 codebase 理解が必要な作業はすべて phase agent (triage / planner / executor / verifier) に委譲する
 - **orchestrator turn で code 変更・test 実行をしない** (= 「小さい修正だから直接やる」 は禁止、 Execute phase へ)
 - 各 phase agent の model / effort は `agents/*.md` frontmatter が正 (Triage=sonnet low / Plan=opus xhigh / Execute=sonnet high or codex / Verify=sonnet xhigh)。 orchestrator が dispatch 時に model を fable へ引き上げない
+- **phase agent の dispatch は同期 (foreground) Task で行う**。 background dispatch は禁止 — headless (`-p`) 実行では background task の待機上限 (default 600 秒) で session ごと terminate され、 実行中の phase が成果物未着地のまま切断される (harness-effect-v19 / F_v19_6)。 phase は元々逐次依存 (Plan → Execute → Verify) なので並行化の利得もない
 
 規約詳細: `rules/pev-conventions.md` §7、 費用モデル: `experiments/v4.2-fable-orchestrator-cost.md`。
 
