@@ -4,7 +4,7 @@
 
 ## 0. このリポジトリは何か
 
-Claude Opus 4.8 native の **(Triage →) Plan → Execute → Verify (PEV) coding harness** Claude Code plugin。 v0.1 → v4.1.0 (現在) まで dog food 駆動で漸進的に成長させてきた。 v1.0 で OSS public 化済 (<https://github.com/myksyut/pev-harness>)。
+Claude Opus 4.8 native の **(Triage →) Plan → Execute → Verify (PEV) coding harness** Claude Code plugin。 v0.1 → v4.2.0 (現在) まで dog food 駆動で漸進的に成長させてきた。 v1.0 で OSS public 化済 (<https://github.com/myksyut/pev-harness>)。 **v4.2 で main session を Fable 5 orchestrator に切替** (phase は opus/sonnet/codex へ委譲、 金額コスト削減。 rules/pev-conventions.md §7 + experiments/v4.2-fable-orchestrator-cost.md)。
 
 **v3.0 で根本見直し済**: ハーネスの value proposition を「user の頭の中の spec を引き出す」 に再定義。 v2.x までは Plan を必ず起動する 3-phase pipeline だったが、 v3.0 で Phase 0 (Triage) を新設、 Plan を on-demand 化、 質問判定強化、 F1 Defensive default の scope 限定 を実施。 詳細: [experiments/v3.0-design.md](./experiments/v3.0-design.md) + [experiments/harness-effect-v1 to v5](./experiments/) の 5 件の根拠実験。
 
@@ -41,7 +41,8 @@ Claude Opus 4.8 native の **(Triage →) Plan → Execute → Verify (PEV) codi
 | **v3.5** | **External executor (Codex CLI) 委譲**: Execute phase の実 file 編集を codex に | F_v35_1 (ChatGPT 認証では codex-family model のみ、 汎用 model は 400) | released |
 | **v3.7** | Execute default を codex 化 + データ送信ポリシー追記 | (累積) | released |
 | **v4.0** | **公式 primitive 再配置**: Retry Gate を `/goal` 駆動 + planner に grill-me 統合 | harness-effect-v18 PoC (positive + negative)、 F_v18_5 (verifier dispatch は pev が握る) + F_v18_6 (outputStyle 継承汚染) | released |
-| **v4.1** | **`/goal` 前提化**: legacy retry_count 撤去、 retry を `/goal` に一本化 | (v4.0 dog food 継承、 spec 簡素化) | (current) |
+| **v4.1** | **`/goal` 前提化**: legacy retry_count 撤去、 retry を `/goal` に一本化 | (v4.0 dog food 継承、 spec 簡素化) | released |
+| **v4.2** | **Fable orchestrator + model tiering**: main session を fable-5/high の薄い指揮層に、 phase は opus/sonnet/codex 委譲を維持。 orchestrator thin invariant (token ≤15%) を規約化 | 費用モデル試算 (ハーネスなし比 −45〜60%)、 実機 A/B は harness-effect-v19 予定 | (current) |
 
 **重要**: dog food は **実機 invoke** が原則。 spec review のみで release しない (v1.2 の Linear sync は dog food 未実施で、 v1.3 で 28 findings が一気に出た)。
 
@@ -327,4 +328,4 @@ rm -rf artifacts/ playwright-report/ test-results/
 
 ---
 
-> このファイルは v1.7 で書き換えられた (元は plugin user 向けだったが、 dog food 駆動の開発が確立した v1.6 までを振り返って **開発者向け暗黙知集** として再定義)。 v3.0.2 で v3.0 / v3.0.1 の構造変更 (Triage 新設、 Plan on-demand、 質問判定強化、 F1 scope 限定、 sample-project の form fixture 化) を反映。 v4.1.0 で v3.5 (Codex executor) / v4.0 (`/goal` 駆動 + grill-me、 §8.5 outputStyle 汚染) / v4.1 (`/goal` 前提化) を反映済。
+> このファイルは v1.7 で書き換えられた (元は plugin user 向けだったが、 dog food 駆動の開発が確立した v1.6 までを振り返って **開発者向け暗黙知集** として再定義)。 v3.0.2 で v3.0 / v3.0.1 の構造変更 (Triage 新設、 Plan on-demand、 質問判定強化、 F1 scope 限定、 sample-project の form fixture 化) を反映。 v4.1.0 で v3.5 (Codex executor) / v4.0 (`/goal` 駆動 + grill-me、 §8.5 outputStyle 汚染) / v4.1 (`/goal` 前提化) を反映済。 v4.2.0 で Fable orchestrator + model tiering (rules §7 / ADR-010 / experiments/v4.2-fable-orchestrator-cost.md) を反映済。

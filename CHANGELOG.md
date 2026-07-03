@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
 
+## [4.2.0] - 2026-07-03
+
+**Fable orchestrator + model tiering — 金額ベースのコスト削減**。 main session を Claude Fable 5 (`claude-fable-5`) の薄い orchestrator に切替え、 token 量の重い Plan / Execute / Verify は従来の委譲先 model (opus / sonnet / codex) に据え置く。 Fable の単価は Opus の 2 倍 ($10/$50 per MTok) だが、 orchestrator の token 比率を task 全体の 15% 以下に制限する invariant を規約化することで、 試算でハーネスなし Claude Code (Opus 単独 session) 比 **約 −45〜60%/task** の金額削減、 かつ phase 実体不変 + 指揮層 upgrade で性能同等以上を狙う。
+
+### Changed
+
+- **settings.json**: `"model"` を `claude-opus-4-8` → `claude-fable-5`、 `"effortLevel"` を `xhigh` → `high` に変更 (orchestrator の output 単価 $50/MTok を考慮。 Fable は low effort でも従来 model の xhigh 相当 = 公式 migration guide)。 phase agent の model / effort は frontmatter が正で **不変** (Triage=sonnet low / Plan=opus xhigh / Execute=sonnet high or codex / Verify=sonnet xhigh)
+- `commands/pev.md` / `skills/pev-pipeline`: 「Model tiering」 section を追加、 orchestrator の責務を artifacts parse / flag 判定 / dispatch / `/goal` set / recap に限定
+
+### Added
+
+- **rules/pev-conventions.md §7 (Model tiering)**: orchestrator thin invariant を絶対遵守ルール化 — (1) 実装 file を Read しない、 (2) code 変更・test 実行をしない、 (3) agent model を fable へ引き上げない、 (4) orchestrator token 比率 ≤ 15%。 感度分析より、 invariant を 1 つ破るだけで baseline (ハーネスなし) より高くなる
+- **experiments/v4.2-fable-orchestrator-cost.md**: 単価表 (2026-06 時点)、 構成差分、 費用試算 (baseline $3.83 → v4.2 codex $1.53 / claude executor $2.11)、 感度分析、 性能同等性の論拠、 degrade path (ZDR org は settings.local.json で opus に override)、 検証計画 (harness-effect-v19)
+- **SPEC.md ADR-010**: なぜ orchestrator だけを Fable にするのか (コスト = トークン量 × 単価の積、 単価 2 倍でも量 15% なら削減の支配項は heavy phase の委譲)
+
+### Migration (v4.1 → v4.2)
+
+- Fable 5 が使えない環境 (ZDR org = Fable は 30-day retention 必須で 400、 or plan 未対応) は `.claude/settings.local.json` で `"model": "claude-opus-4-8"` に override → v4.1 相当の挙動に degrade
+- phase の成果物 (plan.md / execute.log / verify.json) の schema・flow に変更なし
+
+### Verification
+
+- 本 release は費用モデル (試算) ベース。 実機 A/B (ハーネスなし Opus 単独 vs v4.2、 stream-json usage で金額換算 + verify PASS 判定) は **harness-effect-v19** として計画済 (experiments/v4.2-fable-orchestrator-cost.md §8)
+
 ## [4.1.0] - 2026-06-09
 
 **`/goal` 前提化 — legacy retry_count 撤去**。 v4.0 では互換のため `/goal` unavailable 時の bash retry_count 自走ループ (Step 7c) を残していたが、 必須 Claude Code version v2.1.156 が `/goal` の floor (v2.1.139) を上回り **全 user が `/goal` を利用可** なため、 legacy degrade path は冗長。 retry 駆動を `/goal` に一本化し orchestration を純減する。

@@ -39,6 +39,8 @@ Claude Opus 4.8 時代のコーディングハーネス。 **v3.0 で「(Triage 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │              /pev <task>  または 自然言語入力                │
+│  orchestrator: main session = fable-5 / high (v4.2.0+)       │
+│  役割: dispatch / Gate 判定 / /goal 駆動のみ (実装は委譲)     │
 └─────────────────────────┬───────────────────────────────────┘
                           ▼
         ┌─────────────────────────────────────┐
@@ -236,8 +238,8 @@ agent `agents/verifier.md`：
 
 ```json
 {
-  "model": "claude-opus-4-8",
-  "effortLevel": "xhigh",
+  "model": "claude-fable-5",
+  "effortLevel": "high",
   "permissions": {
     "defaultMode": "default"
   },
@@ -252,7 +254,8 @@ agent `agents/verifier.md`：
 
 - `permissions.defaultMode` のデフォルトは安全側の `"default"` (v2.1.1 まで top-level `"permissionMode"` だったが、 公式 [settings.md](https://code.claude.com/docs/en/settings.md) で正規 key ではなかったため v2.1.2 で修正)
 - Auto Mode利用者は Shift+Tab でセッション内切替、または `.claude/settings.local.json` で個別上書き
-- B1 「If you're upgrading to the new model, we recommend experimenting with effort rather than just porting over an old setting」 を踏まえ、 session 内で `/effort` 切替も推奨 (default xhigh は出発点)
+- B1 「If you're upgrading to the new model, we recommend experimenting with effort rather than just porting over an old setting」 を踏まえ、 session 内で `/effort` 切替も推奨 (default high は出発点)
+- **v4.2.0**: main session model を `claude-fable-5` (orchestrator 専用 tier) に、 effortLevel を `high` に変更。 phase agent の model/effort は frontmatter が正で不変。 Fable が使えない org (ZDR) は `.claude/settings.local.json` で `"model": "claude-opus-4-8"` に override (= v4.1 相当に degrade)。 費用モデル: [experiments/v4.2-fable-orchestrator-cost.md](./experiments/v4.2-fable-orchestrator-cost.md)
 - skill auto-invocation 抑止: top-level の独自 field ではなく、 各 SKILL.md の `disable-model-invocation: true` / `user-invocable: false` で個別制御 (v2.1.2 から)
 
 ---
@@ -433,6 +436,7 @@ v2.0 の codex reviewer 統合に対し、 v3.5.0 で codex を **Execute phase 
 | **v3.7.3** | **pev-focus-mode skill 正確性補正** | focus mode / `/focus` は現存・現役と一次ソース確定 (commands reference + CHANGELOG v2.1.118〜152)。 skill に fullscreen 専用 caveat + `viewMode` 設定を追記、 version 表記中立化。 v3.6.0 の「現存性未確認」 false negative を解消 | ✅ released |
 | **v4.0.0** | **公式 primitive 再配置 (`/goal` 駆動 + grill-me 統合)** | Retry Gate を Claude Code 公式 `/goal` primitive に委譲 (機構は借り、 verifier の別 Task dispatch = 独立検証は pev が握る、 F_v18_5)。 planner 質問返しに grill-me 統合 (推奨答え必須 + コード探索優先)。 `/goal` unavailable は legacy retry_count に degrade。 harness-effect-v18 PoC (positive + negative) で実機検証、 設計は `experiments/v4.0-design.md` | ✅ released |
 | **v4.1.0** | **`/goal` 前提化 (legacy retry_count 撤去)** | v4.0 の自前 retry 自走ループを削除し retry 駆動を `/goal` に一本化。 Step 7 を「`/goal` set + retry を回さない例外」 の 2 構造に簡素化、 `--no-goal-loop` flag 削除。 必須 version v2.1.156 が `/goal` floor (v2.1.139) を上回るため全 user 利用可、 version degrade 不要。 GGV 体制の orchestration 純減 | ✅ released |
+| **v4.2.0** | **Fable orchestrator + model tiering (金額コスト削減)** | main session を `claude-fable-5` / effort high の薄い orchestrator に、 Plan/Execute/Verify は従来 model (opus/sonnet/codex) へ委譲を維持。 orchestrator thin invariant (実装 file を Read しない / code を書かない / token 比率 ≤15%) を rules §7 に明文化。 試算でハーネスなし Claude Code 比 約 −45〜60%/task (ADR-010 + experiments/v4.2-fable-orchestrator-cost.md)。 実機 A/B は harness-effect-v19 で予定 | ✅ released |
 | v3.8+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 (reviewer + executor) | (TBD) | — |
 
 ---
@@ -526,3 +530,18 @@ v3.5.0 で codex を Execute phase の実装に使えるようにした際、 2 
 - codex は実装エンジンとして優秀なので **raw な file 編集** を担わせ、 wrapper の Claude が diff を読み直して DRY review / judgment trace / execute.log を書く
 
 trade-off: codex の編集後に Claude が diff 全体を読むため、 完全委譲より token を消費する。 ただし Execute phase の LLM 推論コストに対し diff 読み直しは相対的に小さく、 audit 一貫性の価値が上回ると判断。 「codex 完全所有」 mode は roadmap 候補として残す。 この設計判断は user (= 開発者) との設計確認で確定 (v3.5.0 開発セッション)。
+
+### ADR-010: なぜ orchestrator だけを Fable 5 にするのか (v4.2.0 で新規)
+
+「金額コストを下げたい」 という要求に対し、 単価が Opus の 2 倍の Fable ($10/$50 vs $5/$25 per MTok) を採用するのは一見矛盾する。 2 案を比較した:
+
+- (a) **全層を安い model に下げる** (orchestrator=sonnet 等): 単価は最小になるが、 retry 打ち切り・re-plan 指示・escalation という pipeline の最重要判断が弱い model に落ち、 FAIL → retry round 増加で総 token がむしろ増える risk。 性能同等の goal (ハーネスなし Claude Code = Opus 単独と同等) も満たしにくい
+- (b) **指揮と実務の tiering**: orchestrator は最上位 model (Fable、 long-horizon 判断に最適) だが token 量を task 全体の 15% 以下に制限、 token の重い phase (Plan/Execute/Verify) は従来の委譲先 (opus/sonnet/codex) に据え置く
+
+(b) を採用。 論拠:
+
+- **コストはトークン量 × 単価の積**。 単価 2 倍でも量が 15% なら寄与は小さく、 heavy phase を Opus 単独 session から sonnet/codex へ逃す削減が支配項になる (試算: ハーネスなし比 −45〜60%/task)
+- **性能は phase 実体が決める**: plan / execute / verify の model・effort・prompt は v4.1 と不変なので成果物品質は同一、 指揮層は strictly upgrade
+- **invariant が崩れると即反転する**: orchestrator が実装 file を読み始めると 1 変数で baseline 超え (感度分析)。 だから「orchestrator thin」 を rules/pev-conventions.md §7 の絶対遵守ルールとして規約化した (prompt の努力目標ではなく規約)
+
+trade-off: v4.1 (opus orchestrator) 比では +$0.33/task 程度の premium を払う。 これは goal の比較対象 (ハーネスなし Claude Code) に対する削減幅より 1 桁小さく、 retry/escalation 判断の品質向上への対価として許容。 数値と検証計画は [experiments/v4.2-fable-orchestrator-cost.md](./experiments/v4.2-fable-orchestrator-cost.md)。

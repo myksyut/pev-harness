@@ -34,6 +34,17 @@ linear\.app/[^/]+/issue/([A-Z]+-\d+)
 
 Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済みであることが前提。 不在時は warning を出して通常 flow にfallback。
 
+## Model tiering (v4.2.0+)
+
+`/pev` を実行する main session は **orchestrator (Fable 5、 settings.json の `"model": "claude-fable-5"`)** として振る舞う。 orchestrator の単価は高い (Opus の 2 倍) ため、 このコマンドの実装 (Step 1〜7) は以下を厳守する:
+
+- orchestrator が行うのは **artifacts の parse (jq / grep)、 flag 判定、 agent dispatch、 `/goal` set、 recap 追記** のみ
+- **実装 file (src/ / tests/) を orchestrator turn で Read しない**。 codebase 理解が必要な作業はすべて phase agent (triage / planner / executor / verifier) に委譲する
+- **orchestrator turn で code 変更・test 実行をしない** (= 「小さい修正だから直接やる」 は禁止、 Execute phase へ)
+- 各 phase agent の model / effort は `agents/*.md` frontmatter が正 (Triage=sonnet low / Plan=opus xhigh / Execute=sonnet high or codex / Verify=sonnet xhigh)。 orchestrator が dispatch 時に model を fable へ引き上げない
+
+規約詳細: `rules/pev-conventions.md` §7、 費用モデル: `experiments/v4.2-fable-orchestrator-cost.md`。
+
 ## フロー (v3.0+)
 
 1. **引数判定**:

@@ -21,6 +21,9 @@ Claude Opus 4.7 以降「step by step」「double-check」のような 4.6 時�
 入力: 自然文タスク → `/pev "Add /healthz endpoint that returns {status:'ok'}"`
 
 ```text
+  Orchestrator (main session)  fable-5 + high (v4.2+)
+       │  dispatch / Gate 判定 / /goal 駆動のみ (実装 file は読まない = コスト規約)
+       ↓
   Phase 0 [TRIAGE]   sonnet + low   →  artifacts/triage.json (v3.0+)
        ↓             Plan 必要性を判定 (cwd context + prompt 曖昧度)
        │
@@ -44,6 +47,7 @@ Claude Opus 4.7 以降「step by step」「double-check」のような 4.6 時�
 - **`--strict` で dual review** (Reviewer A=Opus xhigh + B=Sonnet high) を同一メッセージ内並列起動、structured JSON を merge
 - **`/goal` 駆動の retry (v4.0+)** — FAIL 時の re-plan → re-implement → verify ループを Claude Code 公式 `/goal` primitive に委譲。 ただし「verifier を別 Task として独立 dispatch する」 検証責務は pipeline が握り続ける (executor の自己申告を PASS にしない)。 v4.1.0 で legacy retry_count を撤去し `/goal` に一本化
 - **agent ごとに memory directory** (`~/.claude/pev/{TASK_ID}/`) を持ち、retry や次セッションへの引き継ぎが durable
+- **Model tiering (v4.2+)** — main session は Fable 5 の薄い orchestrator、 token の重い phase は opus/sonnet/codex に委譲。 試算でハーネスなし Claude Code 比 約 −45〜60%/task の金額削減 ([費用モデル](./experiments/v4.2-fable-orchestrator-cost.md))。 Fable が使えない環境は `.claude/settings.local.json` で `"model": "claude-opus-4-8"` に override
 
 ### v2.x → v3.0 Migration
 

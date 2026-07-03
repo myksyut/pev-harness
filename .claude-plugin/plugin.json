@@ -1,6 +1,6 @@
 {
   "name": "pev-harness",
-  "version": "4.1.0",
+  "version": "4.2.0",
   "description": "Claude Opus 4.8 native Plan-Execute-Verify coding harness. Minimal 3-phase pipeline for team-shared coding workflows.",
   "license": "MIT",
   "compatibility": {
