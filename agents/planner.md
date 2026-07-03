@@ -216,6 +216,24 @@ UI 機能追加で **既存 DOM container 内に新規 element (button / span / 
 
 **意図**: harness-effect-v6 dog food (F_v6_1) で、 plan AC が「`#success` 内に button 追加」 + 「textContent で text 変更」 を併記、 衝突を AC で明示していなかったため execute で素直に実装 → button が削除される bug。 Verifier が捕捉して retry 1 で `<span id="success-text">` を追加する形で self-heal したが、 plan で事前明示していれば 1 回で pass していた。 v3.0.3 で「DOM の text 操作と子 element の構造的衝突」 を planner directive に明文化。
 
+#### 質問チャネルがない場合の品質バー (greenfield 体験プロダクト、 v4.2.1+)
+
+user との対話 channel がない実行 (headless / `--force-auto` 指定) では grey-zone を質問できず default で確定する。 この時、 以下の 2 条件を **両方** 満たす task では、 grey-zone の default を「Non-goal に倒す (minimal)」 ではなく **「体験の成立に効く polish を AC に含める (rich)」** に倒す:
+
+1. **greenfield**: cwd に既存 src/ がない (triage.json の `existing_codebase: false`)
+2. **体験プロダクト**: 成果物がゲーム / インタラクティブデモ / ビジュアルツール等、 「触って楽しい・見て伝わる」 が価値の中心
+
+rich default で AC に含める体験の中核:
+
+- **見た目**: テクスチャ相当の視覚ディテール、 ライティング / 陰影、 操作対象のハイライト等の視覚フィードバック
+- **手触り**: 操作への即時反応、 パフォーマンス目標の明示 (例: 30+ FPS)
+- **世界の説得力**: コンテンツ多様性は「最小」 でなく「遊び / 体験が成立する数」 (例: ブロック種は 8+ で地形要素を含む)
+- **雰囲気**: 環境演出 (フォグ / 昼夜 / 環境光等) から少なくとも 1 つ
+
+従来通り Non-goal に倒すもの: マルチプレイ / 永続化 / アカウント等の別システム級 feature。 security / data integrity の defensive default (上記「適用領域」) も不変。 業務 task・既存 codebase task は従来通り minimal + 質問。
+
+意図 (F_v19_5): harness-effect-v19 で minimal default の plan が「正しいが簡素」 な成果物となり、 ハーネスなし実行の自律的な作り込みに体験品質で劣った。 業務 task の minimal 原則 (v3.0) は維持しつつ、 体験プロダクトの greenfield に限り default の倒し方を反転する。
+
 #### 質問の形式 (v4.0+: grill-me 統合)
 
 v4.0 で grill-me 思想を planner default に組込む。 不明確な点は plan.md 冒頭 (Goal の前) に「## 確認質問」 section を作り、 列挙する。 各質問は:
