@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
 
+## [4.2.1] - 2026-07-03
+
+**harness-effect-v19 findings 反映 — rich 品質バー + orchestrator 薄型化 + headless 完走性**。 「マイクラ作って」 A/B 実測 (experiments/v4.2-fable-orchestrator-cost.md §9) で出た F_v19_1〜6 を同日反映。
+
+### Added
+
+- **planner の rich 品質バー** (`agents/planner.md`): greenfield × 体験プロダクトの 2 条件を満たす task で、 質問チャネルがない実行 (headless / `--force-auto`) の grey-zone default を minimal → **rich** (視覚ディテール / 操作フィードバック / 30+ FPS 目標 / コンテンツ多様性 / 環境演出を AC に含める) に反転。 業務 task・既存 codebase は従来通り minimal + 質問 (F_v19_5)。 実測: 同一お題で $2.20 (単色 MVP) → $6.36 (fable 単独 $8.85 比 −28%、 品質肉薄 + 独立 verify 付き)
+- **phase dispatch は同期 Task 必須** (`commands/pev.md`): background dispatch は headless の待機上限 (600s) で session ごと切断され成果物が未着地になるため禁止 (F_v19_6)
+- **auto / --force-auto path での verifier 明示 dispatch** (`commands/pev.md` Step 5): Stop hook 任せにせず Execute 完了後に orchestrator が同 turn で verifier を dispatch (F_v19_1、 headless で Verify skip される事故の解消)
+- **phase agent の返答要約契約** (planner ≤10 行 / executor ≤10 行 / verifier ≤15 行): 成果物全文を会話に貼らない。 orchestrator (fable、 高単価) の context 流入を抑制 (F_v19_2)
+
+### Changed
+
+- **commands/pev.md 薄型化 (23.9KB → 14.7KB、 −39%)**: bash 参考実装 (Triage 判定 / Gate L / Gate A / executor mode 解決 / Step 7 recap / expect-fail) を新設の `skills/pev-pipeline/references/pev-implementation.md` へ抽出。 orchestrator は通常 reference を読まず、 該当 path (Linear / fixture) に入った時のみ Read する (F_v19_2、 orchestrator 常駐 context の削減)。 規約 (Gate A 停止条件、 Triage 必須 invoke、 defensive default 等) はすべて pev.md に残置
+
+### Verified via dog food
+
+- harness-effect-v19 (お題「マイクラ作って」、 nested claude -p): 3 者比較 + rich 再実測。 full pipeline (Triage → Plan → Execute → 独立 Verify PASS) が headless で完走、 verifier は自前 53 smoke tests を構築して exit 0。 詳細と findings: experiments/v4.2-fable-orchestrator-cost.md §9
+
 ## [4.2.0] - 2026-07-03
 
 **Fable orchestrator + model tiering — 金額ベースのコスト削減**。 main session を Claude Fable 5 (`claude-fable-5`) の薄い orchestrator に切替え、 token 量の重い Plan / Execute / Verify は従来の委譲先 model (opus / sonnet / codex) に据え置く。 Fable の単価は Opus の 2 倍 ($10/$50 per MTok) だが、 orchestrator の token 比率を task 全体の 15% 以下に制限する invariant を規約化することで、 試算でハーネスなし Claude Code (Opus 単独 session) 比 **約 −45〜60%/task** の金額削減、 かつ phase 実体不変 + 指揮層 upgrade で性能同等以上を狙う。

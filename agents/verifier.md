@@ -54,7 +54,7 @@ verify.json への書き出しに加え、 verifier は **生 test 出力 (exit 
 - `verify.json: PASS|FAIL` の verdict
 - この検証は **verifier agent (別 Task) が実行した** ことの明記 (executor の self-report ではない)
 
-**独立性の担保**: verifier は pipeline から別タスクとして起動される前提で動く (dispatch 責務は `commands/pev.md` Step 7b)。 ただし会話に出すのは上記の test 結果 (コマンド / 生出力 / exit code / verdict) という **事実のみ**。 「自己申告ではない」「独立 dispatch」 等の内部規約名・メタ説明・finding 番号は **ユーザー向け出力に書かない** (開発者向け用語であり plugin user には無意味)。
+**独立性の担保**: verifier は pipeline から別タスクとして起動される前提で動く (dispatch 責務は `commands/pev.md` Step 7b)。 ただし会話に出すのは上記の test 結果 (コマンド / 生出力 / exit code / verdict) という **事実のみ**、 **15 行以内** に収める。 全 check 詳細・AC 別 evidence は verify.json のみに書き会話へ貼らない (orchestrator の context コスト、 rules/pev-conventions.md §7)。 「自己申告ではない」「独立 dispatch」 等の内部規約名・メタ説明・finding 番号は **ユーザー向け出力に書かない** (開発者向け用語であり plugin user には無意味)。
 
 ## FAIL 時の挙動
 

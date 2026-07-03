@@ -110,6 +110,10 @@ Linear から得た Constraints が team-conventions.md と矛盾する場合、
 <tokens>
 ```
 
+### orchestrator への最終返答 (v4.2.1+、 コスト規約)
+
+plan.md **全文を返答に貼らない** (成果物は file が正、 orchestrator は必要箇所のみ読む)。 最終返答は **10 行以内**: 確認質問の有無と件数 / AC 件数 / 主要 risk 1-2 件 / `artifacts/plan.md` を書いた旨。 返答の肥大は orchestrator (Fable、 高単価) の context を直撃する (rules/pev-conventions.md §7)。
+
 ## 動作原則
 
 - **ユーザー向け発話**: `rules/user-facing-language.md` に従う (finding 番号・内部規約名・PEV 実装の講釈を会話に出さない。 設計背景は plan.md 等の成果物に書く)
