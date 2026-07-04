@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
 
+## [4.2.2] - 2026-07-04
+
+**Blindspot pass — planner が「user の unknown unknowns」 を明示化**。 確認質問 (known unknowns) / QA self-check (test 観点) ではカバーされない「user が検討した形跡のない要件論点」 を、 plan 確定前に 1 pass 列挙して `## Blindspots` section に処置付きで記録する。 Anthropic Thariq 氏「A Field Guide to Fable: Finding Your Unknowns」 の blindspot pass を planner に統合 (同氏の grill-me を v4.0 で interview として統合したのと同系列)。
+
+### Added
+
+- **agents/planner.md — Blindspot pass (v4.2.2+)**: 確認質問の前に unknown unknowns を最大 5 件列挙、 各件に処置 (`質問へ昇格` / `plan に組込` / `Non-goal 宣言` / `Risk 監視`) を 1 つ付けて plan.md `## Blindspots` に記録。 scope 膨張防止 (default は Non-goal / Risk 側へ)、 水増し禁止 (該当なければ「該当なし」)、 headless では質問へ昇格を使わず自己確定
+
 ## [4.2.1] - 2026-07-03
 
 **harness-effect-v19 findings 反映 — rich 品質バー + orchestrator 薄型化 + headless 完走性**。 「マイクラ作って」 A/B 実測 (experiments/v4.2-fable-orchestrator-cost.md §9) で出た F_v19_1〜6 を同日反映。
