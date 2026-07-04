@@ -78,6 +78,27 @@ PEV pipeline には以下の Gate / decision point がある:
 - 出力 (plan.md, recap.log等) は user の言語に合わせる
 - code内のコメントは原則書かない (rules/native-prompting.md参照)
 
-## 7. team-conventions.md の優先順位
+## 7. Model tiering (v4.2.0+、 コスト規約)
+
+pev-harness は main session を **orchestrator (Fable 5)**、 各 phase を **委譲先 model** として階層化する。 Fable の単価は Opus の 2 倍 ($10/$50 vs $5/$25 per MTok) なので、 **orchestrator が薄いこと** がコスト設計の前提になる。
+
+| Layer | Model (settings / frontmatter) | Effort | 責務 |
+|---|---|---|---|
+| Orchestrator (main session) | `claude-fable-5` | high | Triage dispatch / Gate 判定 / `/goal` set / recap。 **実装・検証はしない** |
+| Triage agent | `sonnet` | low | Plan 必要性の 1 turn 判定 |
+| Planner agent | `opus` | xhigh | plan.md authoring (質問返し含む) |
+| Executor agent | `sonnet` (default は codex 委譲) | high | code edits + execute.log |
+| Verifier agent | `sonnet` | xhigh | build/test/AC 照合 + verify.json |
+
+絶対遵守ルール:
+
+- **orchestrator は実装 file を Read しない**。 artifacts (triage.json / plan.md / verify.json) の parse と cwd の存在確認まで。 src/ の中身を読む必要が生じたら、 それは phase agent の仕事 (= dispatch する)
+- **orchestrator は code を書かない・test を走らせない**。 Execute は executor agent (or codex)、 検証は verifier agent へ。 orchestrator turn での「ついで実装」 はコスト invariant 違反 (2 倍単価で heavy work を行うことになる)
+- **agent frontmatter の model を fable に上げない**。 phase の品質が必要なら effort を上げる (それでも足りない場合のみ ADR で議論)。 fable は orchestrator 専用 tier
+- 目安: orchestrator の token 消費は task 全体の **15% 以下**。 超えるようなら orchestrator が phase の仕事を抱えている signal
+
+背景と費用モデル: [experiments/v4.2-fable-orchestrator-cost.md](../experiments/v4.2-fable-orchestrator-cost.md)。 Fable が使えない環境 (ZDR org 等、 Fable は 30-day retention 必須) では `.claude/settings.local.json` で `"model": "claude-opus-4-8"` に override して従来挙動に degrade する。
+
+## 8. team-conventions.md の優先順位
 
 team-conventions.md がプロジェクトに存在する場合、その内容が本ファイルより優先される。本ファイルは「pev-harness としての規約」、team-conventions.md は「プロジェクトの規約」。

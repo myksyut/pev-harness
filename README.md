@@ -2,86 +2,89 @@
 
 [![CI](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml)
 [![GitHub stars](https://img.shields.io/github/stars/myksyut/pev-harness?style=social)](https://github.com/myksyut/pev-harness/stargazers)
-![version](https://img.shields.io/badge/version-4.1.0-blue)
+![version](https://img.shields.io/badge/version-4.2.1-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![claude--code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5v2.1.156-purple)
 
-**A Claude Code plugin for Claude Opus 4.8 — (Triage →) Plan → Execute → Verify pipeline (v3.0+).**
+**Claude Code に「計画 → 実装 → 検証」の型を与える plugin。**
 
-> ⭐ **If you find this useful, please [star the repo](https://github.com/myksyut/pev-harness/stargazers)** — it helps other Claude Code users discover the project.
+`/pev "タスク"` と投げるだけで、 曖昧な依頼は **質問して仕様化** し、 実装は **安いモデルに委譲** し、 完成したかどうかは **実装者とは別の verifier がテストを回して判定** します。 高いモデルは判断だけ、 安いモデルは作業だけ — この役割分担で、 素の Claude Code より **壊れにくく・検証付きで・安く** なります。
 
-## Why this exists
+> ⭐ 役に立ったら [star](https://github.com/myksyut/pev-harness/stargazers) をお願いします。
 
-Claude Opus 4.7 以降「step by step」「double-check」のような 4.6 時代の prompting scaffolding が **逆効果** になることが公式に明示された (4.8 でも同方針、 むしろ literal instruction-following が強化された)。一方 Claude Code 側にも `xhigh` effort / Auto Mode / Focus Mode / Task Budget など 4.X native 機能が増えた。
+## 3 行でいうと
 
-これらを前提に **ゼロベースで再設計** した結果が pev-harness。 既存のコーディングハーネスを 4.X 向けに改造するのではなく、4.X 時代に**最初から書くなら何が必要か**を抜き出した。
+1. **勝手に作らない** — 仕様が曖昧なら実装前に質問が返ってくる (対話できない実行では、 根拠付きのデフォルトを明示して確定)
+2. **自己申告を信じない** — 「できました」ではなく、 独立した verifier がテストを書いて exit code で PASS/FAIL を判定。 FAIL なら自動で直して再検証 (最大 3 回)
+3. **金額を設計する** — 指揮は Fable 5、 計画は Opus、 実装/検証は Sonnet か Codex。 トークンの重い仕事ほど安いモデルに落ちる
 
-## What it does (v3.0+)
+## 実測: 同じ「マイクラ作って」を投げると
 
-入力: 自然文タスク → `/pev "Add /healthz endpoint that returns {status:'ok'}"`
+同一プロンプトを 4 構成に投げた実測 (2026-07、 詳細は [費用モデルと全 findings](./experiments/v4.2-fable-orchestrator-cost.md)):
+
+| 構成 | 金額 | 成果物 | 検証 |
+|---|---|---|---|
+| Claude Code 素 (Opus 単独) | $1.69 | ❌ 描画が崩壊したゲーム | なし |
+| Claude Code 素 (Fable 単独) | $8.85 | ◎ リッチだが野放図に作り込む | なし (自己申告のみ) |
+| **pev-harness (本 plugin)** | **$5.33** | **◎ テクスチャ/ホットバー/FPS 表示まで同等品質** | **✅ 独立 verifier が自作テストで PASS 判定** |
+| 〃 (実装バグが出た回) | $8.98 | ◎ | ✅ **FAIL を検出 → 自動修正 → 再検証で PASS** (retry 機構の実戦例) |
+
+つまり: **Fable 級の品質を約 4 割引きで、 しかも検証付きで** 出すのがこの harness の現在地です。
+
+## 仕組み
 
 ```text
-  Phase 0 [TRIAGE]   sonnet + low   →  artifacts/triage.json (v3.0+)
-       ↓             Plan 必要性を判定 (cwd context + prompt 曖昧度)
-       │
-       ├── plan_required ──→ Phase 1 [PLAN]    opus + xhigh   →  artifacts/plan.md
-       │                        ↓                Gate A: permissionMode で human-approval
-       │                     Phase 2 [EXECUTE] sonnet + high  →  code changes + execute.log
-       │                        ↓                Gate B: Stop hook が verify を促す
-       │                     Phase 3 [VERIFY]  sonnet + xhigh →  artifacts/verify.json (PASS/FAIL)
-       │
-       └── plan_skip ──→ Phase 2 [EXECUTE] (plan-less mode、 cwd context + task description で直接実装)
-                            ↓
-                         Phase 3 [VERIFY]
+  あなた: /pev "タスク"
        ↓
-  PASS → done    FAIL → /goal が re-plan → re-implement → verifier 再 dispatch を駆動 (max 3 rounds)
+  指揮層 (Fable 5) … 各フェーズの起動と進行判定だけを行う。 実装ファイルは読まない
+       ↓
+  [0] TRIAGE  (Sonnet)  計画が要るタスクか 1 ターンで判定
+       ↓ 要る場合のみ
+  [1] PLAN    (Opus)    仕様の穴を質問 or 根拠付きデフォルトで確定 → plan.md
+       ↓ ここで人間のレビュー (Gate A: 設定が default なら必ず停止)
+  [2] EXECUTE (Sonnet or Codex CLI)  plan 通りに実装 → execute.log
+       ↓
+  [3] VERIFY  (Sonnet)  実装者とは別タスクで起動、 テストを実行して verify.json に PASS/FAIL
+       ↓
+  PASS → 完了    FAIL → 自動で再計画 → 再実装 → 再検証 (最大 3 回、 超えたら人間へ)
 ```
 
-- **Triage agent (v3.0+)** が cwd 構造 + prompt 曖昧度から Plan 必要性を判定 (= 軽量 router、 多くの実務 task で Plan skip)
-- **Plan の質問返し (v3.0+)** で「user の頭の中の spec を引き出す」 — UI 拡張要素 / 表示 detail / nice-to-have は質問必須
-- **Defensive default の scope 限定 (v3.0+)** — security / data integrity / 状態不整合 のみに適用 (= v2.1.6 の minimal 倒れ問題を解消)
-- **Gate A の人間承認** (Plan 起動時のみ) で、軽微なタスクは `auto` で流し、重要変更は計画レビューを必須化
-- **`--strict` で dual review** (Reviewer A=Opus xhigh + B=Sonnet high) を同一メッセージ内並列起動、structured JSON を merge
-- **`/goal` 駆動の retry (v4.0+)** — FAIL 時の re-plan → re-implement → verify ループを Claude Code 公式 `/goal` primitive に委譲。 ただし「verifier を別 Task として独立 dispatch する」 検証責務は pipeline が握り続ける (executor の自己申告を PASS にしない)。 v4.1.0 で legacy retry_count を撤去し `/goal` に一本化
-- **agent ごとに memory directory** (`~/.claude/pev/{TASK_ID}/`) を持ち、retry や次セッションへの引き継ぎが durable
+押さえどころは 3 つ:
 
-### v2.x → v3.0 Migration
-
-v2.x の `/pev <task>` で `permissionMode=auto` での挙動を 保ちたい場合: `/pev <task> --with-plan` で v2.x 互換 (= Triage を skip して必ず Plan を起動)。 詳細は [CHANGELOG v3.0](./CHANGELOG.md#300---2026-05-12)。
+- **Gate A (人間の承認ポイント)**: 計画が立った直後、 permissionMode が `default` なら必ず止まって plan.md を見せます。 軽いタスクは `auto` で素通し、 重要な変更だけレビュー、 という運用ができます
+- **検証の独立性**: verifier は実装した agent と別のタスクとして起動され、 実装側のテストを鵜呑みにせず自分でテストを書くことも許可されています。 「実装者の自己採点で PASS」 は構造的に起きません
+- **コスト規約**: 指揮層 (Fable、 Opus の 2 倍単価) は artifacts の読み書きと指示だけ。 実装ファイルを読む・コードを書くのは常に安い層の仕事です
 
 ## Quick start
 
-### A) 個人 install (user scope、 全 project で使える)
+### A) 個人 install (全 project で使える)
 
 ```bash
-# 1) Plugin Marketplace 経由でインストール (v2.1+ 推奨)
+# 1) install
 claude plugin marketplace add myksyut/pev-harness
 claude plugin install pev-harness@pev-harness
 
-# 2) project に bootstrap (v1.9+、 1 コマンドで team-conventions.md + .gitignore + 言語検知)
+# 2) project の初期化 (team-conventions.md / .gitignore / 言語検知を 1 コマンドで)
 cd <your-project>
 claude
 > /pev-harness:pev-init
 
-# 3) 最初のタスクを実行
+# 3) 最初のタスク
 > /pev-harness:pev "Add a /healthz endpoint that returns {status: 'ok'}"
 ```
 
-### B) Team 共有 install (project scope、 v2.1.5+)
-
-team 全員が同じ project で同じ pev-harness version を使うことを保証したい場合:
+### B) team 共有 install (project に固定)
 
 ```bash
 cd <your-project>
 claude plugin marketplace add myksyut/pev-harness
 claude plugin install pev-harness@pev-harness --scope project
-# → <project>/.claude/settings.json に extraKnownMarketplaces + enabledPlugins が書き込まれる
 git add .claude/settings.json && git commit -m "chore: adopt pev-harness team-wide"
 ```
 
-teammate は project clone → `claude` 起動で trust prompt → 同意で auto install + enable。 詳細は [ONBOARDING §1.2](./ONBOARDING.md#12-project-scope-install-team-共有-v215-推奨)。
+teammate は clone → `claude` 起動 → trust prompt に同意で自動 install。 詳細は [ONBOARDING §1.2](./ONBOARDING.md#12-project-scope-install-team-共有-v215-推奨)。
 
-### C) セッション単位の試用 (`--plugin-dir`)
+### C) install せず試す
 
 ```bash
 git clone https://github.com/myksyut/pev-harness.git
@@ -90,46 +93,9 @@ claude --plugin-dir ./pev-harness
 > /pev-harness:pev "..."
 ```
 
-v2.0 以前の手動 clone install (`~/.claude/plugins/repos/myksyut/`) もそのまま動く。
+## タスクの投げ方
 
-`/pev-init --dry-run` で「実行予定 file list + 言語検知結果」を見てから実行する習慣を推奨。
-
-## Optional integrations
-
-pev-harness の core 機能 (PEV pipeline / Gate A/B / dual-review / external-reviewer) は単体で動きますが、 一部 skill は **別 plugin に依存** します。 使う機能だけ install してください。
-
-### Linear sync (issue/project 連携、 `pev-linear-sync` / `linear-project-workflow` / `linear-project-tracker` 用)
-
-```bash
-# Anthropic 公式 marketplace から Linear plugin を install
-claude plugin marketplace add anthropics/claude-plugins-official
-claude plugin install linear@claude-plugins-official
-# 初回起動時に OAuth で Linear workspace に接続 (Linear hosted MCP: https://mcp.linear.app/mcp)
-```
-
-install しないと `mcp__plugin_linear_linear__*` tool が解決できず、 上記 3 skill は no-op になります。 Linear 連携を使わないなら skip 可。
-
-### Playwright E2E (`pev-e2e-verify` / `/pev-verify-e2e` / `/pev-init-e2e` 用)
-
-`examples/sample-project/.mcp.json` がテンプレ。 各 project の `.mcp.json` に下記を追記:
-
-```json
-{ "mcpServers": { "playwright-test": { "command": "npx", "args": ["playwright", "run-test-mcp-server"] } } }
-```
-
-`/pev-init-e2e` が `.mcp.json` / `.claude/agents/playwright-test-*.md` を auto 生成するので、 普段は手動編集不要。
-
-### Codex CLI (`pev-external-reviewer` / `--reviewer dual-codex` 用)
-
-```bash
-# OpenAI Codex CLI install (公式: https://github.com/openai/codex)
-brew install openai/tap/codex
-codex auth login
-```
-
-`/pev-init-codex` で project 側 wire-up 完了。
-
-## Required initial-turn prompt structure
+一番効くのは **最初のプロンプトに以下を入れる** ことです (欠けていても動きます — planner が質問で埋めます):
 
 ```text
 Goal: 達成したいこと
@@ -138,74 +104,98 @@ Acceptance Criteria: 成功の判定方法
 Files: 既知の関連パス (任意)
 ```
 
-不足要素があれば、planner はコードを1行も読まずに**まず質問返し**する。Opus 4.8 は literal instruction-following が強いので (4.8 で更に強化)、暗黙の文脈には頼らない。
+### よく使う flag
+
+| Flag | 意味 |
+|---|---|
+| (なし) | Triage が計画の要否を判定する標準フロー |
+| `--with-plan` | 判定を skip して必ず計画から始める |
+| `--no-plan` | 判定を skip して即実装 (明確な小タスク向け) |
+| `--force-auto` | Gate A の停止を今回だけ skip (CI / 自動化用。 planner 自身は使えない) |
+| `--strict` | 検証を dual review (Opus + Sonnet の 2 名体制) に強化 |
+| `--executor-mode=claude` | 実装を Codex CLI でなく Claude で行う (default は codex、 未 setup なら自動で claude に fallback) |
+| `--expect-fail` | 「FAIL が正解」の fixture 用。 retry を回さない |
+
+### 品質の自動切替
+
+- **業務コード / 既存 codebase**: 仕様の穴は質問で確認、 grey-zone は保守的に (勝手に機能を盛らない)
+- **ゼロから作る体験モノ (ゲーム・デモ等)**: 対話できない実行では「動くだけの最小版」に倒さず、 テクスチャ・操作 UI・FPS 表示・環境演出まで AC に含めて作ります (v4.2.1 の rich 品質バー。 上の実測はこれ)
+
+## Optional integrations
+
+core 機能は単体で動きます。 使う分だけ:
+
+| 連携 | 用途 | setup |
+|---|---|---|
+| **Codex CLI** | Execute phase の実装エンジン (API 課金ゼロ) / 外部 reviewer | `brew install openai/tap/codex && codex auth login` → `/pev-init-codex` |
+| **Linear** | issue 起点の開発 (`/pev <linear-url>`)、 実装前 issue 自動作成 | `claude plugin install linear@claude-plugins-official` (OAuth) |
+| **Playwright** | UI タスクの E2E 検証 | `/pev-init-e2e` が `.mcp.json` と agents を自動生成 |
+
+install しない場合は該当機能が warning 付きで skip されるだけで、 pipeline は止まりません。
 
 ## Components
 
 | 種類 | 内容 |
 |---|---|
-| **agents** (3) | planner / executor / verifier |
-| **skills** (20) | pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, pev-test-design, pev-e2e-verify, pev-bootstrap-playwright, pev-bootstrap-project (v1.9), **pev-bootstrap-codex** (v2.0), **pev-external-reviewer** (v2.0), **pev-external-executor** (v3.5), pev-linear-sync, linear-issue-workflow, linear-project-workflow, linear-project-tracker, **empirical-prompt-tuning** (v2.1) |
-| **commands** (9) | `/pev`, `/pev-plan`, `/pev-execute`, `/pev-verify`, `/pev-verify-e2e`, `/pev-status`, `/pev-init-e2e`, `/pev-init` (v1.9), **`/pev-init-codex`** (v2.0) |
-| **hooks** (3) | PreToolUse (destructive cmd block) / Stop (recap auto-append) / SessionStart (task resume) |
-| **rules** (3) | `pev-conventions.md` (Gate respect 等) / `native-prompting.md` (禁止フレーズリスト + 4.8 scoped-verify 例外) / `error-patterns.md` (エラー推測 catalog) |
+| **agents** (4) | triage / planner / executor / verifier |
+| **skills** (20) | pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, pev-test-design, pev-e2e-verify, pev-bootstrap-playwright, pev-bootstrap-project, pev-bootstrap-codex, pev-external-reviewer, pev-external-executor, pev-linear-sync, linear-issue-workflow, linear-project-workflow, linear-project-tracker, empirical-prompt-tuning |
+| **commands** (9) | `/pev`, `/pev-plan`, `/pev-execute`, `/pev-verify`, `/pev-verify-e2e`, `/pev-status`, `/pev-init`, `/pev-init-e2e`, `/pev-init-codex` |
+| **hooks** (3) | PreToolUse (破壊的コマンドの block) / Stop (recap 自動追記) / SessionStart (task 再開) |
+| **rules** (3) | `pev-conventions.md` (Gate 遵守・model tiering) / `native-prompting.md` (4.X で逆効果な定型句の禁止リスト) / `error-patterns.md` (エラー推測 catalog) |
+
+### モデル構成 (v4.2+)
+
+| 層 | Model / Effort | 単価 ($/MTok in/out) |
+|---|---|---|
+| 指揮 (main session) | Fable 5 / high | 10 / 50 |
+| Triage | Sonnet / low | 3 / 15 |
+| Plan | Opus 4.8 / xhigh | 5 / 25 |
+| Execute | Sonnet / high (default: Codex CLI 委譲) | 3 / 15 (codex は 0) |
+| Verify | Sonnet / xhigh | 3 / 15 |
+
+Fable が使えない環境 (ZDR org 等) は `.claude/settings.local.json` で `"model": "claude-opus-4-8"` に override すれば従来構成で動きます。
 
 ## Documentation
 
-- [SPEC.md](./SPEC.md) — 完全仕様 (12 章 + ADR 5 件)
+- [SPEC.md](./SPEC.md) — 完全仕様 (12 章 + ADR 10 件)
 - [ONBOARDING.md](./ONBOARDING.md) — Installation, troubleshooting, FAQ
+- [experiments/](./experiments/) — 設計判断の根拠実験 (harness-effect-v1〜v19)
 - [CHANGELOG.md](./CHANGELOG.md) — version history
-- [CONTRIBUTING.md](./CONTRIBUTING.md) — How to contribute
-- [SECURITY.md](./SECURITY.md) — Vulnerability disclosure policy
-- [examples/](./examples/) — Sample plan.md / verify.json / dog food evidence
+- [CONTRIBUTING.md](./CONTRIBUTING.md) / [SECURITY.md](./SECURITY.md)
 
 ## Design philosophy
-
-5 つの原則 (SPEC.md §1):
 
 | | |
 |---|---|
 | **P1** | Single source of truth — 1 phase に 1 agent / 1 skill |
-| **P2** | 4.X-native — `xhigh` / adaptive thinking / task budget / auto mode 前提 |
-| **P3** | No backwards compat — Claude Code v2.1.156+ 必須 (Opus 4.8 pin + <2.1.156 の tool-use bug 回避)、4.6 以前と互換しない |
+| **P2** | 4.X-native — 「step-by-step」等の旧世代 scaffolding を書かない (公式に逆効果と明示) |
+| **P3** | No backwards compat — Claude Code v2.1.156+ 必須 |
 | **P4** | Convention over configuration — settings.json デフォルトで動く |
-| **P5** | Hook-driven verification — 検証は prompt ではなく hook で強制 |
-
-特に **P5 が dog food で証明済み**: v0.5 で planner が `permissionMode=default` を自主判断で override したが、v0.6 で rules / agent / command の 3 層で Gate boundary を縛って完全解消した。
+| **P5** | 検証は仕組みで強制 — agent の自己申告でなく hook / 独立 dispatch / exit code で担保 |
 
 ## What this harness does NOT do
 
 - 言語別ヘルパーの追加 (プロジェクト側の tooling を使う)
 - 自動 git commit (人間が境界を決める)
 - 自動フォーマット (プロジェクト側の formatter)
-- 50 個の specialized agent (ここでは agent 3 個でミニマルに完結)
+- 50 個の specialized agent (agent 4 個でミニマルに完結)
 
-## Roadmap
+## Roadmap (抜粋)
 
 | Version | スコープ | Status |
 |---|---|---|
-| v0.1-v0.6 | 機能開発 (Plan/Execute/Verify pipeline 完成) | ✅ released |
-| v1.0 | Rollout package (ONBOARDING / ROLLOUT-CHECKLIST / FEEDBACK-TEMPLATE) | ✅ released |
-| v1.1 | OSS 化準備 (LICENSE / SECURITY / templates) | ✅ released |
-| v1.2-v1.3 | Linear integration + hardening (28 dog food findings) | ✅ released |
-| v1.4-v1.5 | E2E verification (Playwright) + QA technique integration | ✅ released |
-| v1.6-v1.7 | dog food findings reflection + CLAUDE.md 開発者向け再定義 | ✅ released |
-| v1.8 | v1.3 + v1.7.1 dog food findings reflection (9 件) | ✅ released |
-| v1.9 | `/pev-init` project bootstrap command (言語検知 + auto-populate) | ✅ released |
-| **v2.0** | **External reviewer (OpenAI Codex CLI) integration** — dual-codex mode で真の model diversity | ✅ released |
-| v2.1 | empirical-prompt-tuning skill + project scope install (team 共有) | ✅ released |
-| **v3.0** | **大型再設計** — Phase 0 (Triage) 新設 + Plan on-demand 化 + 質問判定強化 + Defensive default の scope 限定 | ✅ released |
-| **v3.5** | **External executor (Codex CLI) integration** — Execute phase の実 file 編集を Codex CLI に委譲可能に | ✅ released |
-| v3.7 | Execute phase の default executor を `codex` に正式化 (未 setup は claude に自動 degrade) | ✅ released |
-| **v4.0** | **公式 primitive 再配置** — Retry Gate を `/goal` 駆動化 + planner 質問返しに grill-me 統合 | ✅ released |
-| **v4.1** | **`/goal` 前提化** — legacy retry_count 自走ループを撤去、 retry 駆動を `/goal` に一本化 | ✅ released |
-| future | Gemini CLI 対応 (reviewer + executor) / planner-executor も外部 model 切替可 | [Issue #9](https://github.com/myksyut/pev-harness/issues/9) |
+| v0.1〜v2.1 | PEV pipeline 完成 / Linear / Playwright E2E / Codex reviewer / team install | ✅ released |
+| **v3.0** | 大型再設計 — Triage 新設、 Plan on-demand 化、 質問返しの必須化 | ✅ released |
+| v3.5〜v3.7 | Codex CLI を Execute の default エンジンに | ✅ released |
+| v4.0〜v4.1 | retry 駆動を公式 `/goal` primitive に一本化 (独立検証の dispatch は harness が保持) | ✅ released |
+| **v4.2〜v4.2.1** | **Fable orchestrator + model tiering** — 実測で Fable 単独比 −40% / rich 品質バー / orchestrator 薄型化 | ✅ released |
+| future | orchestrator turn 統合 (コスト比率 15% 目標) / Gemini CLI 対応 | [Issues](https://github.com/myksyut/pev-harness/issues) |
+
+全履歴は [CHANGELOG.md](./CHANGELOG.md)、 各 release の根拠実験は [experiments/](./experiments/) 参照。
 
 ## Contributing
 
-Bug report / feature request は [Issues](https://github.com/myksyut/pev-harness/issues) で。質問は [Discussions](https://github.com/myksyut/pev-harness/discussions) で。
-
-詳細は [CONTRIBUTING.md](./CONTRIBUTING.md) を参照。Security 脆弱性は **SECURITY.md** の手順で private に。
+Bug report / feature request は [Issues](https://github.com/myksyut/pev-harness/issues)、 質問は [Discussions](https://github.com/myksyut/pev-harness/discussions) へ。 詳細は [CONTRIBUTING.md](./CONTRIBUTING.md)。 脆弱性は [SECURITY.md](./SECURITY.md) の手順で private に。
 
 ## License
 
@@ -213,4 +203,4 @@ MIT — see [LICENSE](./LICENSE).
 
 ---
 
-> **Note for users**: pev-harness は **trusted developer の local 環境** で動作する開発支援 plugin として設計されています。 SaaS / 共有環境での運用には追加の sandbox / isolation が必要です。詳しくは [SECURITY.md](./SECURITY.md) の threat model 参照。
+> **Note**: pev-harness は **trusted developer の local 環境** で動作する開発支援 plugin として設計されています。 SaaS / 共有環境での運用には追加の sandbox / isolation が必要です。 詳しくは [SECURITY.md](./SECURITY.md) の threat model 参照。

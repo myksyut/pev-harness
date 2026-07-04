@@ -13,6 +13,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
 
+## [4.2.1] - 2026-07-03
+
+**harness-effect-v19 findings 反映 — rich 品質バー + orchestrator 薄型化 + headless 完走性**。 「マイクラ作って」 A/B 実測 (experiments/v4.2-fable-orchestrator-cost.md §9) で出た F_v19_1〜6 を同日反映。
+
+### Added
+
+- **planner の rich 品質バー** (`agents/planner.md`): greenfield × 体験プロダクトの 2 条件を満たす task で、 質問チャネルがない実行 (headless / `--force-auto`) の grey-zone default を minimal → **rich** (視覚ディテール / 操作フィードバック / 30+ FPS 目標 / コンテンツ多様性 / 環境演出を AC に含める) に反転。 業務 task・既存 codebase は従来通り minimal + 質問 (F_v19_5)。 実測: 同一お題で $2.20 (単色 MVP) → $6.36 (fable 単独 $8.85 比 −28%、 品質肉薄 + 独立 verify 付き)
+- **phase dispatch は同期 Task 必須** (`commands/pev.md`): background dispatch は headless の待機上限 (600s) で session ごと切断され成果物が未着地になるため禁止 (F_v19_6)
+- **auto / --force-auto path での verifier 明示 dispatch** (`commands/pev.md` Step 5): Stop hook 任せにせず Execute 完了後に orchestrator が同 turn で verifier を dispatch (F_v19_1、 headless で Verify skip される事故の解消)
+- **phase agent の返答要約契約** (planner ≤10 行 / executor ≤10 行 / verifier ≤15 行): 成果物全文を会話に貼らない。 orchestrator (fable、 高単価) の context 流入を抑制 (F_v19_2)
+
+### Changed
+
+- **commands/pev.md 薄型化 (23.9KB → 14.7KB、 −39%)**: bash 参考実装 (Triage 判定 / Gate L / Gate A / executor mode 解決 / Step 7 recap / expect-fail) を新設の `skills/pev-pipeline/references/pev-implementation.md` へ抽出。 orchestrator は通常 reference を読まず、 該当 path (Linear / fixture) に入った時のみ Read する (F_v19_2、 orchestrator 常駐 context の削減)。 規約 (Gate A 停止条件、 Triage 必須 invoke、 defensive default 等) はすべて pev.md に残置
+
+### Verified via dog food
+
+- harness-effect-v19 (お題「マイクラ作って」、 nested claude -p): 3 者比較 + rich 再実測。 full pipeline (Triage → Plan → Execute → 独立 Verify PASS) が headless で完走、 verifier は自前 53 smoke tests を構築して exit 0。 詳細と findings: experiments/v4.2-fable-orchestrator-cost.md §9
+
+## [4.2.0] - 2026-07-03
+
+**Fable orchestrator + model tiering — 金額ベースのコスト削減**。 main session を Claude Fable 5 (`claude-fable-5`) の薄い orchestrator に切替え、 token 量の重い Plan / Execute / Verify は従来の委譲先 model (opus / sonnet / codex) に据え置く。 Fable の単価は Opus の 2 倍 ($10/$50 per MTok) だが、 orchestrator の token 比率を task 全体の 15% 以下に制限する invariant を規約化することで、 試算でハーネスなし Claude Code (Opus 単独 session) 比 **約 −45〜60%/task** の金額削減、 かつ phase 実体不変 + 指揮層 upgrade で性能同等以上を狙う。
+
+### Changed
+
+- **settings.json**: `"model"` を `claude-opus-4-8` → `claude-fable-5`、 `"effortLevel"` を `xhigh` → `high` に変更 (orchestrator の output 単価 $50/MTok を考慮。 Fable は low effort でも従来 model の xhigh 相当 = 公式 migration guide)。 phase agent の model / effort は frontmatter が正で **不変** (Triage=sonnet low / Plan=opus xhigh / Execute=sonnet high or codex / Verify=sonnet xhigh)
+- `commands/pev.md` / `skills/pev-pipeline`: 「Model tiering」 section を追加、 orchestrator の責務を artifacts parse / flag 判定 / dispatch / `/goal` set / recap に限定
+
+### Added
+
+- **rules/pev-conventions.md §7 (Model tiering)**: orchestrator thin invariant を絶対遵守ルール化 — (1) 実装 file を Read しない、 (2) code 変更・test 実行をしない、 (3) agent model を fable へ引き上げない、 (4) orchestrator token 比率 ≤ 15%。 感度分析より、 invariant を 1 つ破るだけで baseline (ハーネスなし) より高くなる
+- **experiments/v4.2-fable-orchestrator-cost.md**: 単価表 (2026-06 時点)、 構成差分、 費用試算 (baseline $3.83 → v4.2 codex $1.53 / claude executor $2.11)、 感度分析、 性能同等性の論拠、 degrade path (ZDR org は settings.local.json で opus に override)、 検証計画 (harness-effect-v19)
+- **SPEC.md ADR-010**: なぜ orchestrator だけを Fable にするのか (コスト = トークン量 × 単価の積、 単価 2 倍でも量 15% なら削減の支配項は heavy phase の委譲)
+
+### Migration (v4.1 → v4.2)
+
+- Fable 5 が使えない環境 (ZDR org = Fable は 30-day retention 必須で 400、 or plan 未対応) は `.claude/settings.local.json` で `"model": "claude-opus-4-8"` に override → v4.1 相当の挙動に degrade
+- phase の成果物 (plan.md / execute.log / verify.json) の schema・flow に変更なし
+
+### Verification
+
+- 本 release は費用モデル (試算) ベース。 実機 A/B (ハーネスなし Opus 単独 vs v4.2、 stream-json usage で金額換算 + verify PASS 判定) は **harness-effect-v19** として計画済 (experiments/v4.2-fable-orchestrator-cost.md §8)
+
 ## [4.1.0] - 2026-06-09
 
 **`/goal` 前提化 — legacy retry_count 撤去**。 v4.0 では互換のため `/goal` unavailable 時の bash retry_count 自走ループ (Step 7c) を残していたが、 必須 Claude Code version v2.1.156 が `/goal` の floor (v2.1.139) を上回り **全 user が `/goal` を利用可** なため、 legacy degrade path は冗長。 retry 駆動を `/goal` に一本化し orchestration を純減する。

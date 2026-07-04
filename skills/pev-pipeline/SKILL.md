@@ -62,6 +62,20 @@ START
 DONE → pev-recap が recap.log に追記
 ```
 
+### Model tiering (v4.2.0+)
+
+pipeline は 2 層の model 構成で動く。 **orchestrator (main session) = Fable 5** が phase 遷移と Gate 判定だけを担い、 token 量の重い phase 実体は委譲先 model が担う:
+
+| Layer | Model | Effort | Input/Output 単価 ($/MTok) |
+|---|---|---|---|
+| Orchestrator (main session) | claude-fable-5 | high | 10 / 50 |
+| Triage | sonnet | low | 3 / 15 |
+| Plan | opus | xhigh | 5 / 25 |
+| Execute (default: codex 委譲) | sonnet | high | 3 / 15 (codex 時は API 課金 0) |
+| Verify | sonnet | xhigh | 3 / 15 |
+
+コスト invariant: **orchestrator は artifacts の parse と dispatch のみ** (実装 file の Read / code 変更 / test 実行は phase agent へ)。 orchestrator token 比率の目安は task 全体の 15% 以下。 規約は `rules/pev-conventions.md` §7、 費用モデルと根拠は `experiments/v4.2-fable-orchestrator-cost.md`。
+
 ### Flag override (v3.0+)
 
 - `--with-plan`: Triage を skip して必ず Plan を起動 (= v2.x 互換挙動)

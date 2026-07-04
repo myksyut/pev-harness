@@ -34,6 +34,18 @@ linear\.app/[^/]+/issue/([A-Z]+-\d+)
 
 Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済みであることが前提。 不在時は warning を出して通常 flow にfallback。
 
+## Model tiering (v4.2.0+)
+
+`/pev` を実行する main session は **orchestrator (Fable 5、 settings.json の `"model": "claude-fable-5"`)** として振る舞う。 orchestrator の単価は高い (Opus の 2 倍) ため、 このコマンドの実装 (Step 1〜7) は以下を厳守する:
+
+- orchestrator が行うのは **artifacts の parse (jq / grep)、 flag 判定、 agent dispatch、 `/goal` set、 recap 追記** のみ
+- **実装 file (src/ / tests/) を orchestrator turn で Read しない**。 codebase 理解が必要な作業はすべて phase agent (triage / planner / executor / verifier) に委譲する
+- **orchestrator turn で code 変更・test 実行をしない** (= 「小さい修正だから直接やる」 は禁止、 Execute phase へ)
+- 各 phase agent の model / effort は `agents/*.md` frontmatter が正 (Triage=sonnet low / Plan=opus xhigh / Execute=sonnet high or codex / Verify=sonnet xhigh)。 orchestrator が dispatch 時に model を fable へ引き上げない
+- **phase agent の dispatch は同期 (foreground) Task で行う**。 background dispatch は禁止 — headless (`-p`) 実行では background task の待機上限 (default 600 秒) で session ごと terminate され、 実行中の phase が成果物未着地のまま切断される (harness-effect-v19 / F_v19_6)。 phase は元々逐次依存 (Plan → Execute → Verify) なので並行化の利得もない
+
+規約詳細: `rules/pev-conventions.md` §7、 費用モデル: `experiments/v4.2-fable-orchestrator-cost.md`。
+
 ## フロー (v3.0+)
 
 1. **引数判定**:
@@ -91,59 +103,11 @@ echo "[PEV] Task started: $TASK_ID"
 
 ### Step 1.5 — Phase 0 (Triage、 v3.0+)
 
-```bash
-# --with-plan / --no-plan flag を check
-WITH_PLAN=false
-NO_PLAN=false
-[[ "$*" == *"--with-plan"* ]] && WITH_PLAN=true
-[[ "$*" == *"--no-plan"* ]] && NO_PLAN=true
-
-if [ "$WITH_PLAN" = "true" ]; then
-  echo "[PEV] --with-plan: Triage skip、 Plan を必ず起動"
-  TRIAGE_DECISION="plan_required"
-elif [ "$NO_PLAN" = "true" ]; then
-  echo "[PEV] --no-plan: Triage skip、 Plan を必ず skip"
-  TRIAGE_DECISION="plan_skip"
-else
-  # default: Triage agent を起動して判定
-  echo "[PEV] Phase 0 (Triage): Plan 必要性を判定..."
-  # triage agent (model: sonnet, effort: low) を起動、 artifacts/triage.json を生成
-  # ※ Agent 起動の実装詳細は claude code internal、 ここでは概念的に記述
-  invoke_triage_agent "$TASK_DESCRIPTION" "$(pwd)"
-  TRIAGE_DECISION=$(jq -r '.decision' artifacts/triage.json 2>/dev/null)
-fi
-
-echo "[PEV] Triage decision: $TRIAGE_DECISION"
-
-# task_infeasible の場合は user 通知して停止 (v3.0.5+)
-if [ "$TRIAGE_DECISION" = "task_infeasible" ]; then
-  REASONING=$(jq -r '.reasoning' artifacts/triage.json 2>/dev/null)
-  AMBIGUITY=$(jq -r '.ambiguity_signals[]' artifacts/triage.json 2>/dev/null)
-  echo "[PEV] Phase 0 (Triage): task_infeasible — タスクの対象が cwd に見つかりません"
-  echo "[PEV] reasoning: $REASONING"
-  echo "[PEV] missing targets:"
-  echo "$AMBIGUITY" | sed 's/^/  - /'
-  echo "[PEV] task description を確認してください、 PEV pipeline は起動しません"
-  echo "[$(date -u +%FT%TZ)] Phase 0 (Triage) complete: task_infeasible → exit" >> artifacts/recap.log
-  exit 0
-fi
-
-# Plan skip の場合は Step 4 (Execute) へ直行
-if [ "$TRIAGE_DECISION" = "plan_skip" ]; then
-  echo "[$(date -u +%FT%TZ)] Phase 0 (Triage) complete: plan_skip → direct Execute" >> artifacts/recap.log
-  # Step 4 (Execute) へジャンプ
-fi
-```
-
-**triage decision の解釈**:
-
-- `plan_required`: Step 2 (Phase 1 Plan) → Step 3 (Gate A) → Step 4 (Execute) → ...
-- `plan_skip`: Step 4 (Execute) へ直行、 Gate A は skip (= Plan がないので permissionMode 判定の文脈なし)
-- `task_infeasible` (v3.0.5+): user 通知して exit、 Plan / Execute / Verify は起動しない
-
-**重要 (v3.0.5+)**: main session (= /pev コマンド自身) は **必ず triage agent を invoke する**。 prompt の表面解釈で「対象不在」 と自走判定して triage を skip するのは禁止。 task feasibility check は triage agent の責務 (= triage.json に `task_infeasible` を出力)、 main の責務は triage の decision を受領して分岐するのみ。
-
-**Defensive default**: triage agent が応答しない / parse 失敗 / 不明な decision の場合、 default は `plan_required` (= 過剰な skip を避けて minimal interpretation 漏れを防ぐ)。
+- flag: `--with-plan` → `plan_required` 扱い (Triage skip) / `--no-plan` → `plan_skip` 扱い (Triage skip)
+- flag なし: **必ず triage agent を invoke する** (main が prompt の表面解釈で「対象不在」 等を自走判定して Triage を skip するのは禁止、 v3.0.5+)。 decision は `jq -r '.decision' artifacts/triage.json` で受領
+- `plan_required` → Step 2 へ / `plan_skip` → Step 4 (Execute) へ直行 (Gate A は skip) / `task_infeasible` (v3.0.5+) → reasoning + missing targets を user に提示、 recap.log に記録して exit 0 (Plan / Execute / Verify を起動しない)
+- **Defensive default**: triage 無応答 / parse 失敗 / 不明 decision は `plan_required`
+- bash 参考実装 (必要時のみ Read): `skills/pev-pipeline/references/pev-implementation.md`
 
 ### Step 2 — Phase 1 (Plan、 on-demand、 v3.0+)
 
@@ -153,126 +117,34 @@ planner agent (model: opus, effort: xhigh) を起動 → `artifacts/plan.md` 出
 
 ### Step 2.5 — Gate L (Linear issue-first、 v3.3.0+、 v3.3.1 で配置修正)
 
-`.linear-config.yml` が cwd に存在する場合、 **Gate A の前に必ず Linear issue を作成し、 Linear が発行する branch 名を checkout する**。 「実装前に必ず issue を立てる」 を formal channel として強制。
+`.linear-config.yml` が cwd に **存在する時のみ** 発動 (不在なら本 Step 全体を skip)。 **Gate A の前に** Linear issue を作成し、 Linear 発行 branch を checkout する (issue-first。 v3.3.1 で Gate A 前へ配置修正 = F_v15_1、 default mode 停止でも issue + branch が準備済になる)。
 
-**v3.3.1 の配置修正 (F_v15_1)**: v3.3.0 では Gate L を Gate A の **後** (Step 3.5) に置いたが、 Gate A は `permissionMode=default` で `exit 0` 停止するため Gate L が dead path になっていた。 v3.3.1 で Gate A の **前** (Step 2.5) に移動。 これにより default mode で Gate A 停止しても **issue + branch は既に準備済**、 user が `/pev-execute` を打った時に Linear branch 上で実装が走る。
-
-```bash
-# .linear-config.yml の存在 check (Gate A の前 = Triage / Plan の直後)
-if [ -f .linear-config.yml ]; then
-  # 既に Linear issue がある場合 (= inbound case、 もしくは再実行) は issue 作成 skip
-  if [ -f artifacts/linear/issue_id.txt ]; then
-    BRANCH=$(cat artifacts/linear/branch_name.txt 2>/dev/null)
-    if [ -n "$BRANCH" ]; then
-      echo "[PEV] Gate L: 既存 Linear issue branch に checkout: $BRANCH"
-      git checkout "$BRANCH" 2>/dev/null || echo "[PEV] Gate L: branch checkout skip (git 管理外 or branch なし)"
-    fi
-  else
-    # issue-first: pev-linear-sync の Direction 1.5 を invoke
-    echo "[PEV] Gate L: .linear-config.yml 検出 — 実装前に Linear issue を作成します"
-    # pev-linear-sync skill (issue-first direction) を起動:
-    #   1. .linear-config.yml から workspace / team.id を読む
-    #   2. plan.md (あれば) or task description + triage.json から issue body 組み立て
-    #   3. mcp__plugin_linear_linear__save_issue で新規 issue 作成
-    #   4. issue の branchName を取得
-    #   5. git checkout -b <branchName>
-    #   6. artifacts/linear/{issue_id,issue_url,branch_name}.txt + sync_state.json 書き出し
-    invoke_pev_linear_sync_issue_first
-    BRANCH=$(cat artifacts/linear/branch_name.txt 2>/dev/null)
-    echo "[PEV] Gate L: Linear issue 作成完了、 branch=$BRANCH で実装を進めます"
-    echo "[$(date -u +%FT%TZ)] Gate L: Linear issue created, branch=$BRANCH" >> artifacts/recap.log
-  fi
-fi
-```
-
-**Gate L の規約**:
-
-- `.linear-config.yml` が **存在する時のみ** 必須。 不在なら この Gate 全体を skip して従来 flow (= OSS user / sample-project への影響なし)
-- **配置 (v3.3.1+)**: Gate A の **前**。 plan_required path では `Plan → Gate L → Gate A`、 plan_skip path では `Triage → Gate L → Execute` (= Gate A は元々 skip)
-- inbound case (= `/pev <linear-url>`) は既に `issue_id.txt` があるので issue 作成は skip、 branch checkout のみ
-- **degraded mode (v3.3.3+ で refine、 F_v17_2)**: 以下のいずれも degraded mode (= warning を出して issue 作成 / branch checkout を skip、 pipeline は止めない):
-  - Linear MCP plugin が unavailable (= 完全に install されていない)
-  - Linear MCP が **OAuth 未認証 / token expired** (= configured but unauthed)
-  - **headless (`-p`) mode で起動されており OAuth フローを完了できない** — この場合 OAuth 認証 URL を出して停止するのは **禁止**。 headless subprocess はブラウザ OAuth を完了できないため (harness-effect-v17 / F_v17_1)、 degraded mode に倒して通常 flow で続行する
-- git 管理外の cwd では branch checkout を skip (= issue 作成のみ)
-- Plan が走った場合 (= plan_required) は plan.md の Goal/Constraints/AC を issue body に、 plan_skip (= Mode B) なら task description + triage.json を issue body に
-- **副作用**: default mode で user が plan.md レビュー後に「やめる」 と判断しても Linear issue は残る。 issue は「実装予定 task」 を表すので意味的に問題なし (= user が手動 archive)。 「default mode で Gate L が dead」 (v3.3.0 バグ) より遥かに軽微
+- inbound case (`/pev <linear-url>`) は issue 作成 skip、 branch checkout のみ。 git 管理外 cwd は checkout skip
+- Linear MCP unavailable / OAuth 未認証 / headless で OAuth 完了不能 → **degraded mode** (warning + skip、 pipeline は止めない)。 headless で OAuth URL を出して停止するのは禁止 (F_v17_1)
+- 手順・issue body 組み立て・副作用の詳細と bash 参考実装: `skills/pev-pipeline/references/pev-implementation.md` + `skills/pev-linear-sync/SKILL.md` (Linear path に入った時のみ Read)
 
 ### Step 3 — Gate A (permissionMode判定、**絶対遵守**)
 
 **規約**: Gate A の判断は `/pev` コマンド (この Step 3) の責任。planner agent は plan.md を書き終えたらそこで完全停止する。「ユーザーが続行したいはず」のような推論で executor を勝手に起動してはならない (rules/pev-conventions.md "Gate respect" 参照)。
 
-```bash
-# .claude/settings.json または settings.local.json から permissionMode を読む
-MODE=$(grep -oh '"permissionMode"[[:space:]]*:[[:space:]]*"[^"]*"' \
-       .claude/settings.local.json .claude/settings.json 2>/dev/null \
-       | head -1 | cut -d'"' -f4)
-MODE=${MODE:-default}
-
-# v1.6+ : --force-auto フラグで explicit override
-# user が「default mode だが今回だけ自動進行したい」 ケース (dog food / CI 自動化 等) に使う。
-# Gate A 規約 (default mode は停止) を守りつつ、 明示的な user override channel を提供。
-FORCE_AUTO=false
-[[ "$*" == *"--force-auto"* ]] && FORCE_AUTO=true
-
-if [ "$FORCE_AUTO" = "true" ]; then
-  echo "[PEV] Gate A: --force-auto detected — overriding permissionMode=$MODE, proceeding to Phase 2"
-  echo "[$(date -u +%FT%TZ)] Gate A overridden by --force-auto (original mode: $MODE)" >> artifacts/recap.log
-  # → Step 4 (Phase 2 Execute) へ進行
-else
-  case "$MODE" in
-    auto)
-      echo "[PEV] Gate A: auto mode — proceeding to Phase 2"
-      # → Step 4 (Phase 2 Execute) へ自動進行
-      ;;
-    plan)
-      echo "[PEV] Gate A: plan mode — STOP. Plan phase complete. Pipeline terminated."
-      cat artifacts/plan.md
-      exit 0
-      ;;
-    default|*)
-      echo "[PEV] Gate A: default mode — STOP. Plan phase complete."
-      echo "[PEV] DO NOT auto-proceed to Phase 2. Review plan.md and run /pev-execute to continue."
-      echo "[PEV] (Explicit override available: re-run with --force-auto flag.)"
-      cat artifacts/plan.md
-      exit 0
-      ;;
-  esac
-fi
-```
-
-**executor 起動条件 (Step 4 へ進む条件)**:
-
-- `permissionMode == "auto"` または `--force-auto` フラグ指定。 それ以外 (default / plan / 未設定 かつ flag なし) では **必ず exit 0** で停止する
-- agent が「ユーザー意図」を理由に Step 4 へ進むことは禁止 (rules/pev-conventions.md §0 Gate respect)
-- ユーザーが続行したい時は (a) `/pev-execute` を打つ、 (b) `permissionMode` を `auto` に変更、 (c) `--force-auto` フラグで explicit override (v1.6+)
-
-### `--force-auto` の使い分け (v1.6+)
-
-- **適切**: dog food / regression test、 CI 自動化、 信頼できる軽微タスク
-- **不適切**: production-impacting な変更、 first-time skill 利用、 user が結果を見ずに進める手抜き
-- 規約: planner 自身が override を判断するのは引き続き禁止。 ユーザー (or 上位 command) が **explicit に flag を立てる** ことが必須。 dog food log (v1.4+v1.5、 finding 4) で発覚した「prompt 自然言語での transgress」 を formal channel に置き換える。
+- `permissionMode` を `.claude/settings.local.json` → `.claude/settings.json` の順で読む (未設定は `default`)
+- `--force-auto` 指定時: mode に関わらず recap.log に override を記録して Step 4 へ (user/上位 command の explicit flag のみ有効。 planner 自身の override 判断は禁止)
+- `auto` → Step 4 へ自動進行 / `plan` → plan.md を表示して exit 0 / `default` (未設定含む) → **必ず exit 0 で停止**: plan.md を表示し「/pev-execute で続行、 もしくは --force-auto で再実行」 を案内する
+- **executor 起動条件**: `auto` or `--force-auto` のみ。 agent が「ユーザー意図」 を理由に Step 4 へ進むことは禁止 (rules/pev-conventions.md §0 Gate respect)
+- bash 参考実装と `--force-auto` 使い分け規約: `skills/pev-pipeline/references/pev-implementation.md`
 
 ### Step 4 — Phase 2 (Execute)
 
 executor agent (model: sonnet, effort: high) を起動 (`--parallel` 時は最大3並列)。
 コード変更 + `artifacts/execute.log` 記録。 **Gate L で branch checkout 済みなら、 実装は Linear 発行 branch 上で走る**。
 
-**executor mode 解決 (v3.5.0+)**:
-
-```bash
-# --executor-mode flag > PEV_EXECUTOR_MODE env > settings default (codex)
-EXECUTOR_MODE=$(echo "$*" | grep -oE -- '--executor-mode=[a-z]+' | head -1 | cut -d= -f2)
-EXECUTOR_MODE=${EXECUTOR_MODE:-${PEV_EXECUTOR_MODE:-codex}}
-export PEV_EXECUTOR_MODE="$EXECUTOR_MODE"
-echo "[PEV] Phase 2 executor mode: $EXECUTOR_MODE"
-```
-
-`PEV_EXECUTOR_MODE=codex` の場合、 executor agent は Codex delegation mode (= `agents/executor.md` 参照) で起動し、 `pev-external-executor` skill 経由で codex に実 file 編集を委譲する。 codex 未 setup / 未認証なら自動で Claude native 実装に degrade。
+**executor mode 解決 (v3.5.0+)**: 優先順 `--executor-mode` flag > `PEV_EXECUTOR_MODE` env > settings default (`codex`)。 解決値を `PEV_EXECUTOR_MODE` として executor に渡す。 `codex` の場合 executor agent は Codex delegation mode (`agents/executor.md`) で起動、 codex 未 setup / 未認証なら自動で Claude native に degrade (degrade は recap.log に記録)。 bash 参考実装: `skills/pev-pipeline/references/pev-implementation.md`。
 
 ### Step 5 — Gate B (Stop hookで自動)
 
 Stop hook が `artifacts/execute.log` 存在を検出し、recap.log にPhase 2完了エントリ追記 + `/pev-verify` を促す。
+
+**auto / `--force-auto` path (v4.2.1+、 F_v19_1)**: Stop hook 任せにせず、 orchestrator が Execute 完了を確認したら **同 turn で verifier を dispatch する**。 headless (`-p`) では Stop hook 経由の promotion が発火せず Verify が丸ごと skip される事故が実測されたため。
 
 ### Step 6 — Phase 3 (Verify)
 
@@ -306,64 +178,13 @@ verify rounds.
 4. verifier が verify.json + 生 test 出力 (exit code 含む) を **会話に明示提示** (`agents/verifier.md` の会話提示契約)
 5. `/goal` evaluator が「verifier 作の PASS + exit 0」 を読んで継続/停止を判定。 PASS なら goal 自動 clear、 FAIL なら次ターンへ。 `PEV_MAX_RETRIES` round で hand back
 
-PASS / 上限到達時の recap:
-
-```bash
-VERDICT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('artifacts/verify.json','utf8')).verdict)" 2>/dev/null)
-if [ "$VERDICT" = "PASS" ]; then
-  echo "[$(date -u +%FT%TZ)] Task complete via /goal (verdict: PASS)" >> artifacts/recap.log
-else
-  echo "[$(date -u +%FT%TZ)] /goal handed back after max rounds (verdict: $VERDICT) — /pev-status --escalate" >> artifacts/recap.log
-  echo "[PEV] /goal handed back — run /pev-status --escalate"
-fi
-```
+PASS 時は recap.log に `Task complete via /goal (verdict: PASS)`、 `PEV_MAX_RETRIES` 到達時は `handed back` を記録して `/pev-status --escalate` を案内する。
 
 #### 例外 — retry を回さない path (`--expect-fail` / hooks 無効環境)
 
-以下のいずれかでは `/goal` を **起動せず**、 verify 1 回で停止する (retry なし)。 `/goal` evaluator (Stop hook wrapper) が動かない、 もしくは FAIL が想定済の場合:
+以下のいずれかでは `/goal` を **起動せず**、 verify 1 回で停止する (retry なし):
 
-- `--expect-fail` 指定 (dog food fixture / regression で FAIL が現状の正解)
-- plan.md に `expectFail: true` メタ (planner が書き出す補助記法)
-- hooks 無効環境 (`disableAllHooks` / `allowManagedHooksOnly`) — `/goal` の評価器が無効
+- `--expect-fail` 指定、 もしくは plan.md に `expectFail: true` メタ (= FAIL が想定済の fixture。 PASS した場合は UNEXPECTED PASS として recap.log に warning)
+- hooks 無効環境 (`disableAllHooks` / `allowManagedHooksOnly`) — `/goal` evaluator が動かないため verify 1 回 + escalate 案内
 
-```bash
-VERDICT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('artifacts/verify.json','utf8')).verdict)" 2>/dev/null)
-
-# user が「このタスクは FAIL することを想定済」を明示するフォーマル channel。
-# retry に時間と token を費やさず即 escalate path に流す
-EXPECT_FAIL=false
-[[ "$*" == *"--expect-fail"* ]] && EXPECT_FAIL=true
-if [ "$EXPECT_FAIL" = "false" ] && grep -qE '^\s*expectFail:\s*true\s*$' artifacts/plan.md 2>/dev/null; then
-  EXPECT_FAIL=true
-  echo "[PEV] expectFail detected in plan.md (treating as --expect-fail)"
-fi
-
-case "$VERDICT" in
-  PASS)
-    if [ "$EXPECT_FAIL" = "true" ]; then
-      echo "[PEV] Verdict: PASS but --expect-fail was set — UNEXPECTED PASS (fixture intent broke?)"
-      echo "[$(date -u +%FT%TZ)] Unexpected PASS under --expect-fail (review fixture / spec drift)" >> artifacts/recap.log
-    else
-      echo "[PEV] Verdict: PASS — task complete"
-      echo "[$(date -u +%FT%TZ)] Task complete (verdict: PASS)" >> artifacts/recap.log
-    fi
-    ;;
-  FAIL)
-    if [ "$EXPECT_FAIL" = "true" ]; then
-      echo "[PEV] Verdict: FAIL as expected (--expect-fail) — no retry, escalate path"
-      echo "[$(date -u +%FT%TZ)] Expected FAIL recorded (no retry under --expect-fail)" >> artifacts/recap.log
-    else
-      echo "[PEV] Verdict: FAIL but /goal disabled (hooks off) — no auto-retry available"
-      echo "[$(date -u +%FT%TZ)] FAIL with /goal unavailable (hooks off) — manual retry / escalate" >> artifacts/recap.log
-    fi
-    echo "[PEV] Run /pev-status --escalate"
-    ;;
-esac
-```
-
-### `--expect-fail` の使い分け (v1.8+)
-
-- **適切**: dog food fixture で意図的に retry-exhaust シナリオを exercise したいケース、 regression test で「FAIL が現状の正解」と確定しているケース、 negative test fixture
-- **不適切**: 実装中の通常タスク (本来 retry で直る可能性を奪う)、 unknown error の調査
-- 規約: `--expect-fail` は **意図的 FAIL の宣言** であり、 retry を skip することによる時間 / token 節約を目的にする。 PASS した場合は「想定外」として recap.log に warning を残す (fixture intent 崩壊 or spec drift の signal)
-- 配置先 spec: `skills/pev-pipeline/SKILL.md` の Gate / Retry section
+verdict 別の recap 記録・`--expect-fail` 使い分け規約・bash 参考実装: `skills/pev-pipeline/references/pev-implementation.md` (該当 path に入った時のみ Read)。

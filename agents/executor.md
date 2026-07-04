@@ -226,6 +226,7 @@ codex は実装エンジンとして優秀だが、 `execute.log` / DRY self-rev
 
 - コード変更 (Edit / Write)
 - `artifacts/execute.log` に変更したファイル一覧と短いコミットメッセージ案を追記
+- **orchestrator への最終返答 (v4.2.1+、 コスト規約)**: execute.log 全文や diff を返答に貼らない。 **10 行以内** で 変更 file 一覧 / clarification・fallback の有無 / execute.log を書いた旨 のみ返す (成果物は file が正、 rules/pev-conventions.md §7)
 
 ```
 [執行ログ追記例]
