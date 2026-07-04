@@ -88,6 +88,9 @@ Linear から得た Constraints が team-conventions.md と矛盾する場合、
 - [ ] <criterion 1>
 - [ ] <criterion 2>
 
+## Blindspots (検討した形跡がない論点)
+1. <論点> → 処置: <質問へ昇格 | plan に組込 | Non-goal 宣言 | Risk 監視> (<1 文>)
+
 ## File-level changes
 - [ ] path/to/a.ts — <変更内容>
 - [ ] path/to/b.ts — <変更内容>
@@ -237,6 +240,40 @@ rich default で AC に含める体験の中核 (**4 項目とも AC 化必須**
 従来通り Non-goal に倒すもの: マルチプレイ / 永続化 / アカウント等の別システム級 feature。 security / data integrity の defensive default (上記「適用領域」) も不変。 業務 task・既存 codebase task は従来通り minimal + 質問。
 
 意図 (F_v19_5): harness-effect-v19 で minimal default の plan が「正しいが簡素」 な成果物となり、 ハーネスなし実行の自律的な作り込みに体験品質で劣った。 業務 task の minimal 原則 (v3.0) は維持しつつ、 体験プロダクトの greenfield に限り default の倒し方を反転する。
+
+#### Blindspot pass (v4.2.2+)
+
+確認質問を確定する **前** に、 1 pass だけ視点を変えて **「user が検討した形跡のない論点」 (unknown unknowns)** を列挙する。 確認質問が「prompt の穴 (user も自覚しているギャップ)」 を埋めるのに対し、 blindspot pass は「user が考えたことすらなさそうな論点」 を明示化する — 両者は別物として扱う。
+
+探す場所の例 (網羅列挙ではない):
+
+- task の周辺仕様: 並行アクセス、 空データ / 初回状態、 権限、 i18n / タイムゾーン、 モバイル / 別ブラウザ
+- 既存 codebase との相互作用: 同じ data を触る別機能、 既存 test への影響、 migration の要否
+- 運用面: 失敗時のリカバリ、 ロールバック、 観測性 (log / metrics)
+- ライフサイクル: 作った後の削除 / 編集 / 上限到達時の挙動
+
+各 blindspot には **処置を 1 つ** 付けて plan.md の `## Blindspots` section に記録する:
+
+- `質問へ昇格`: 判断が要る (対話 channel がある場合のみ。 確認質問の 7 個上限に含める)
+- `plan に組込`: 判断不要で対応すべき → AC / Risks に反映済みであることを明記
+- `Non-goal 宣言`: 今回 scope 外と判断 (理由 1 文)
+- `Risk 監視`: 対応しないが Risks に記録
+
+```markdown
+## Blindspots (検討した形跡がない論点)
+
+1. **同時編集の競合**: 複数タブで開いた場合の挙動が未検討 → 処置: Non-goal 宣言 (単一利用が前提のツール、 Risks に記録)
+2. **空データの初回表示**: 一覧が 0 件の時の UI が未検討 → 処置: plan に組込 (AC8 に empty state を追加)
+```
+
+規約:
+
+- **最大 5 件**。 重要度順に絞る (数合わせの水増し禁止 — 見つからなければ「該当なし」 と 1 行書く)
+- **scope 膨張の道具にしない**: blindspot は「論点の明示化」 であり feature 追加の口実ではない。 default の処置は Non-goal 宣言 / Risk 監視 側に倒す (rich 品質バーが適用される場合を除く)
+- 対話 channel がない実行 (headless / `--force-auto`) では全件を `plan に組込` / `Non-goal 宣言` / `Risk 監視` のいずれかで自己確定する (質問へ昇格は使えない)
+- 既に確認質問・QA self-check (pev-test-design) で拾われている論点を重複列挙しない
+
+**意図**: 確認質問 (v3.0+) は known unknowns を、 QA self-check (v1.5+) は test 観点をカバーするが、 要件レベルの unknown unknowns を敵対的に探す pass が無かった。 「安い探索で unknowns を潰してから実装する」 (Anthropic Thariq 氏の Fable field guide) の blindspot pass を planner の標準手順に組込む。
 
 #### 質問の形式 (v4.0+: grill-me 統合)
 
