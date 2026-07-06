@@ -10,6 +10,8 @@
 
 `/pev "タスク"` と投げるだけで、 曖昧な依頼は **質問して仕様化** し、 実装は **安いモデルに委譲** し、 完成したかどうかは **実装者とは別の verifier がテストを回して判定** します。 高いモデルは判断だけ、 安いモデルは作業だけ — この役割分担で、 素の Claude Code より **壊れにくく・検証付きで・安く** なります。
 
+> **コマンド名について**: plugin として install した場合、 実際のコマンドは plugin namespace 付きの **`/pev-harness:pev`** です (`/pev-init` → `/pev-harness:pev-init` 等も同様)。 本 README では以降、 読みやすさのため `/pev` と略記します。
+
 > ⭐ 役に立ったら [star](https://github.com/myksyut/pev-harness/stargazers) をお願いします。
 
 ## 3 行でいうと

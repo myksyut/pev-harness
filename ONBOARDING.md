@@ -42,6 +42,8 @@ B は historic な手動 clone 方式。 既に B で導入済みのチームは
 
 C は検証/お試し向け。 チーム展開では **A または B を推奨**。
 
+> **コマンド名について**: plugin として install すると、 コマンドは plugin namespace 付きの **`/pev-harness:pev`** になります (`/pev-init` → `/pev-harness:pev-init` 等も同様)。 本ガイド / README では読みやすさのため `/pev` と略記しています。
+
 ## 1.2. Project scope install (team 共有、 v2.1.5+ 推奨)
 
 §1 の A/B/C は全て **user scope** (個人 + 全 project) の install。 「チーム全員が同じ project で同じ pev-harness version を使う」 ことを保証したい場合は **project scope** で commit する選択肢がある (公式 [Configure team marketplaces](https://code.claude.com/docs/en/discover-plugins.md#configure-team-marketplaces) 仕様)。
