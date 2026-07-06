@@ -16,3 +16,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# legacy (v4.x 以前の artifacts/、 migration 前の残骸を誤 commit しないため維持)
+artifacts/
