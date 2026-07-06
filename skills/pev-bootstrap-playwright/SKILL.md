@@ -13,7 +13,7 @@ disable-model-invocation: true
 起動すべき場面:
 
 - `pev-e2e-verify` skill の Preflight が「Playwright 未setup」を検知した時 (auto-propose)
-- ユーザーが `/pev-init-e2e` を明示的に呼んだ時
+- ユーザーが `/pev-init --e2e` を明示的に呼んだ時
 - 新規プロジェクトに pev-harness の E2E verification 機能を有効化したい時
 
 起動すべきでない場面:
@@ -49,11 +49,11 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests-e2e',
-  outputDir: './artifacts/e2e/test-results',
+  outputDir: './.pev-artifacts/e2e/test-results',
   reporter: [
     ['list'],
-    ['html', { outputFolder: './artifacts/e2e/playwright-report', open: 'never' }],
-    ['json', { outputFile: './artifacts/e2e/results.json' }],
+    ['html', { outputFolder: './.pev-artifacts/e2e/playwright-report', open: 'never' }],
+    ['json', { outputFile: './.pev-artifacts/e2e/results.json' }],
   ],
   webServer: {
     command: 'npm run preview', // プロジェクトの dev server コマンド
@@ -155,12 +155,12 @@ specs/README.md                    # test plan 置き場
 
 ```gitignore
 # Playwright artifacts
-artifacts/e2e/
+.pev-artifacts/e2e/
 playwright-report/
 test-results/
 ```
 
-`artifacts/e2e/` は実行ごとに変わる中間生成物なので gitignore。 ただし `tests-e2e/` のテストコードと `specs/` の test plan はコミット対象。
+`.pev-artifacts/e2e/` は実行ごとに変わる中間生成物なので gitignore。 ただし `tests-e2e/` のテストコードと `specs/` の test plan はコミット対象。
 
 ## 実行手順 (Bash でまとめて)
 
@@ -220,5 +220,5 @@ npx playwright init-agents --loop=claude
 ## Related
 
 - [`pev-e2e-verify`](../pev-e2e-verify/SKILL.md) — bootstrap 完了後の test 実行
-- `commands/pev-init-e2e.md` — explicit invocation
+- `commands/pev-init --e2e.md` — explicit invocation
 - Playwright agents 公式: <https://playwright.dev/docs/test-agents>

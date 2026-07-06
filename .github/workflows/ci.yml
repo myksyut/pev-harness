@@ -32,7 +32,7 @@ jobs:
         run: |
           markdownlint '**/*.md' \
             --ignore node_modules \
-            --ignore artifacts \
+            --ignore .pev-artifacts \
             --ignore '**/CHANGELOG.md' \
             --ignore 'skills/skill-creator/**' \
             --ignore 'skills/frontend-design/**' \

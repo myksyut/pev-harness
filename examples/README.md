@@ -8,9 +8,9 @@ dog food 前に「PEV pipelineを通すと実際にどうなるか」を見る�
 
 | File | 目的 |
 |---|---|
-| `plan.example.md` | Phase 1 完了後の `artifacts/plan.md` 完成例 |
-| `execute.example.log` | Phase 2 完了後の `artifacts/execute.log` 例 |
-| `verify.example.json` | Phase 3 完了後の `artifacts/verify.json` 例 (PASS) |
+| `plan.example.md` | Phase 1 完了後の `.pev-artifacts/plan.md` 完成例 |
+| `execute.example.log` | Phase 2 完了後の `.pev-artifacts/execute.log` 例 |
+| `verify.example.json` | Phase 3 完了後の `.pev-artifacts/verify.json` 例 (PASS) |
 | `verify.fail.example.json` | retry triggerされる FAIL 例 |
 | `recap.example.log` | 1タスク分の recap.log 完成例 |
 | `team-conventions.example.md` | プロジェクトルートに置く team-conventions のテンプレ |
@@ -30,4 +30,4 @@ claude --plugin-dir ~/pev-harness
 
 ## Tip
 
-`plan.example.md` をテンプレートとして直接 `artifacts/plan.md` にコピーすると、Phase 2 (Execute) から手動で開始することもできる。検証用途に便利。
+`plan.example.md` をテンプレートとして直接 `.pev-artifacts/plan.md` にコピーすると、Phase 2 (Execute) から手動で開始することもできる。検証用途に便利。

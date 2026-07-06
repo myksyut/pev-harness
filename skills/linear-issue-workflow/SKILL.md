@@ -289,4 +289,4 @@ validation を改善する。                          ← 何を / なぜ が�
 - `skills/linear-project-workflow/SKILL.md` (= 親 project の規約 + template、 5 section)
 - `skills/pev-linear-sync/SKILL.md` (= issue ↔ PEV pipeline sync、 4 direction)
 - `skills/linear-project-tracker/SKILL.md` (= project 進捗監視)
-- pev-harness SPEC.md §9 `artifacts/linear/`
+- pev-harness SPEC.md §9 `.pev-artifacts/linear/`

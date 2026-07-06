@@ -89,7 +89,7 @@ project description の `## 完了条件` セクションを `linear-project-wor
   2. linear-project-workflow の Update (C) が呼ばれて実際の遷移を実行
      - .linear-config.yml の status_mapping.project.completed を参照
      - mcp__plugin_linear_linear__save_project(id, state='completed')
-  3. 重複防止: artifacts/linear/projects/<project_id>/sync_state.json の
+  3. 重複防止: .pev-artifacts/linear/projects/<project_id>/sync_state.json の
      last_status_transition_at をチェック、 直近 24h 以内なら skip
 ```
 
@@ -98,7 +98,7 @@ tracker が直接 status 遷移を実行することも spec 上は可能だが�
 ## artifacts への記録 (v1.3.0+ 命名規約)
 
 ```text
-artifacts/linear/projects/<project_id>/
+.pev-artifacts/linear/projects/<project_id>/
 └── sync_state.json
     {
       "tracker_runs": [

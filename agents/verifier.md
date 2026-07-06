@@ -15,14 +15,14 @@ tools: Read, Bash, Grep, Glob, Write
 以下の順序で実行する:
 
 1. `git diff` で変更内容を取得
-2. **v3.0+**: `artifacts/plan.md` があれば Verification strategy セクションを読む、 なければ (= Mode B、 plan_skip 後の Execute) `artifacts/triage.json` の reasoning + cwd の team-conventions.md / README を参照して標準的検証 path (build / typecheck / lint / tests) を組む
+2. **v3.0+**: `.pev-artifacts/plan.md` があれば Verification strategy セクションを読む、 なければ (= Mode B、 plan_skip 後の Execute) `.pev-artifacts/triage.json` の reasoning + cwd の team-conventions.md / README を参照して標準的検証 path (build / typecheck / lint / tests) を組む
 3. リストされた command を順次実行:
    - Build
    - Type check
    - Lint
    - Tests
 4. **v3.0+**: plan.md があれば Acceptance Criteria を 1 つずつチェック、 なければ task description / triage.json を AC として 1 つずつチェック (✅/❌)
-5. 結果を `artifacts/verify.json` に書き出す
+5. 結果を `.pev-artifacts/verify.json` に書き出す
 
 ## 出力契約
 
@@ -58,14 +58,14 @@ verify.json への書き出しに加え、 verifier は **生 test 出力 (exit 
 
 ## FAIL 時の挙動
 
-- 失敗内容を `artifacts/verify.json` に詳細記録
+- 失敗内容を `.pev-artifacts/verify.json` に詳細記録
 - 呼び出し元 (`/pev-verify` または Stop hook) がリトライを判断
 - 自動リトライは最大3回 (`PEV_MAX_RETRIES`)
 - リトライ時は plan.md + diff + verify.json を planner に渡す
 
 ## Linear sync (v1.2+)
 
-`artifacts/linear/issue_id.txt` が存在する場合、`pev-linear-sync` skill 経由で Linear Issue にコメント投稿する:
+`.pev-artifacts/linear/issue_id.txt` が存在する場合、`pev-linear-sync` skill 経由で Linear Issue にコメント投稿する:
 
 - **verdict=PASS**: outbound success comment + Issue status を Done 相当に遷移
 - **verdict=FAIL & retry_count >= PEV_MAX_RETRIES**: outbound fail comment (escalation summary) + status は変更しない
@@ -161,13 +161,13 @@ QA 技法 trigger (v1.5+、 pev-test-design 同時起動、 canonical 化済):
    - 各観点 (同値分割の代表値 / 境界値 / デシジョンテーブル / 状態遷移 / エラー推測 / チェックリスト) を AC 同様に check
    - verify.json の `qa_derived_checks[]` に結果を記録 (technique / case / result / evidence)
    - 派生観点の失敗は AC 失敗と同じ重み (verdict=FAIL の判定材料)
-5. unit + E2E + QA-derived の結果を統合して `artifacts/verify.json` に記録
+5. unit + E2E + QA-derived の結果を統合して `.pev-artifacts/verify.json` に記録
 
 ```json
 {
   "verdict": "PASS | FAIL",
   "unit": { "verdict": "PASS", "checks": [...] },
-  "e2e": { "verdict": "PASS", "ran": true, "test_count": 5, "report": "artifacts/e2e/playwright-report/" },
+  "e2e": { "verdict": "PASS", "ran": true, "test_count": 5, "report": ".pev-artifacts/e2e/playwright-report/" },
   "qa_derived_checks": [
     {"technique": "boundary", "case": "input 0", "result": "PASS", "evidence": "..."},
     {"technique": "error_guessing", "case": "double submit", "result": "PASS", "evidence": "..."}
@@ -206,7 +206,7 @@ dual-claude (= v1.x の `--strict`):
 4. 両者の structured JSON output を受け取って merge:
    - 両PASS → NICE
    - いずれかFAIL → NAUGHTY、critical_issues を dedupe + merge
-5. `artifacts/verify.json` に `reviewer_mode: "dual-claude"` + `reviewers[]` + `merge` セクションを記録
+5. `.pev-artifacts/verify.json` に `reviewer_mode: "dual-claude"` + `reviewers[]` + `merge` セクションを記録
 
 ### dual-codex (v2.0+、 真の external diversity)
 
@@ -215,7 +215,7 @@ dual-claude (= v1.x の `--strict`):
 3. Preflight pass なら **同一メッセージ内で** 以下を並列発射:
    - Reviewer A: Agent tool で `subagent_type=verifier, model=opus, effort=xhigh` (claude)
    - Reviewer B: Bash tool で `pev-external-reviewer` skill の invocation pattern (codex subprocess)
-4. 両者の JSON を受け取って merge (provider field 付き)、 `artifacts/verify.json` に `reviewer_mode: "dual-codex"` で記録
+4. 両者の JSON を受け取って merge (provider field 付き)、 `.pev-artifacts/verify.json` に `reviewer_mode: "dual-codex"` で記録
 5. Preflight fail なら **自動 fallback** to `dual-claude`、 `verify.json.fallback_reason` を記録 + stderr に warning
 
 ### codex-only (v2.0+、 cost 削減)
@@ -253,7 +253,7 @@ claude-only mode では `reviewers` は省略可、 verifier 単独結果を `ch
 
 ## Memory write
 
-タスク開始時、`artifacts/.task_id` を読んで `~/.claude/pev/{TASK_ID}/verifier.md` を作成 or 追記する。書く内容:
+タスク開始時、`.pev-artifacts/.task_id` を読んで `~/.claude/pev/{TASK_ID}/verifier.md` を作成 or 追記する。書く内容:
 
 - 各 check (build/type/lint/test) の実行結果と所感
 - AC ごとの evidence (どのコマンド出力 / どの行を見て met 判定したか)

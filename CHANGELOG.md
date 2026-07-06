@@ -13,6 +13,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
 
+## [5.0.0] - 2026-07-06
+
+**Breaking release — 社内 feedback の残り 3 件 (artifacts dot-prefix / CrossRepo / コマンド過多) をまとめて反映**。 「期待は安くて構造的に振る舞う Fable であって Claude 拡張ではない」 という指摘に対し、 user が覚えるべき surface を `/pev` 1 コマンドに寄せ、 補助コマンドを統合した。
+
+### Breaking Changes
+
+- **`artifacts/` → `.pev-artifacts/` に全面 rename**: dot-prefix で作業 dir を汚さない + pev 由来であることを名前で明示 (agents / commands / skills / hooks / rules / docs / examples の全 active file、 約 250 箇所)
+- **コマンド統合 (9 → 6)**: `/pev-init-e2e` → `/pev-init --e2e`、 `/pev-init-codex` → `/pev-init --codex`、 `/pev-verify-e2e` → `/pev-verify --e2e`。 skill 側 (pev-bootstrap-playwright / pev-bootstrap-codex / pev-e2e-verify) は不変
+- **pev-task-budget skill + `PEV_TASK_BUDGET` env を削除**: token 見積もり機能の廃止 (feedback 「いくら掛かっても結局実行する」 + Claude Code surface で公式非サポートのまま prompt-level hint に留まっていた)。 実測は v4.3.0 session telemetry が担う
+
+### Added
+
+- **CrossRepo 対応 (multi-repo workspace)**: triage.json に optional `target_root` field 新設 — cwd が git repo でなく task 対象が単一 sub-repo に特定できる場合、 orchestrator が `.pev-artifacts/` を `<target_root>/.pev-artifacts/` へ移動し target_root を working root として pipeline を進める (commands/pev.md Step 1.5)。 hooks (Stop recap / Stop telemetry / SessionStart) と `/pev-status` は `find . -maxdepth 2 -type d -name .pev-artifacts` の discovery で階層をまたいで状態を発見
+- **`/pev-status` の artifacts dir 解決**: cwd 直下 → maxdepth 2 discovery の 2 段解決 (`--clean` / `--escalate` も同様)
+
+### Migration (v4.x → v5.0)
+
+1. 進行中 task があれば `mv artifacts .pev-artifacts` (なければ何もしなくてよい)
+2. `.gitignore` の `artifacts/` 行を `.pev-artifacts/` に書き換え (新規 project は `/pev-init` が自動生成)
+3. スクリプト等で旧コマンド名を叩いている場合は上記の統合先に置換
+
+### Verified via dog food
+
+- `/tmp/v50-dogfood` (headless、 validateAge task、 `--force-auto --executor-mode=claude`): plan_skip → Execute → 独立 verifier 29 tests PASS (round 1/1、 281s)。 **`.pev-artifacts/` のみ生成され旧 `artifacts/` は作られない** ことを確認。 session.json は harness_version=5.0.0 / phases object 形式 (v4.3.0 finding の schema pin が有効) / Stop hook token 追記 (in=62k out=30k) も新 path で動作、 `~/.claude/pev/telemetry/` に 2 件目の dataset が蓄積
+- hooks の maxdepth 2 discovery (CrossRepo) は fixture unit test で検証 (sub-repo 配下の `.pev-artifacts/` を Stop telemetry / SessionStart が発見・更新)。 triage `target_root` を使う実機 CrossRepo pipeline は次回 dog food 候補
+
+### Reference
+
+- 要望元: 社内 e3 チーム feedback (2026-07-06) の残り 3 件。 「定量 feedback」 は v4.3.0 で対応済
+
 ## [4.3.0] - 2026-07-06
 
 **Session telemetry — 社内 feedback 「定量的な feedback がむずい」 への回答**。 「Opus 素で同じ実装をやらせた場合と比べて、 人的・token コストがどれだけ改善したかを定量評価したい。 chat log / session 時間 / token 消費 / 実行時 git 情報があると再現テストでき、 それ自体がベンチマーク dataset になる」 という社内 user 要望を、 **local-only の `artifacts/session.json`** として実装。 外部送信は一切しない (opt-in 外部収集は将来 roadmap)。

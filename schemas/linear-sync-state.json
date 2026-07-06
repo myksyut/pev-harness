@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/myksyut/pev-harness/blob/main/schemas/linear-sync-state.json",
   "title": "Linear sync_state.json schema (v1.3.0+)",
-  "description": "Standard structure for artifacts/linear/{issues|projects}/<id>/sync_state.json. All Linear skills (linear-project-workflow / linear-issue-workflow / linear-project-tracker / pev-linear-sync) write to this schema.",
+  "description": "Standard structure for .pev-artifacts/linear/{issues|projects}/<id>/sync_state.json. All Linear skills (linear-project-workflow / linear-issue-workflow / linear-project-tracker / pev-linear-sync) write to this schema.",
   "type": "object",
   "$defs": {
     "sideEffect": {

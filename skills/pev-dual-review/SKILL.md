@@ -81,7 +81,7 @@ I will spawn two independent reviewers in parallel.
     You have NOT seen any other review of this output.
 
     ## Task spec
-    {paste artifacts/plan.md}
+    {paste .pev-artifacts/plan.md}
 
     ## Changes under review
     {paste git diff output}

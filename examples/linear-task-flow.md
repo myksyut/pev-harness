@@ -21,8 +21,8 @@ claude
 
 1. `pev-linear-sync` (inbound) が起動
 2. Linear Issue ENG-123 を `mcp__plugin_linear_linear__get_issue` で取得
-3. `artifacts/linear/issue_id.txt` = `ENG-123`
-4. `artifacts/linear/sync_state.json` 作成 (inbound_at 記録)
+3. `.pev-artifacts/linear/issue_id.txt` = `ENG-123`
+4. `.pev-artifacts/linear/sync_state.json` 作成 (inbound_at 記録)
 5. planner: plan.md 生成 (冒頭に Linear binding 表記)
 6. Gate A (permissionMode=default なら停止、 ユーザーが `/pev-execute` で続行)
 7. executor: コード変更
@@ -61,7 +61,7 @@ Linear MCP plugin がない or 認証 expired の場合:
 ```text
 [PEV] WARNING: pev-linear-sync skill found Linear URL but Linear MCP is unavailable.
 [PEV] Falling back to manual spec extraction from URL.
-[PEV] Issue URL stored in artifacts/linear/issue_url.txt for reference.
+[PEV] Issue URL stored in .pev-artifacts/linear/issue_url.txt for reference.
 ```
 
 通常 PEV flow に fallback。 task は完走できる。 完走後の Linear sync は skip。
@@ -69,7 +69,7 @@ Linear MCP plugin がない or 認証 expired の場合:
 ## Flow 4: 既存 task に Linear binding を後付け
 
 ```bash
-# 既存の task (artifacts/.task_id がある状態) に Linear binding を追加
+# 既存の task (.pev-artifacts/.task_id がある状態) に Linear binding を追加
 > /pev-harness:pev-linear-sync bind ENG-999
 ```
 
@@ -77,7 +77,7 @@ Linear MCP plugin がない or 認証 expired の場合:
 
 ## 注意点
 
-- **artifacts/linear/ は gitignore 対象**: Linear が source of truth、 ローカルは cache
+- **.pev-artifacts/linear/ は gitignore 対象**: Linear が source of truth、 ローカルは cache
 - **Linear MCP の API 名は version によって変わる可能性**: skill は仕様で書き、 実機エラー時は MCP server の docs を確認
 - **status name は team によって異なる**: pev-linear-sync は "Done" / "Completed" / "Released" のいずれかを優先するが、 マッチしない場合は status 変更を skip
 - **plan.md と Linear Issue 内容が乖離した場合**: plan.md が真実 (planner が team-conventions と統合して決定したもの)、 Linear Issue は元 spec
@@ -89,7 +89,7 @@ Linear MCP plugin がない or 認証 expired の場合:
 | "Linear MCP not found" | plugin install / 認証なし | `@plugin_linear_linear` の install / OAuth |
 | Issue ID 抽出失敗 | URL format が想定外 | 標準形 `linear.app/<ws>/issue/<TEAM-NUM>` で再試行 |
 | status 変更されない | Done 相当の name が team に存在しない | v1.3 fallback chain (`Done → Completed → Released`) を試行、 全失敗なら skip |
-| 同じ Issue に複数 PEV task が走った | binding cleanup なし | 完了後 `/pev-status --clean` で artifacts/linear/ も削除 |
+| 同じ Issue に複数 PEV task が走った | binding cleanup なし | 完了後 `/pev-status --clean` で .pev-artifacts/linear/ も削除 |
 | Preflight error: "team.id mismatch" | `.linear-config.yml` の `team.id` が Linear team key と不一致 | yaml 値を Linear UI で確認、 修正 |
 | Preflight error: "config not found" + Write 操作 | `.linear-config.yml` 不在で Write 系操作 | `.linear-config.yml.example` を copy して値を埋める |
 | 404 / "Entity not found" | URL 内 issue が存在しない or archived | fallback で manual spec collection、 issue URL を確認 |

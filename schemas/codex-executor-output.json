@@ -36,7 +36,7 @@
     },
     "ambiguity_note": {
       "type": ["string", "null"],
-      "description": "When ambiguity_detected is true, the questions / options the Claude executor should surface as artifacts/clarification.md; null otherwise"
+      "description": "When ambiguity_detected is true, the questions / options the Claude executor should surface as .pev-artifacts/clarification.md; null otherwise"
     },
     "commit_message": {
       "type": ["string", "null"],

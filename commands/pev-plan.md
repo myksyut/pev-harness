@@ -1,5 +1,5 @@
 ---
-description: Run only the Plan phase. Outputs artifacts/plan.md and stops
+description: Run only the Plan phase. Outputs .pev-artifacts/plan.md and stops
 ---
 
 # /pev-plan
@@ -10,7 +10,7 @@ Plan phase だけ実行する。 設計レビュー、 見積もり、 初期検
 
 ```text
 /pev-plan <task description>
-/pev-plan                       # 既存 artifacts/plan.md を更新 (retry時)
+/pev-plan                       # 既存 .pev-artifacts/plan.md を更新 (retry時)
 ```
 
 ## フロー
@@ -18,7 +18,7 @@ Plan phase だけ実行する。 設計レビュー、 見積もり、 初期検
 1. `pev-spec-template` でspec整形 (新規タスク時)
 2. task_id 発行 or 既存を再利用
 3. team-conventions.md (あれば) を pre-pend して planner agent を起動
-4. `artifacts/plan.md` を書き出し
+4. `.pev-artifacts/plan.md` を書き出し
 5. ユーザーに表示して終了 (Phase 2 に進まない)
 
 ## Phase 2 に進むには
@@ -36,4 +36,4 @@ Plan phase だけ実行する。 設計レビュー、 見積もり、 初期検
 
 ## Implementation note
 
-task_id 管理 / retry時の入力統合 (`artifacts/verify.json` + `git diff` を planner に渡す) は v0.2 で実装。詳細は [Issue #1](https://github.com/myksyut/pev-harness/issues/1)。
+task_id 管理 / retry時の入力統合 (`.pev-artifacts/verify.json` + `git diff` を planner に渡す) は v0.2 で実装。詳細は [Issue #1](https://github.com/myksyut/pev-harness/issues/1)。

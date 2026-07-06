@@ -303,9 +303,9 @@ Write 時の品質チェック:
    - side_effects entry の形式: `{at, transition: "<from>→<to>", field, value, source: "linear-api-response"}`
    - 記録省略は silent corruption (後の同期で diff が説明できなくなる) の原因。
      skill 全体規約として「Status 遷移 = side_effects 記録 1 set」をペアで扱う
-4. artifacts/linear/projects/<project_id>/sync_state.json (v1.3 命名規約) に記録:
-   - 命名: `artifacts/linear/projects/<project_id>/sync_state.json`
-     (issue は `artifacts/linear/issues/<issue_id>/sync_state.json`)
+4. .pev-artifacts/linear/projects/<project_id>/sync_state.json (v1.3 命名規約) に記録:
+   - 命名: `.pev-artifacts/linear/projects/<project_id>/sync_state.json`
+     (issue は `.pev-artifacts/linear/issues/<issue_id>/sync_state.json`)
    - schema: `schemas/linear-sync-state.json` を参照 (v1.3 で JSON Schema 固定)
    - 記録項目: last_checkbox_update_at / last_comment_at / last_status_transition_at /
      side_effects[] / error_log[]

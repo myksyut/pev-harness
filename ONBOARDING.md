@@ -122,9 +122,9 @@ claude plugin install linear@claude-plugins-official
 
 Linear 連携を使わないチームは skip 可。 install しないまま `/pev-harness:pev <Linear URL>` を実行すると、 Linear sync skill が「MCP unavailable」 で no-op し、 plain text の task として処理される。
 
-### Playwright MCP (`/pev-init-e2e` を使う場合に project 側で setup)
+### Playwright MCP (`/pev-init --e2e` を使う場合に project 側で setup)
 
-`/pev-init-e2e` 実行時に `pev-bootstrap-playwright` skill が project の `.mcp.json` を auto 生成 (`examples/sample-project/.mcp.json` 参照)。 個人 install は不要、 project ごとの setup。
+`/pev-init --e2e` 実行時に `pev-bootstrap-playwright` skill が project の `.mcp.json` を auto 生成 (`examples/sample-project/.mcp.json` 参照)。 個人 install は不要、 project ごとの setup。
 
 ### Codex CLI (Execute phase の default executor / `--reviewer dual-codex` で使う場合)
 
@@ -133,7 +133,7 @@ brew install openai/tap/codex
 codex auth login
 ```
 
-`/pev-init-codex` で project 側の wire-up 完了。 個人ごとに 1 回 `codex auth login` が必要。
+`/pev-init --codex` で project 側の wire-up 完了。 個人ごとに 1 回 `codex auth login` が必要。
 
 > **⚠️ データ送信ポリシー (v3.7.0+, Execute phase default = `codex`)**: v3.7.0 で **Execute phase の default executor が `codex` になりました**。 codex を setup 済の環境では、 実装時に **編集対象 file の内容が OpenAI (Codex) に送信される** のが既定挙動です (Claude 経由でも同様の送信は発生しますが、 team policy で「OpenAI への送信は禁止」 のケースあり)。 OpenAI への送信を避けたい場合は `.claude/settings.local.json` の env に `PEV_EXECUTOR_MODE=claude` を設定するか、 `/pev <task> --executor-mode=claude` で都度 override してください。 codex 未 setup の環境は自動で Claude native 実装に degrade します (= 何もしなければ従来どおり)。
 
@@ -153,7 +153,7 @@ claude  # Claude Code 起動
 
 1. **言語/構成 検知** (`package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml` / `Gemfile` / `playwright.config.*` / `cypress.config.*`)
 2. **`team-conventions.md` 生成**: 検知結果で `## Language & Stack` と `## Verification commands` (v1.8 必須項目) を auto-populate
-3. **`.gitignore` 更新**: `artifacts/` を append (idempotent、 既存があれば skip)
+3. **`.gitignore` 更新**: `.pev-artifacts/` を append (idempotent、 既存があれば skip)
 4. **任意の追加 file** (AskUserQuestion で対話的に選択):
    - `.linear-config.yml.example` (Linear 連携を将来使う場合)
    - `.claude/settings.local.json` (permissionMode 雛形)
@@ -177,7 +177,7 @@ git commit -m "chore: adopt pev-harness team conventions"
 cd <your-project>
 cp ~/pev-harness/examples/team-conventions.example.md ./team-conventions.md
 # 内容をプロジェクト固有に編集 (Language / Verification commands / Code style 等)
-echo "artifacts/" >> .gitignore
+echo ".pev-artifacts/" >> .gitignore
 git add team-conventions.md .gitignore
 git commit -m "chore: adopt pev-harness team conventions"
 ```
@@ -194,8 +194,8 @@ Acceptance: GET /healthz returns 200 + correct JSON, test added."
 
 期待される動作 (`permissionMode=default` のとき、 **v3.0+**):
 
-1. **Phase 0 (Triage、 v3.0+)**: triage agent が `artifacts/triage.json` を生成、 「Plan 必要か (plan_required) / Plan skip して直接 Execute (plan_skip)」 を 1 turn 以内で判定
-2. **Plan 必要なら** (= 曖昧 spec / UI 拡張要素未明示 等): planner agent が `artifacts/plan.md` 生成。 grey zone は plan.md 冒頭の「## 確認質問」 で user に質問
+1. **Phase 0 (Triage、 v3.0+)**: triage agent が `.pev-artifacts/triage.json` を生成、 「Plan 必要か (plan_required) / Plan skip して直接 Execute (plan_skip)」 を 1 turn 以内で判定
+2. **Plan 必要なら** (= 曖昧 spec / UI 拡張要素未明示 等): planner agent が `.pev-artifacts/plan.md` 生成。 grey zone は plan.md 冒頭の「## 確認質問」 で user に質問
 3. **Gate A で停止** (default mode の場合、 = Plan が走った場合のみ)
 4. ユーザーが plan.md を読み、問題なければ `/pev-harness:pev-execute`
 5. executor が実装 (Mode A = plan ベース / Mode B = plan-less)、 Stop hook が verify を促す
@@ -259,14 +259,14 @@ codex login status                                       # "Logged in using API 
 
 注意: codex CLI v0.128 では `OPENAI_API_KEY` を、 v0.130+ docs は `CODEX_API_KEY` を言及。 両方試して effective な方を採用する。 設定後は `codex login --with-api-key` で codex 内部 (`~/.codex/`) に取り込むのが確実。
 
-**(c) `/pev-init-codex` で sanity test + settings 雛形**:
+**(c) `/pev-init --codex` で sanity test + settings 雛形**:
 
 ```bash
 claude
-> /pev-harness:pev-init-codex
+> /pev-harness:pev-init --codex
 ```
 
-`/pev-init-codex` は AskUserQuestion で install method / API key 設定先 / `PEV_REVIEWER_MODE` default を user 対話で確定 (詳細は `commands/pev-init-codex.md`)。
+`/pev-init --codex` は AskUserQuestion で install method / API key 設定先 / `PEV_REVIEWER_MODE` default を user 対話で確定 (詳細は `commands/pev-init --codex.md`)。
 
 #### 5.2 dual-codex で /pev --strict
 
@@ -305,7 +305,7 @@ dual-codex / codex-only mode では git diff が **OpenAI (Codex) にも送信**
 | planner が "Goal/Constraints/AC を教えて" と返す | 初回プロンプトに3要素が不足 | `pev-spec-template` skill のテンプレに沿って書き直す |
 | Gate A で止まらない (default なのに execute まで行く) | v0.5 以前の plugin | v0.6.0+ に更新 (`git pull` for repo) |
 | verify が同じ理由で 3 回 FAIL | plan.md 自体が誤っている可能性 | `/pev-harness:pev-status --escalate` で診断、`/pev-harness:pev-plan` で計画を revise |
-| artifacts/ が project に出てくる | gitignore 未追加 | `echo "artifacts/" >> .gitignore` |
+| .pev-artifacts/ が project に出てくる | gitignore 未追加 | `echo ".pev-artifacts/" >> .gitignore` |
 | `~/.claude/pev/` に stale task が溜まる | 完了後 cleanup されていない | `/pev-harness:pev-status --gc --apply` |
 | executor が並列起動しない | 独立ファイルでない / `--parallel` 未指定 | plan.md の File-level changes を独立にする、`/pev-harness:pev-execute --parallel` |
 | Phase 2 中に Claude が「ユーザー意図を尊重して続行」 | v0.6 で修正済み、古い session | session 再起動、または最新版 pull |
@@ -320,7 +320,7 @@ dual-codex / codex-only mode では git diff が **OpenAI (Codex) にも送信**
 ## 8. チームでの運用ルール (推奨)
 
 - `team-conventions.md` は PR レビュー対象に含める
-- `artifacts/` は gitignore (タスク固有のため)
+- `.pev-artifacts/` は gitignore (タスク固有のため)
 - `/pev-harness:pev --strict` は main へのマージ前必須
 - ペアプロ的な小修正は `/pev-harness:pev` を使わず通常モードで
 - `permissionMode` のデフォルトは `default` 維持 (重要変更時のレビュー保全のため)

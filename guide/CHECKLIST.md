@@ -14,7 +14,7 @@
 - ローカル: `~/pev-harness/`
 - バージョン: v0.1.1 (初期 skeleton + 周辺整備 + dog food検証 + skill-finder追加) — v2.1 で skill-finder を撤去し empirical-prompt-tuning に置換
 - ファイル数: 約 44 (Claude生成、source-of-truth は SPEC.md)
-- skills: **9個** (pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, ~~skill-finder~~ → **empirical-prompt-tuning** v2.1+)
+- skills: **19個** (v5.0.0 時点、 SPEC §7 の一覧が正。 pev-task-budget は v5.0.0 で削除)
 
 ---
 
@@ -28,7 +28,7 @@ cd ~/pev-harness && find . -type f -not -path './.git/*' -not -path './node_modu
 
 - [ ] `.claude-plugin/plugin.json` — plugin manifest
 - [ ] `.github/workflows/ci.yml` — CI (markdownlint + JSON validation + forbidden phrase check)
-- [ ] `.gitignore` — artifacts/ 除外
+- [ ] `.gitignore` — .pev-artifacts/ 除外
 - [ ] `.markdownlint.json` — lint config
 - [ ] `agents/*.md` — 3 files (planner, executor, verifier)
 - [ ] `skills/*/SKILL.md` — 8 files
@@ -59,7 +59,7 @@ cd ~/pev-harness && find . -type f -not -path './.git/*' -not -path './node_modu
 
 各 agent の prompt に違和感がないか:
 
-- [ ] `agents/planner.md` — Opus xhigh、入力契約 (Goal/Constraints/AC) 、出力契約 (artifacts/plan.md)
+- [ ] `agents/planner.md` — Opus xhigh、入力契約 (Goal/Constraints/AC) 、出力契約 (.pev-artifacts/plan.md)
 - [ ] `agents/executor.md` — Sonnet high、並列化ルール、subagent memory 規約
 - [ ] `agents/verifier.md` — Sonnet xhigh、hard-coded実行手順、FAIL時の挙動
 
@@ -73,7 +73,6 @@ cd ~/pev-harness && find . -type f -not -path './.git/*' -not -path './node_modu
 
 - [ ] `pev-pipeline` — メインフロー、phase間の受け渡し、artifacts規約
 - [ ] `pev-spec-template` — 初回プロンプト雛形、質問返し
-- [ ] `pev-task-budget` — task_budget API、phase別予算
 - [ ] `pev-focus-mode` — /focus推奨ロジック
 - [ ] `pev-recap` — recap.log への書き込み
 - [ ] `pev-subagent-memory` — ~/.claude/pev/{task_id}/ 規約
@@ -88,7 +87,7 @@ cd ~/pev-harness && find . -type f -not -path './.git/*' -not -path './node_modu
 
 - [ ] **PreToolUse (Bash)**: `rm -rf /`, `rm -rf ~`, `git push --force.*main`, `git reset --hard.*origin/main` を block
 - [ ] **Stop**: plan.md + execute.log がある & verify.json がない時に `/pev-verify` 促し
-- [ ] **SessionStart**: `artifacts/.task_id` 存在検出で復旧メッセージ
+- [ ] **SessionStart**: `.pev-artifacts/.task_id` 存在検出で復旧メッセージ
 
 懸念: macOS で `openssl` がない環境 (古いcommand line tools等) → フォールバックあり (`$RANDOM` 利用)。
 
@@ -154,10 +153,9 @@ push後、 https://github.com/myksyut/pev-harness/actions で初回CI結果を�
 
 `claude --plugin-dir ~/pev-harness --print '/pev-harness:pev "Implement add(a,b)..."'` を `examples/sample-project/` で実行した結果:
 
-- ✅ **Phase 1 (Plan)**: `artifacts/plan.md` 高品質生成
+- ✅ **Phase 1 (Plan)**: `.pev-artifacts/plan.md` 高品質生成
   - Goal / Constraints / Acceptance Criteria 全部
   - team-conventions.md を参照 ("Follow team-conventions.md")
-  - **Estimated task budget: ~2k tokens** (pev-task-budget skill 機能確認)
   - 独自で **Non-goals** セクション追加 (planner judgement働いた)
 - ✅ **Phase 2 (Execute)**: `src/index.js` が `return a + b;` に正しく書き換えられた + `execute.log` 記録
 - ✅ **Acceptance Criteria 達成**: `npx vitest run` で 2/2 tests passed
@@ -168,8 +166,8 @@ push後、 https://github.com/myksyut/pev-harness/actions で初回CI結果を�
 確認できた事実: **agentレベルの動作は完全に意図通り**、ただし周辺自動化 (hooks / recap書き込み / memory書き込み) は v0.2-v0.3 でフィックス必要。
 
 実行成果物 (確認用):
-- `examples/sample-project/artifacts/plan.md` (1658 bytes、高品質)
-- `examples/sample-project/artifacts/execute.log` (120 bytes)
+- `examples/sample-project/.pev-artifacts/plan.md` (1658 bytes、高品質)
+- `examples/sample-project/.pev-artifacts/execute.log` (120 bytes)
 - `examples/sample-project/src/index.js` (executor成果)
 
 ### 10-1. 手動 dog food 試走 (オプション)
@@ -196,10 +194,10 @@ claude --plugin-dir ~/pev-harness
 期待される挙動:
 
 - [ ] `pev-spec-template` skill が起動し、ACなどが揃っていれば planner 直接起動
-- [ ] `artifacts/plan.md` が生成される
-- [ ] `artifacts/.task_id` が生成される
+- [ ] `.pev-artifacts/plan.md` が生成される
+- [ ] `.pev-artifacts/.task_id` が生成される
 - [ ] `~/.claude/pev/{task_id}/` ディレクトリが作られる
-- [ ] `artifacts/recap.log` に Phase 1 エントリ追記
+- [ ] `.pev-artifacts/recap.log` に Phase 1 エントリ追記
 
 #### 10-1C. /pev-execute 単独
 
@@ -209,10 +207,10 @@ claude --plugin-dir ~/pev-harness
 
 期待される挙動:
 
-- [ ] `artifacts/plan.md` を読んで実装する
+- [ ] `.pev-artifacts/plan.md` を読んで実装する
 - [ ] `src/index.js` の TODO が解消される
 - [ ] `tests/index.test.js` が変更/追加される
-- [ ] `artifacts/execute.log` 追記
+- [ ] `.pev-artifacts/execute.log` 追記
 - [ ] Stop hook で `/pev-harness:pev-verify` 促し表示
 
 #### 10-1D. /pev-verify 単独
@@ -224,7 +222,7 @@ claude --plugin-dir ~/pev-harness
 期待される挙動:
 
 - [ ] `npm test` が走る
-- [ ] `artifacts/verify.json` に verdict + checks + acceptance_criteria が書かれる
+- [ ] `.pev-artifacts/verify.json` に verdict + checks + acceptance_criteria が書かれる
 - [ ] PASS なら完了表示、FAIL ならretry誘導
 
 #### 10-1E. /pev フル (auto mode)
@@ -239,7 +237,7 @@ claude --plugin-dir ~/pev-harness
 
 - [ ] Gate A がスキップされて Phase 2 へ自動進行
 - [ ] 全phaseが連続実行される
-- [ ] 最終的に PASS で artifacts/recap.log に完了エントリ
+- [ ] 最終的に PASS で .pev-artifacts/recap.log に完了エントリ
 
 #### 10-1F. --strict モード
 

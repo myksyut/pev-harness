@@ -49,7 +49,7 @@ pev-harness は Claude Code plugin であり、**コード自動実行を含む�
 
 - agent prompt injection (planner / executor / verifier がmaliciousな入力を受けた時の挙動)
 - hook bypass (`PreToolUse` deny-pattern を回避する破壊的コマンド)
-- secret leakage (artifacts/ や memory directory への意図しない secret 流出)
+- secret leakage (.pev-artifacts/ や memory directory への意図しない secret 流出)
 - supply chain (CI workflow から外部 action 経由の侵入)
 - Claude Code permission model のすり抜け
 

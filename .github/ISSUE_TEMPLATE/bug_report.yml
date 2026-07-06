@@ -54,10 +54,10 @@ body:
   - type: textarea
     id: artifacts
     attributes:
-      label: artifacts/ + memory snapshot
-      description: 可能なら `artifacts/plan.md`, `verify.json`, `~/.claude/pev/{TASK_ID}/*.md` のスナップショット
+      label: .pev-artifacts/ + memory snapshot
+      description: 可能なら `.pev-artifacts/plan.md`, `verify.json`, `~/.claude/pev/{TASK_ID}/*.md` のスナップショット
       placeholder: |
-        artifacts/plan.md:
+        .pev-artifacts/plan.md:
         ```
         ...
         ```

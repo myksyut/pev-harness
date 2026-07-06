@@ -56,7 +56,7 @@ cat > "$PROMPT_FILE" <<EOF
 - ac_coverage: AC ごとの met (true/false) と evidence
 
 ## Plan / AC
-$(cat artifacts/plan.md)
+$(cat .pev-artifacts/plan.md)
 
 ## Diff
 $(git diff)
@@ -116,7 +116,7 @@ EXIT=$?
 
 ### Sandbox
 
-default は `workspace-write` (workspace 内 file write 可、 network 不可)。 codex は review 用途で read-only 動作のはずだが、 万一 file 書き換えが起きると pev pipeline と衝突するため `workspace-write` を選択して **意図しない write を artifacts/ 配下に閉じ込める**。 `--sandbox danger-full-access` は **禁止** (skill 内 hard-coded で reject)。
+default は `workspace-write` (workspace 内 file write 可、 network 不可)。 codex は review 用途で read-only 動作のはずだが、 万一 file 書き換えが起きると pev pipeline と衝突するため `workspace-write` を選択して **意図しない write を .pev-artifacts/ 配下に閉じ込める**。 `--sandbox danger-full-access` は **禁止** (skill 内 hard-coded で reject)。
 
 ## verify.json への merge
 

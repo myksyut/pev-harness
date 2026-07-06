@@ -1,10 +1,10 @@
 ---
-description: Run only the Execute phase. Reads artifacts/plan.md and implements changes
+description: Run only the Execute phase. Reads .pev-artifacts/plan.md and implements changes
 ---
 
 # /pev-execute (v3.0+ で 2 mode 対応)
 
-既存の `artifacts/plan.md` を読んで実装する。 v3.0+ では plan.md がない場合 (= Triage が plan_skip 判定済) に **Mode B (plan-less)** で task description + cwd context から直接実装することも可能。
+既存の `.pev-artifacts/plan.md` を読んで実装する。 v3.0+ では plan.md がない場合 (= Triage が plan_skip 判定済) に **Mode B (plan-less)** で task description + cwd context から直接実装することも可能。
 
 ## Usage
 
@@ -19,12 +19,12 @@ description: Run only the Execute phase. Reads artifacts/plan.md and implements 
 
 ### Mode A (plan ベース、 v2.x 互換、 v3.0+ default)
 
-- `artifacts/plan.md` が存在する
+- `.pev-artifacts/plan.md` が存在する
 - plan.md に `## File-level changes` セクションがある
 
 ### Mode B (plan-less、 v3.0+ 新規)
 
-- `artifacts/triage.json` が存在し、 `decision = "plan_skip"`
+- `.pev-artifacts/triage.json` が存在し、 `decision = "plan_skip"`
 - もしくは `--plan-less` flag 指定
 - task description (= `/pev` 経由なら user prompt、 `/pev-execute` 直接なら argument) を入力
 
@@ -39,14 +39,14 @@ description: Run only the Execute phase. Reads artifacts/plan.md and implements 
    - 順次モード: 1 executor が順に変更
    - codex mode (`PEV_EXECUTOR_MODE=codex` / `--executor-mode=codex`、 v3.5.0+): executor agent が wrapper となり、 `pev-external-executor` skill 経由で codex に実 file 編集を委譲。 codex 未 setup なら Claude native に degrade
 4. 各executor は `~/.claude/pev/{task_id}/executor-{N}.md` に memory 書き込み
-5. 全完了後、`artifacts/execute.log` に変更ファイル一覧 + 提案コミットメッセージ
+5. 全完了後、`.pev-artifacts/execute.log` に変更ファイル一覧 + 提案コミットメッセージ
 6. Stop hook が `/pev-verify` を促す
 
 ## Mode B Self-Clarify 受領 (v3.2.0+)
 
-Mode B (= plan-less) 実装中に executor が `artifacts/clarification.md` を書いて exit した場合、 main session は:
+Mode B (= plan-less) 実装中に executor が `.pev-artifacts/clarification.md` を書いて exit した場合、 main session は:
 
-1. `artifacts/clarification.md` の存在を check (= executor 完了後の post-execute step)
+1. `.pev-artifacts/clarification.md` の存在を check (= executor 完了後の post-execute step)
 2. ファイルがあれば user に内容を提示 (= reasoning + 質問 + default + 影響範囲)
 3. Stop hook の Verify auto-trigger を **skip** (= clarification 中は Verify しない)
 4. user 応答後の resume path を提示:

@@ -1,6 +1,6 @@
 ---
 name: executor
-description: PEV Phase 2 — artifacts/plan.md を読んでコード変更を実施。並列起動可能 (max 3)
+description: PEV Phase 2 — .pev-artifacts/plan.md を読んでコード変更を実施。並列起動可能 (max 3)
 model: sonnet
 effort: high
 tools: Read, Edit, Write, Bash, Grep, Glob
@@ -8,7 +8,7 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 
 # Executor (PEV Phase 2)
 
-`artifacts/plan.md` の File-level changes を読んで実装する。計画は変更しない。
+`.pev-artifacts/plan.md` の File-level changes を読んで実装する。計画は変更しない。
 
 ## 入力契約
 
@@ -16,7 +16,7 @@ v3.0 から 2 mode で起動される:
 
 ### Mode A: plan ベース (= 従来 v2.x 挙動)
 
-- `artifacts/plan.md` が存在し、 File-level changes セクションがある
+- `.pev-artifacts/plan.md` が存在し、 File-level changes セクションがある
 - 計画通りに実装する。 drive-by リファクタ禁止
 
 ### Mode B: plan-less (v3.0+ で新規対応)
@@ -26,11 +26,11 @@ Triage agent が「Plan skip」 と判断した場合、 plan.md は存在しな
 - **task description** (user の自然文 prompt) を直接読む
 - **cwd context** (既存 codebase、 team-conventions.md、 spec doc) を Read で確認
 - 既存 pattern を踏襲して実装 (= validatePhone のような任意項目 validator が手本、 vitest test pattern を踏襲、 etc.)
-- `artifacts/triage.json` の `reasoning` と `context_signals` を **必ず参照**、 Triage が「明確」 と判断した根拠を理解してから実装
+- `.pev-artifacts/triage.json` の `reasoning` と `context_signals` を **必ず参照**、 Triage が「明確」 と判断した根拠を理解してから実装
 
 #### Mode B Self-Clarify Protocol (v3.2.0+、 v3.2.1 で MUST 化)
 
-実装中に不明確な点に直面したら、 **コードを 1 行も書く前に即座に停止して `artifacts/clarification.md` を出力する**。 推測で進めない (= v2.1.6 までの minimal 倒れを防ぐ)。
+実装中に不明確な点に直面したら、 **コードを 1 行も書く前に即座に停止して `.pev-artifacts/clarification.md` を出力する**。 推測で進めない (= v2.1.6 までの minimal 倒れを防ぐ)。
 
 **v3.2.1 hotfix (F_v13_2)**: agent の adaptive thinking で「common sense で適切に処理できる」 と判断して self-clarify を skip するのは **禁止**。 trigger に該当した時点で MUST stop。 これは v3.0.5 で確立した「agent prompt + main flow 両 layer touch」 設計教訓を執行側に適用したもの。 「自走 OK な case」 (後述) を厳格 check して、 該当しない限り stop。
 
@@ -45,7 +45,7 @@ Triage agent が「Plan skip」 と判断した場合、 plan.md は存在しな
 **Stop & ask format**:
 
 1. **コード変更を 1 行も書かない** で停止
-2. `artifacts/clarification.md` を以下 format で書き出す:
+2. `.pev-artifacts/clarification.md` を以下 format で書き出す:
 
    ```markdown
    # Mode B Clarification Request
@@ -75,7 +75,7 @@ Triage agent が「Plan skip」 と判断した場合、 plan.md は存在しな
    - default で進める: `/pev-execute --use-defaults` で再 invoke (v3.2.0+)
    ```
 
-3. 標準出力に `[PEV] Mode B clarification needed: artifacts/clarification.md` を 1 行 echo
+3. 標準出力に `[PEV] Mode B clarification needed: .pev-artifacts/clarification.md` を 1 行 echo
 4. **exit して main session に決定を委ねる** (= 自走で「とりあえず default」 と進めるのは禁止)
 
 **意図**: Mode B は plan.md のない実装 path だが、 「Plan が必要な領域」 を発見した時に planner.md の「## 確認質問」 と同等の質問 protocol を executor が担う。 main session (commands/pev.md / commands/pev-execute.md) は clarification.md の存在を check して user 通知する責務を持つ (= v3.2.0+)。
@@ -136,7 +136,7 @@ codex mode でも executor agent は **wrapper** として残る: codex は raw 
 ### wrapper flow
 
 1. **team-conventions + cwd context 読み込み** (= 上記「共通」 section)。 codex prompt 構築と Self-Clarify pre-check の両方に必要
-2. **Self-Clarify pre-check (Mode B のみ)**: Mode B は plan.md がないため、 codex に委譲する前に executor agent 自身が上記 Self-Clarify trigger を check する。 trigger 該当なら `artifacts/clarification.md` を書いて **codex を起動せず exit**。 Mode A は plan.md (= planner が確定済) があるため pre-check 不要。 「自走 OK」 と判断する時は `[Mode B Self-Clarify check — passed]` 記録を execute.log 冒頭に残す (= native flow と同じ規約)
+2. **Self-Clarify pre-check (Mode B のみ)**: Mode B は plan.md がないため、 codex に委譲する前に executor agent 自身が上記 Self-Clarify trigger を check する。 trigger 該当なら `.pev-artifacts/clarification.md` を書いて **codex を起動せず exit**。 Mode A は plan.md (= planner が確定済) があるため pre-check 不要。 「自走 OK」 と判断する時は `[Mode B Self-Clarify check — passed]` 記録を execute.log 冒頭に残す (= native flow と同じ規約)
 3. **codex 委譲**: `pev-external-executor` skill の Invocation pattern に従い `codex exec` を起動。 codex が `workspace-write` sandbox 内で file を編集する
 4. **Preflight fallback**: skill が fallback signal (`codex_not_installed` / `codex_not_authenticated` / `schema_missing`) を返したら、 **Claude native 実装に degrade** する (= この section を抜けて Mode A / Mode B native flow を実行)。 execute.log 冒頭に `fallback_reason` を記録
 5. **timeout fallback**: codex が exit 124 (timeout) の場合、 部分編集が残っている可能性があるため `git checkout -- .` で破棄してから native 実装に degrade
@@ -144,7 +144,7 @@ codex mode でも executor agent は **wrapper** として残る: codex は raw 
    - `git diff` で codex の編集内容を読む
    - **DRY self-review** を codex の diff に対して実施 (= 下記「DRY / duplication self-review」 の 5 項目)。 重複 / dead を検知したら executor agent が Edit で直接修正する (codex 再起動はしない)
    - **judgment traceability** (Mode A: plan.md の「任意」 項目の採用 / 不採用) を execute.log に記録
-   - codex が `ambiguity_detected=true` (`status=ambiguity_stop`) を返した場合、 codex の `ambiguity_note` を元に `artifacts/clarification.md` を書き、 execute.log を finalize せず exit (= codex が pre-check で漏れた不明確点を実装中に発見した case)
+   - codex が `ambiguity_detected=true` (`status=ambiguity_stop`) を返した場合、 codex の `ambiguity_note` を元に `.pev-artifacts/clarification.md` を書き、 execute.log を finalize せず exit (= codex が pre-check で漏れた不明確点を実装中に発見した case)
 7. **execute.log authoring**: 下記「出力契約」 に従い execute.log を書く。 冒頭に下記の Codex meta block を足す
 
 ### execute.log の Codex meta block
@@ -204,7 +204,7 @@ codex は実装エンジンとして優秀だが、 `execute.log` / DRY self-rev
 
 起動時:
 
-1. `artifacts/.task_id` を読んで `TASK_ID` を取得
+1. `.pev-artifacts/.task_id` を読んで `TASK_ID` を取得
 2. 並列起動されている場合は executor index `N` を環境変数 or 引数から取得 (デフォルト 1)
 3. `~/.claude/pev/{TASK_ID}/executor-{N}.md` を作成し、自分が担当するファイル一覧を書く
 4. 他の `~/.claude/pev/{TASK_ID}/executor-*.md` (もしあれば) を読んで、衝突する変更がないか確認
@@ -225,7 +225,7 @@ codex は実装エンジンとして優秀だが、 `execute.log` / DRY self-rev
 ## 出力契約
 
 - コード変更 (Edit / Write)
-- `artifacts/execute.log` に変更したファイル一覧と短いコミットメッセージ案を追記
+- `.pev-artifacts/execute.log` に変更したファイル一覧と短いコミットメッセージ案を追記
 - **orchestrator への最終返答 (v4.2.1+、 コスト規約)**: execute.log 全文や diff を返答に貼らない。 **10 行以内** で 変更 file 一覧 / clarification・fallback の有無 / execute.log を書いた旨 のみ返す (成果物は file が正、 rules/pev-conventions.md §7)
 
 ```

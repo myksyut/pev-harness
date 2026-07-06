@@ -11,7 +11,7 @@ Linear Issue を PEV pipeline の入出力として使う skill。 task 起票�
 
 - `/pev <linear-issue-url>` の形で起動された時 (= inbound)
 - **`.linear-config.yml` が存在し、 自然文 task で `/pev` が起動された時** (= issue-first、 v3.3.0+)
-- 既存 PEV task の `artifacts/linear/issue_id.txt` が存在する時 (outbound sync)
+- 既存 PEV task の `.pev-artifacts/linear/issue_id.txt` が存在する時 (outbound sync)
 - ユーザーが明示的に `/pev-linear-sync inbound <url>` を呼んだ時
 
 ## Prerequisites
@@ -59,10 +59,10 @@ Linear MCP tool は deferred (initial load 時に schema 解決が必要)。 ski
 
 inbound 失敗時 (404 / network / validation 等) の合図:
 
-- `artifacts/linear/issues/<issue_id>/sync_state.json` を **作る** (新命名規約、 後述)
+- `.pev-artifacts/linear/issues/<issue_id>/sync_state.json` を **作る** (新命名規約、 後述)
   - 中身: `inbound_status: "failed"`, `error_log[0]`, `fallback_invoked: true`
-- `artifacts/linear/issue_id.txt` は **作らない** (presence が成功の合図)
-- `artifacts/linear/issue_url.txt` は元 URL を保持 (debug 用)
+- `.pev-artifacts/linear/issue_id.txt` は **作らない** (presence が成功の合図)
+- `.pev-artifacts/linear/issue_url.txt` は元 URL を保持 (debug 用)
 
 ### Warning メッセージ template (v1.3.0+ 標準)
 
@@ -104,10 +104,10 @@ inbound 失敗時 (404 / network / validation 等) の合図:
    | `priority` | Estimated task budget の調整 (Urgent: +50%, Low: -30%) |
    | `assignee` | recap.log の actor 表示用 |
 
-5. `artifacts/linear/` ディレクトリを作成:
+5. `.pev-artifacts/linear/` ディレクトリを作成:
 
    ```text
-   artifacts/linear/
+   .pev-artifacts/linear/
    ├── issue_id.txt          # 例: ENG-123
    ├── issue_url.txt         # 元 URL
    └── sync_state.json       # inbound_at / last_outbound_at / status
@@ -122,7 +122,7 @@ inbound 失敗時 (404 / network / validation 等) の合図:
 **前提条件**:
 
 - `.linear-config.yml` が cwd に存在 (= 不在なら この direction は skip、 従来 flow)
-- `artifacts/linear/issue_id.txt` が **未作成** (= inbound case ではない、 = まだ issue がない)
+- `.pev-artifacts/linear/issue_id.txt` が **未作成** (= inbound case ではない、 = まだ issue がない)
 - task は自然文 (= Linear URL 直指定ではない)
 
 **手順**:
@@ -132,8 +132,8 @@ inbound 失敗時 (404 / network / validation 等) の合図:
    - title 命名規則: **具体的な作業内容を動詞で表現** (= How、 詳細は `linear-issue-workflow` SKILL.md 参照)
    - description は 6 section template (概要 / 背景・現状 / やること / やらないこと / 完了条件 / 参考情報)
    - 入力源:
-     - `artifacts/plan.md` が存在する (= plan_required path だった) → Goal を 概要、 Constraints/Risks を 背景・現状、 File-level changes を やること、 scope 外を やらないこと、 AC を 完了条件 にマッピング
-     - plan.md がない (= plan_skip / Mode B path) → task description を 概要、 `artifacts/triage.json` の reasoning / context_signals を 背景・現状、 推定実装 step を やること、 AC を task description から導出
+     - `.pev-artifacts/plan.md` が存在する (= plan_required path だった) → Goal を 概要、 Constraints/Risks を 背景・現状、 File-level changes を やること、 scope 外を やらないこと、 AC を 完了条件 にマッピング
+     - plan.md がない (= plan_skip / Mode B path) → task description を 概要、 `.pev-artifacts/triage.json` の reasoning / context_signals を 背景・現状、 推定実装 step を やること、 AC を task description から導出
 3. `mcp__plugin_linear_linear__save_issue` で **新規 issue を作成**:
    - `teamId`: `.linear-config.yml` の `team.id` から解決
    - `title`: 上記 命名規則の動詞句
@@ -146,10 +146,10 @@ inbound 失敗時 (404 / network / validation 等) の合図:
 5. `git checkout -b <branchName>` で branch を切る:
    - branch が既に存在する場合 (= 再実行) は `git checkout <branchName>` で switch
    - git 管理外の cwd なら warning を出して branch checkout は skip (issue 作成のみ)
-6. `artifacts/linear/` を作成:
+6. `.pev-artifacts/linear/` を作成:
 
    ```text
-   artifacts/linear/
+   .pev-artifacts/linear/
    ├── issue_id.txt          # 作成された issue ID (例: TES-123)
    ├── issue_url.txt         # issue URL
    ├── branch_name.txt       # Linear 発行の branch 名 (v3.3.0+)
@@ -158,9 +158,9 @@ inbound 失敗時 (404 / network / validation 等) の合図:
 
 7. commands/pev.md に return、 Execute へ進む (= 以降の実装は Linear branch 上で走る)
 
-**outbound sync との連携**: 後続の Direction 2 (outbound success) / Direction 3 (outbound fail) は、 issue-first で作成した issue に対しても同様に動く (= `artifacts/linear/issue_id.txt` を読む共通 path)。
+**outbound sync との連携**: 後続の Direction 2 (outbound success) / Direction 3 (outbound fail) は、 issue-first で作成した issue に対しても同様に動く (= `.pev-artifacts/linear/issue_id.txt` を読む共通 path)。
 
-**冪等性**: `artifacts/linear/issue_id.txt` が既に存在する場合は issue を再作成せず、 既存 issue の branch に checkout するだけ。
+**冪等性**: `.pev-artifacts/linear/issue_id.txt` が既に存在する場合は issue を再作成せず、 既存 issue の branch に checkout するだけ。
 
 **degraded mode 条件 (v3.3.3+ で refine、 F_v17_2)**: 以下のいずれも「Linear MCP が使えない」 とみなし、 **degraded mode** (= warning + issue 作成 / branch checkout を skip、 pipeline は止めない) に倒す:
 
@@ -174,7 +174,7 @@ interactive session で Linear MCP が未認証の場合のみ、 user に `/mcp
 
 ### Direction 2: Outbound success (PASS verdict)
 
-verifier が `artifacts/verify.json` を書いて `verdict=PASS` の場合、 `artifacts/linear/issue_id.txt` が存在すれば:
+verifier が `.pev-artifacts/verify.json` を書いて `verdict=PASS` の場合、 `.pev-artifacts/linear/issue_id.txt` が存在すれば:
 
 1. Linear Issue にコメント投稿 (`mcp__plugin_linear_linear__save_comment`):
 
@@ -183,7 +183,7 @@ verifier が `artifacts/verify.json` を書いて `verdict=PASS` の場合、 `a
 
    Task ran through pev-harness PEV pipeline.
 
-   - **Plan**: <artifacts/plan.md sha or excerpt>
+   - **Plan**: <.pev-artifacts/plan.md sha or excerpt>
    - **Files changed**: <count, summary>
    - **Acceptance criteria**: all met (<count>/<count>)
    - **Retries**: <N>
@@ -198,7 +198,7 @@ verifier が `artifacts/verify.json` を書いて `verdict=PASS` の場合、 `a
    - "Done" / "Completed" / "Released" のような名前のものを優先 (team ごとに異なる)
    - 不明なら現状維持してコメントのみ
 
-3. `artifacts/linear/sync_state.json` に `last_outbound_at` 記録
+3. `.pev-artifacts/linear/sync_state.json` に `last_outbound_at` 記録
 
 ### Direction 3: Outbound fail (FAIL verdict、 retry 上限到達)
 
@@ -217,19 +217,19 @@ verify.json が `verdict=FAIL` かつ `retry_count >= PEV_MAX_RETRIES` の時:
    ...
 
    ### Suggestions
-   - Inspect artifacts/plan.md — is the plan wrong?
+   - Inspect .pev-artifacts/plan.md — is the plan wrong?
    - Run /pev-plan to revise
    - Manual intervention required
    ```
 
 2. Issue status は変更しない (Done にしない)
 3. 必要なら `blocked` ラベル追加 (label の存在確認後)
-4. `artifacts/linear/sync_state.json` に `escalated_at` 記録
+4. `.pev-artifacts/linear/sync_state.json` に `escalated_at` 記録
 
-## artifacts/linear/ 規約
+## .pev-artifacts/linear/ 規約
 
 ```text
-artifacts/linear/
+.pev-artifacts/linear/
 ├── issue_id.txt        # Linear Issue ID (例: ENG-123)
 ├── issue_url.txt       # 元 URL
 ├── branch_name.txt     # Linear 発行の branch 名 (issue-first 時のみ、 v3.3.0+)
@@ -256,7 +256,7 @@ artifacts/linear/
 - `created_at` / `branch_name` / `branch_checked_out`: issue-first direction (v3.3.0+) で set
 - inbound と issue-first は排他 (= 1 task は どちらか一方の経路)
 
-`artifacts/` は `.gitignore` 対象、 Linear が source of truth。 ローカル artifacts/linear/ は cache 扱い。
+`.pev-artifacts/` は `.gitignore` 対象、 Linear が source of truth。 ローカル .pev-artifacts/linear/ は cache 扱い。
 
 ## Linear MCP tool 呼び出し方
 
@@ -270,7 +270,7 @@ I will post a completion comment to the Linear issue.
 <Tool call>
   name: mcp__plugin_linear_linear__save_comment
   parameters:
-    issueId: <from artifacts/linear/issue_id.txt>
+    issueId: <from .pev-artifacts/linear/issue_id.txt>
     body: |
       ## ✅ PEV completed
       ...
@@ -364,7 +364,7 @@ dog food (Phase 2-3) で確認された原則: **skill は state を artifacts �
 - `skills/linear-issue-workflow/SKILL.md` (= issue 命名規則 / template 6 section、 v3.4.0+)
 - `skills/linear-project-workflow/SKILL.md` (= project 命名規則 / template 5 section)
 - `skills/linear-project-tracker/SKILL.md` (= project 進捗監視)
-- SPEC.md §9 `artifacts/linear/`
+- SPEC.md §9 `.pev-artifacts/linear/`
 - commands/pev.md (Linear URL 引数検出 + Gate L)
 - agents/planner.md (Linear spec 受入)
 - agents/verifier.md (outbound sync trigger)

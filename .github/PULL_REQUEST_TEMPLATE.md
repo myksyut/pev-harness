@@ -13,7 +13,7 @@
 <!-- pev-harness CI must pass. Additionally: -->
 
 - [ ] Ran `/pev-harness:pev` against `examples/sample-project/` and confirmed expected behavior
-- [ ] If agent / skill / command was changed: dog food evidence attached (artifacts/ snapshot or screenshot)
+- [ ] If agent / skill / command was changed: dog food evidence attached (.pev-artifacts/ snapshot or screenshot)
 - [ ] If hooks/ was changed: tested with `permissionMode=default` (Gate A must still halt)
 
 ## Type of change

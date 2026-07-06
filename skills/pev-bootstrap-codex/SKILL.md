@@ -6,13 +6,13 @@ disable-model-invocation: true
 
 # pev-bootstrap-codex
 
-`/pev-init-codex` で呼ばれる **one-time setup** skill。 v2.0 で導入された `pev-external-reviewer` skill と v3.5.0 で導入された `pev-external-executor` skill を使えるようにする preflight setup。 v1.4 で確立した `pev-bootstrap-playwright` pattern を external reviewer / executor に拡張した sibling。 codex CLI の install / 認証は reviewer と executor で共通のため、 本 skill 1 つで両方を setup する。
+`/pev-init --codex` で呼ばれる **one-time setup** skill。 v2.0 で導入された `pev-external-reviewer` skill と v3.5.0 で導入された `pev-external-executor` skill を使えるようにする preflight setup。 v1.4 で確立した `pev-bootstrap-playwright` pattern を external reviewer / executor に拡張した sibling。 codex CLI の install / 認証は reviewer と executor で共通のため、 本 skill 1 つで両方を setup する。
 
 ## When to Use
 
 起動すべき場面:
 
-- `/pev-init-codex` が user に呼ばれた時
+- `/pev-init --codex` が user に呼ばれた時
 - `pev-external-reviewer` / `pev-external-executor` skill の Preflight で「codex CLI 未setup」 を検知した時 (auto-propose)
 - `PEV_REVIEWER_MODE=dual-codex|codex-only` (v2.0+) または `PEV_EXECUTOR_MODE=codex` (v3.5.0+) を有効化したい時
 
@@ -130,7 +130,7 @@ Q: codex を pev-harness のどこで使う default にしますか? (.claude/se
 通常モードで以下を **assistant 最終応答テキスト = stdout** に full block で出力 (v1.9 dog food finding F1 と同方針):
 
 ```text
-[pev-init-codex] complete
+[pev-init --codex] complete
 
 Detected:
   codex CLI:   0.130.0 (installed via brew)
@@ -172,7 +172,7 @@ Fallback behavior:
 brew install --cask codex
 codex login           # ブラウザで ChatGPT に sign-in
 codex login status    # "Logged in using ChatGPT" を確認
-claude --plugin-dir ~/pev-harness --print '/pev-harness:pev-init-codex'
+claude --plugin-dir ~/pev-harness --print '/pev-harness:pev-init --codex'
 ```
 
 ### CI 用 (API key auth)
@@ -181,13 +181,13 @@ claude --plugin-dir ~/pev-harness --print '/pev-harness:pev-init-codex'
 brew install --cask codex
 printenv OPENAI_API_KEY | codex login --with-api-key
 codex login status    # "Logged in using API key" を確認
-claude --plugin-dir ~/pev-harness --print '/pev-harness:pev-init-codex --force'
+claude --plugin-dir ~/pev-harness --print '/pev-harness:pev-init --codex --force'
 ```
 
 ### dry-run で内容確認
 
 ```bash
-claude --plugin-dir ~/pev-harness --print '/pev-harness:pev-init-codex --dry-run'
+claude --plugin-dir ~/pev-harness --print '/pev-harness:pev-init --codex --dry-run'
 ```
 
 → install / 書き込み行わず、 「現状 + 予定」 だけ出力。
@@ -197,7 +197,7 @@ claude --plugin-dir ~/pev-harness --print '/pev-harness:pev-init-codex --dry-run
 ```bash
 export OPENAI_API_KEY=$SECRET_OPENAI_KEY
 printenv OPENAI_API_KEY | codex login --with-api-key
-claude --plugin-dir ~/pev-harness --print '/pev-harness:pev-init-codex --force'
+claude --plugin-dir ~/pev-harness --print '/pev-harness:pev-init --codex --force'
 ```
 
 → interactive prompts skip + install method auto-try + sanity test 必ず実行。
@@ -208,7 +208,7 @@ claude --plugin-dir ~/pev-harness --print '/pev-harness:pev-init-codex --force'
 - [`pev-external-executor`](../pev-external-executor/SKILL.md) — v3.5.0 codex を Executor として呼ぶ skill (本 skill が setup する対象)
 - [`pev-bootstrap-playwright`](../pev-bootstrap-playwright/SKILL.md) — v1.4 sibling (E2E 専用)
 - [`pev-bootstrap-project`](../pev-bootstrap-project/SKILL.md) — v1.9 sibling (project 全体)
-- `commands/pev-init-codex.md` — 本 skill の薄い CLI ラッパー
+- `commands/pev-init --codex.md` — 本 skill の薄い CLI ラッパー
 - Codex CLI 公式 docs: <https://developers.openai.com/codex/noninteractive>
 
 ## Notes

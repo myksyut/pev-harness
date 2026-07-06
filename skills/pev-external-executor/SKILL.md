@@ -39,9 +39,9 @@ fallback signal は executor agent に返す。 executor agent はそれを受�
 
 executor agent から渡された mode を見て codex prompt を組む。 codex は plan.md / cwd を自分で読めるが、 **必要 context を 1 prompt に集約** して one-shot 実装の精度を上げる。
 
-**Mode A (plan ベース)**: `artifacts/plan.md` の `## File-level changes` を実装指示として渡す。
+**Mode A (plan ベース)**: `.pev-artifacts/plan.md` の `## File-level changes` を実装指示として渡す。
 
-**Mode B (plan-less)**: task description + `artifacts/triage.json` の `reasoning` / `context_signals` を渡し、 「cwd の既存 pattern を踏襲」 と明示する。
+**Mode B (plan-less)**: task description + `.pev-artifacts/triage.json` の `reasoning` / `context_signals` を渡し、 「cwd の既存 pattern を踏襲」 と明示する。
 
 両 mode 共通で `team-conventions.md` (= `pev-team-conventions` skill の load 順) の `## Code style` / `## Forbidden` / `## Files to never touch` を prompt に含める。
 
@@ -143,7 +143,7 @@ parse 成功時、 executor agent に渡す:
 
 - `status` (`implemented` / `ambiguity_stop` / `no_change`)
 - `files_changed[]` (codex の自己申告、 executor agent が `git diff` と cross-check する)
-- `ambiguity_detected` / `ambiguity_note` (true なら executor agent が `artifacts/clarification.md` を書く)
+- `ambiguity_detected` / `ambiguity_note` (true なら executor agent が `.pev-artifacts/clarification.md` を書く)
 - `commit_message` / `model` / `notes`
 
 ## executor agent への返却

@@ -1,11 +1,11 @@
 ---
 name: pev-recap
-description: 各 phase 完了時に短い recap を artifacts/recap.log に追記。Claude Code v2.1.x の Session Recaps 機能を補完
+description: 各 phase 完了時に短い recap を .pev-artifacts/recap.log に追記。Claude Code v2.1.x の Session Recaps 機能を補完
 ---
 
 # pev-recap
 
-phase完了ごとに「何をやったか / 次に何が残ってるか」の1〜3行サマリを `artifacts/recap.log` に追記する。長時間セッションから戻った時の context回復を最適化する。
+phase完了ごとに「何をやったか / 次に何が残ってるか」の1〜3行サマリを `.pev-artifacts/recap.log` に追記する。長時間セッションから戻った時の context回復を最適化する。
 
 ## When to Use
 
@@ -40,7 +40,7 @@ phase完了ごとに「何をやったか / 次に何が残ってるか」の1�
 Claude Code本体に Session Recaps 機能がある (3分以上席を外して戻ると自動サマリ表示)。
 
 - **Claude Code Recaps**: 全体的なターン進行、Claude Code側が管理
-- **pev-recap**: PEV phaseに特化、artifacts/ に永続化、別セッションからも参照可
+- **pev-recap**: PEV phaseに特化、.pev-artifacts/ に永続化、別セッションからも参照可
 
 両者は補完関係。重複しても問題ない。
 
@@ -52,10 +52,10 @@ Claude Code本体に Session Recaps 機能がある (3分以上席を外して�
 APPEND_RECAP() {
   local phase="$1"
   local summary="$2"
-  echo "[$(date -u +%FT%TZ)] Phase $phase done." >> artifacts/recap.log
-  echo "  - $summary" >> artifacts/recap.log
-  echo "  - Next: <next step>" >> artifacts/recap.log
-  echo "" >> artifacts/recap.log
+  echo "[$(date -u +%FT%TZ)] Phase $phase done." >> .pev-artifacts/recap.log
+  echo "  - $summary" >> .pev-artifacts/recap.log
+  echo "  - Next: <next step>" >> .pev-artifacts/recap.log
+  echo "" >> .pev-artifacts/recap.log
 }
 ```
 
@@ -73,7 +73,7 @@ Recent recap:
 [14:25:18] Phase 2 (Execute) done. Files: src/server.ts, tests/server.test.ts
 ```
 
-(最新3エントリのみ表示、全体は `cat artifacts/recap.log`)
+(最新3エントリのみ表示、全体は `cat .pev-artifacts/recap.log`)
 
 ## Examples
 
@@ -108,6 +108,6 @@ Recent recap:
 ## 注意点
 
 - recap.log は append only、変更しない
-- タスク完了 (`/pev-status --clean`) で artifacts/ ごと削除
+- タスク完了 (`/pev-status --clean`) で .pev-artifacts/ ごと削除
 - 長時間タスクで recap.log が肥大化する場合は `tail -n 50` で対応
 - recap内に PII / secret が混ざらないよう agent側で配慮

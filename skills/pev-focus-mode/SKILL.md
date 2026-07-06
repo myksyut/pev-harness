@@ -51,7 +51,7 @@ execute.log の経過時間を監視し、5分超で:
 
 ```
 $ /pev "Refactor auth across 3 modules" --parallel
-[Phase 1] planner...  done (artifacts/plan.md)
+[Phase 1] planner...  done (.pev-artifacts/plan.md)
 [Phase 2] executor x3 starting...
   - executor-1: src/auth/middleware.ts
   - executor-2: src/auth/jwt.ts

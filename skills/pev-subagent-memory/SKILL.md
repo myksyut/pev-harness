@@ -23,8 +23,7 @@ executor が並列起動された時、互いに直接対話せず memory file �
 ├── executor-1.md               # executor #1 の作業ノート
 ├── executor-2.md               # executor #2 の作業ノート
 ├── executor-3.md               # executor #3 の作業ノート
-├── verifier.md                 # verifier の検証メモ
-└── budget.json                 # pev-task-budget が管理
+└── verifier.md                 # verifier の検証メモ
 ```
 
 ### 各memoryファイルの中身
@@ -88,10 +87,10 @@ executor が並列起動された時、互いに直接対話せず memory file �
 
 ### 次セッションでの引き継ぎ
 
-セッション再開時、SessionStart hookが `artifacts/.task_id` を読み:
+セッション再開時、SessionStart hookが `.pev-artifacts/.task_id` を読み:
 
 ```bash
-TASK_ID=$(cat artifacts/.task_id 2>/dev/null)
+TASK_ID=$(cat .pev-artifacts/.task_id 2>/dev/null)
 if [ -n "$TASK_ID" ] && [ -d ~/.claude/pev/$TASK_ID ]; then
   echo "[PEV] Resuming task $TASK_ID"
   echo "[PEV] Memory: ~/.claude/pev/$TASK_ID/"
@@ -106,7 +105,7 @@ fi
 手動cleanup:
 
 ```bash
-/pev-status --clean       # artifacts/ も削除
+/pev-status --clean       # .pev-artifacts/ も削除
 rm -rf ~/.claude/pev/$TASK_ID  # 手動で
 ```
 

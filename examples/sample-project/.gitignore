@@ -1,5 +1,5 @@
 node_modules/
-artifacts/
+.pev-artifacts/
 playwright-report/
 test-results/
 .playwright/

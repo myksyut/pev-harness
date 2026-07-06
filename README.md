@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/myksyut/pev-harness/actions/workflows/ci.yml)
 [![GitHub stars](https://img.shields.io/github/stars/myksyut/pev-harness?style=social)](https://github.com/myksyut/pev-harness/stargazers)
-![version](https://img.shields.io/badge/version-4.3.0-blue)
+![version](https://img.shields.io/badge/version-5.0.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![claude--code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5v2.1.156-purple)
 
@@ -125,7 +125,7 @@ Files: 既知の関連パス (任意)
 
 ### 実行ログ (session telemetry、 v4.3+)
 
-各 task の実行記録が `artifacts/session.json` に自動で残ります — user prompt 原文 / 実行時 git 状態 (再現テスト用) / phase ごとの timing / token 消費 (概算) / user 入力 chat log / 任意の session 評価。 完了時に `~/.claude/pev/telemetry/` へ archive されるので、 「素の Claude Code に同じタスクを投げて比較する」 ベンチマーク dataset として蓄積できます。 **local file のみで外部送信はしません**。 不要なら `PEV_TELEMETRY=off`。
+各 task の実行記録が `.pev-artifacts/session.json` に自動で残ります — user prompt 原文 / 実行時 git 状態 (再現テスト用) / phase ごとの timing / token 消費 (概算) / user 入力 chat log / 任意の session 評価。 完了時に `~/.claude/pev/telemetry/` へ archive されるので、 「素の Claude Code に同じタスクを投げて比較する」 ベンチマーク dataset として蓄積できます。 **local file のみで外部送信はしません**。 不要なら `PEV_TELEMETRY=off`。
 
 ## Optional integrations
 
@@ -133,9 +133,9 @@ core 機能は単体で動きます。 使う分だけ:
 
 | 連携 | 用途 | setup |
 |---|---|---|
-| **Codex CLI** | Execute phase の実装エンジン (API 課金ゼロ) / 外部 reviewer | `brew install openai/tap/codex && codex auth login` → `/pev-init-codex` |
+| **Codex CLI** | Execute phase の実装エンジン (API 課金ゼロ) / 外部 reviewer | `brew install openai/tap/codex && codex auth login` → `/pev-init --codex` |
 | **Linear** | issue 起点の開発 (`/pev <linear-url>`)、 実装前 issue 自動作成 | `claude plugin install linear@claude-plugins-official` (OAuth) |
-| **Playwright** | UI タスクの E2E 検証 | `/pev-init-e2e` が `.mcp.json` と agents を自動生成 |
+| **Playwright** | UI タスクの E2E 検証 | `/pev-init --e2e` が `.mcp.json` と agents を自動生成 |
 
 install しない場合は該当機能が warning 付きで skip されるだけで、 pipeline は止まりません。
 
@@ -144,8 +144,8 @@ install しない場合は該当機能が warning 付きで skip されるだけ
 | 種類 | 内容 |
 |---|---|
 | **agents** (4) | triage / planner / executor / verifier |
-| **skills** (20) | pev-pipeline, pev-spec-template, pev-task-budget, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, pev-test-design, pev-e2e-verify, pev-bootstrap-playwright, pev-bootstrap-project, pev-bootstrap-codex, pev-external-reviewer, pev-external-executor, pev-linear-sync, linear-issue-workflow, linear-project-workflow, linear-project-tracker, empirical-prompt-tuning |
-| **commands** (9) | `/pev`, `/pev-plan`, `/pev-execute`, `/pev-verify`, `/pev-verify-e2e`, `/pev-status`, `/pev-init`, `/pev-init-e2e`, `/pev-init-codex` |
+| **skills** (19) | pev-pipeline, pev-spec-template, pev-focus-mode, pev-recap, pev-subagent-memory, pev-dual-review, pev-team-conventions, pev-test-design, pev-e2e-verify, pev-bootstrap-playwright, pev-bootstrap-project, pev-bootstrap-codex, pev-external-reviewer, pev-external-executor, pev-linear-sync, linear-issue-workflow, linear-project-workflow, linear-project-tracker, empirical-prompt-tuning |
+| **commands** (6) | `/pev` (これだけ覚えれば OK) / `/pev-init` (`--e2e` / `--codex` setup 統合) / `/pev-status` / `/pev-plan`・`/pev-execute`・`/pev-verify` (phase 単体実行、 Gate A 停止後の続行等) |
 | **hooks** (3) | PreToolUse (破壊的コマンドの block) / Stop (recap 自動追記 + telemetry 集計) / SessionStart (task 再開) |
 | **rules** (3) | `pev-conventions.md` (Gate 遵守・model tiering) / `native-prompting.md` (4.X で逆効果な定型句の禁止リスト) / `error-patterns.md` (エラー推測 catalog) |
 
@@ -186,6 +186,13 @@ Fable が使えない環境 (ZDR org 等) は `.claude/settings.local.json` で 
 - 自動フォーマット (プロジェクト側の formatter)
 - 50 個の specialized agent (agent 4 個でミニマルに完結)
 
+## v4.x からの移行 (v5.0 breaking changes)
+
+- **`artifacts/` → `.pev-artifacts/`**: 作業 dir を汚さない dot-prefix + pev 由来の明示 (社内 feedback)。 進行中 task があれば `mv artifacts .pev-artifacts`、 `.gitignore` の `artifacts/` 行を `.pev-artifacts/` に書き換え (新規は `/pev-init` が自動)
+- **コマンド統合 (9 → 6)**: `/pev-init-e2e` → `/pev-init --e2e`、 `/pev-init-codex` → `/pev-init --codex`、 `/pev-verify-e2e` → `/pev-verify --e2e`
+- **pev-task-budget skill / `PEV_TASK_BUDGET` env を削除**: token 見積もり機能は提供しない (「いくら掛かっても結局実行する」 — 社内 feedback)。 実測は telemetry (session.json) が担う
+- **CrossRepo 対応 (new)**: multi-repo workspace root から起動しても、 対象 repo 直下に `.pev-artifacts/` が置かれ、 `/pev-status` / hooks は階層をまたいで発見する
+
 ## Roadmap (抜粋)
 
 | Version | スコープ | Status |
@@ -196,7 +203,7 @@ Fable が使えない環境 (ZDR org 等) は `.claude/settings.local.json` で 
 | v4.0〜v4.1 | retry 駆動を公式 `/goal` primitive に一本化 (独立検証の dispatch は harness が保持) | ✅ released |
 | **v4.2〜v4.2.1** | **Fable orchestrator + model tiering** — 実測で Fable 単独比 −40% / rich 品質バー / orchestrator 薄型化 | ✅ released |
 | **v4.3** | **session telemetry** — prompt / git / timing / tokens / 評価を session.json に記録 (local-only) | ✅ released |
-| **v5.0 (予定)** | breaking: `.pev-artifacts/` rename + CrossRepo 対応 + コマンド/フラグの surface 削減 | 計画中 |
+| **v5.0** | **breaking**: `.pev-artifacts/` rename + CrossRepo 対応 + コマンド統合 (9→6) | ✅ released |
 | future | orchestrator turn 統合 (コスト比率 15% 目標) / Gemini CLI 対応 / opt-in telemetry 外部収集 | [Issues](https://github.com/myksyut/pev-harness/issues) |
 
 全履歴は [CHANGELOG.md](./CHANGELOG.md)、 各 release の根拠実験は [experiments/](./experiments/) 参照。

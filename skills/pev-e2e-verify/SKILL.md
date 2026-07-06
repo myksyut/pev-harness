@@ -16,7 +16,7 @@ token 効率のため Playwright **CLI** ベース (`npx playwright test`)。 Pl
 - AC に UI / E2E 系の **keyword** が含まれる時 (verifier が auto-dispatch):
   - `click` / `navigate` / `page` / `screen` / `button` / `form` / `dialog` / `modal` / `redirect` / `appears` / `visible` / `hidden` / `accessible` / `ARIA`
 - ユーザーが明示的に `--e2e` フラグを付けて `/pev` / `/pev-verify` を起動した時
-- `/pev-verify-e2e` 直接呼び出し時
+- `/pev-verify --e2e` 直接呼び出し時
 
 起動すべきでない場面:
 
@@ -50,7 +50,7 @@ dispatch logic は **default auto-detect** + **explicit `--e2e` / `--no-e2e` ove
   │
   ├─ Step 2: existing test 実行
   │   └─ npx playwright test --reporter=json,html
-  │       (artifacts/e2e/ に保存)
+  │       (.pev-artifacts/e2e/ に保存)
   │
   ├─ Step 3: AC に対応する test が無い → Playwright agents に委譲
   │   ├─ Planner agent → specs/<ac-slug>.md
@@ -62,7 +62,7 @@ dispatch logic は **default auto-detect** + **explicit `--e2e` / `--no-e2e` ove
   │   ├─ patch 提案
   │   └─ 再 test
   │
-  └─ Step 5: artifacts/e2e/ に結果保存 + sync_state.json 更新
+  └─ Step 5: .pev-artifacts/e2e/ に結果保存 + sync_state.json 更新
 ```
 
 ## Step 詳細
@@ -84,16 +84,16 @@ npx playwright --version > /dev/null 2>&1 || echo "playwright CLI not available"
 ### Step 2: Existing test 実行
 
 ```bash
-mkdir -p artifacts/e2e
+mkdir -p .pev-artifacts/e2e
 
 # JSON reporter で agent-parseable + HTML reporter で人間レビュー用
 npx playwright test \
   --reporter=json,html \
-  --output=artifacts/e2e/test-results/ \
-  2>&1 | tee artifacts/e2e/stdout.log
+  --output=.pev-artifacts/e2e/test-results/ \
+  2>&1 | tee .pev-artifacts/e2e/stdout.log
 
 # json output は別 path に rename (playwright default は test-results.json)
-mv test-results.json artifacts/e2e/results.json 2>/dev/null || true
+mv test-results.json .pev-artifacts/e2e/results.json 2>/dev/null || true
 ```
 
 reporter 選択基準:
@@ -105,7 +105,7 @@ reporter 選択基準:
 artifacts 構造:
 
 ```text
-artifacts/e2e/
+.pev-artifacts/e2e/
 ├── results.json              # machine-readable verdict
 ├── playwright-report/        # HTML reporter output
 ├── test-results/             # screenshot, trace, video
@@ -158,7 +158,7 @@ Healer は test side の問題 (locator drift など) を fix する。 **アプ
 ### Step 5: artifacts への記録
 
 ```text
-artifacts/e2e/sync_state.json:
+.pev-artifacts/e2e/sync_state.json:
 {
   "ran_at": "2026-05-11T...",
   "preflight": {
@@ -200,7 +200,7 @@ verifier の動作:
 5. Step 3: Planner → specs/status-badge.md 生成
    Generator → tests-e2e/status-badge.spec.ts 生成
    再 test → PASS
-6. Step 5: artifacts/e2e/ に保存
+6. Step 5: .pev-artifacts/e2e/ に保存
 ```
 
 ### Example 2: 明示的 --e2e フラグ
@@ -244,6 +244,6 @@ Playwright CLI は MCP ではないが、 dependent な MCP tool (browser 操作
 
 - [`pev-bootstrap-playwright`](../pev-bootstrap-playwright/SKILL.md) — 新規プロジェクトの Playwright setup を自動化
 - `agents/verifier.md` — dispatch logic (AC keyword + --e2e フラグ)
-- `commands/pev-verify-e2e.md` — explicit invocation
+- `commands/pev-verify --e2e.md` — explicit invocation
 - Playwright 公式: <https://playwright.dev/docs/test-agents>
 - 設計判断: 2026-05-11 dog food session 後の v1.4 design (CLI 採用、 token 効率最重視)

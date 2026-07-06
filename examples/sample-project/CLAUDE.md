@@ -46,5 +46,5 @@ cp .linear-config.yml.example .linear-config.yml
 ## Notes
 
 - このディレクトリは **dog food 専用**。 実プロジェクトに pev-harness を導入する際は、 各自のプロジェクトルートに `.linear-config.yml` と `team-conventions.md` を配置する。
-- `artifacts/` と `node_modules/` は gitignore 対象。
+- `.pev-artifacts/` と `node_modules/` は gitignore 対象。
 - dog food 実施手順は `guide/TEST-PLAN-linear-v1.3.md` 参照。

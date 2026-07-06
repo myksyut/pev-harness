@@ -11,20 +11,23 @@ description: Run only the Verify phase. Validates changes against plan.md accept
 ```text
 /pev-verify
 /pev-verify --strict        # dual review (Reviewer A + B) を実施
+/pev-verify --e2e           # unit + Playwright E2E 両方 (v5.0.0 で旧 /pev-verify-e2e を統合)
 ```
+
+**`--e2e` (v5.0.0 で統合)**: 通常 verify (build/test/lint/AC) の後に `pev-e2e-verify` skill を起動する (Preflight → `npx playwright test` → 必要なら Planner/Generator で test 自動生成 → fail 時 Healer auto-fix max 2 round → `.pev-artifacts/e2e/` に結果 + verdict)。 修飾 flag: `--no-heal` (Healer を起動しない) / `--skip-generation` (既存 test のみ)。 setup 未了なら `/pev-init --e2e` を案内して skip。 詳細: `skills/pev-e2e-verify/SKILL.md`。
 
 ## 前提条件
 
-- **v3.0+**: `artifacts/plan.md` または `artifacts/triage.json` のいずれかが存在 (= AC / task description の取得元)
+- **v3.0+**: `.pev-artifacts/plan.md` または `.pev-artifacts/triage.json` のいずれかが存在 (= AC / task description の取得元)
 - git作業ツリーに変更がある (verifyすべきものがある)
 
 ## フロー (hard-coded)
 
 1. `git diff` で変更を取得
-2. **v3.0+**: `artifacts/plan.md` があれば Verification strategy + AC を、 なければ (= Mode B、 plan_skip 後) triage.json + cwd の team-conventions.md / README を参照
+2. **v3.0+**: `.pev-artifacts/plan.md` があれば Verification strategy + AC を、 なければ (= Mode B、 plan_skip 後) triage.json + cwd の team-conventions.md / README を参照
 3. リストされた command を順次実行 (Build / Type check / Lint / Tests)
 4. plan.md の各 Acceptance Criteria を ✅/❌ チェック (plan.md なしなら task description + triage.json を AC として)
-5. `artifacts/verify.json` に結果書き出し
+5. `.pev-artifacts/verify.json` に結果書き出し
 6. `--strict` 指定時、`pev-dual-review` skill が起動 (Reviewer A=Opus xhigh / B=Sonnet high 並列)
 7. 結果サマリ表示
 
@@ -47,7 +50,7 @@ description: Run only the Verify phase. Validates changes against plan.md accept
    - Reviewer B: subagent_type=verifier, model=sonnet, effort=high
    - 両者に同じ rubric (PEV標準 + team-conventions.md からの追加) を渡す
 3. 両者の structured JSON output を受け取って merge
-4. `artifacts/verify.json` に `strict_mode: true` + `reviewer_a` / `reviewer_b` / `merged` セクションを追加して書き出し
+4. `.pev-artifacts/verify.json` に `strict_mode: true` + `reviewer_a` / `reviewer_b` / `merged` セクションを追加して書き出し
 5. `merged.agreement_pct` を recap.log に追記 (model diversity の機能確認用)
 
 詳細プロトコル: `skills/pev-dual-review/SKILL.md`。
@@ -59,7 +62,7 @@ description: Run only the Verify phase. Validates changes against plan.md accept
 
 ## Session telemetry finalize (v4.3.0+)
 
-`/pev-verify` 単体実行で最終判定 (PASS / escalate) に達した場合も、 `artifacts/session.json` が存在すれば finalize する (= Gate A 停止 → `/pev-execute` → `/pev-verify` の手動 path でも telemetry が完結する)。 手順は `commands/pev.md` Step 8 と同一、 bash 参考実装: `skills/pev-pipeline/references/pev-implementation.md`。
+`/pev-verify` 単体実行で最終判定 (PASS / escalate) に達した場合も、 `.pev-artifacts/session.json` が存在すれば finalize する (= Gate A 停止 → `/pev-execute` → `/pev-verify` の手動 path でも telemetry が完結する)。 手順は `commands/pev.md` Step 8 と同一、 bash 参考実装: `skills/pev-pipeline/references/pev-implementation.md`。
 
 ## Implementation note
 

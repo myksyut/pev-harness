@@ -21,7 +21,7 @@ tools: Read, Glob, Bash
 
 1. cwd の構造を 1 度だけ scan (Glob で src/ / tests/ / spec.md / team-conventions.md / docs/ 等を確認)
 2. user prompt と cwd context を統合して **「Plan が必要か」 を判定**
-3. `artifacts/triage.json` に decision + reasoning + signals を書き出す
+3. `.pev-artifacts/triage.json` に decision + reasoning + signals を書き出す
 4. 標準出力に decision を 1 行で echo (commands/pev.md がパースする)
 5. **1 turn 以内で完了する**。 深掘り探索や file 読み込みは行わない (file 名の存在確認まで)
 
@@ -55,7 +55,7 @@ tools: Read, Glob, Bash
 
 ## 出力契約
 
-### `artifacts/triage.json` (schema 厳守、 v3.0.4+)
+### `.pev-artifacts/triage.json` (schema 厳守、 v3.0.4+)
 
 field name は **以下を厳守**。 別名 (`rationale` / `ambiguities` / `reason` 等) は **禁止**:
 
@@ -65,9 +65,20 @@ field name は **以下を厳守**。 別名 (`rationale` / `ambiguities` / `rea
   "reasoning": "1-3 文で判断理由を自然言語で",
   "context_signals": ["cwd に src/ + tests/ + team-conventions.md 揃っている", "..."],
   "ambiguity_signals": ["UI 配置の明示なし", "上限値未指定", "..."],
-  "task_id": "<from artifacts/.task_id>"
+  "task_id": "<from .pev-artifacts/.task_id>",
+  "target_root": "./<sub-repo>"
 }
 ```
+
+### `target_root` (optional、 v5.0.0+ CrossRepo 対応)
+
+**cwd 自体が git repo ではなく** (= multi-repo workspace root)、 かつ task の対象が **単一の sub-directory repo に特定できる** 場合のみ、 その相対 path を `target_root` に set する (例: `"./api-server"`)。 以下の場合は field ごと省略する:
+
+- cwd 自体が git repo (= 通常 case)
+- 対象 repo を特定できない、 もしくは複数 repo にまたがる task
+- 判定に自信がない (= Defensive: 省略すれば従来どおり cwd 直下に artifacts が置かれる)
+
+`commands/pev.md` はこの値を受けて `.pev-artifacts/` を `<target_root>/.pev-artifacts/` へ移動し、 以降 target_root を working root として pipeline を進める。
 
 **意図 (F_v8_3)**: harness-effect-v8 dog food で field name が `rationale` / `ambiguities` に勝手に変えられた事例があった。 後続 logic (`commands/pev.md` の jq parse) が壊れるので strict 化。 v3.0.4+ 必須。
 
@@ -125,7 +136,7 @@ prompt に「既存 pattern を踏襲して」 「同じ pattern で」 「valid
 - 深掘り file 読み込み (Read で複数 file 全体を読むのは executor / planner の仕事)
 - コード変更
 - agent invocation (Plan / Execute / Verify を直接呼ばない、 これは commands/pev.md の責務)
-- `artifacts/triage.json` 以外の file 書き出し
+- `.pev-artifacts/triage.json` 以外の file 書き出し
 - 1 turn を超えた深い探索
 
 ## 不確実性 (v3.0-alpha の段階)

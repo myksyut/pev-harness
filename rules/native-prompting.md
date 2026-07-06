@@ -31,7 +31,7 @@ You are a senior software architect with 20 years of experience...
 ```yaml
 ---
 name: planner
-description: PEV Phase 1 — タスク仕様を読んで実装計画を artifacts/plan.md に書き出す
+description: PEV Phase 1 — タスク仕様を読んで実装計画を .pev-artifacts/plan.md に書き出す
 ---
 ```
 
@@ -47,7 +47,7 @@ Please carefully analyze the codebase and step-by-step write a plan, double-chec
 ✅ After:
 ```
 入力: Goal / Constraints / Acceptance Criteria (必須)
-出力: artifacts/plan.md (File-level changes, Verification strategy, Risksを含む)
+出力: .pev-artifacts/plan.md (File-level changes, Verification strategy, Risksを含む)
 ```
 
 入出力の contract を明示。動作詳細は agent に任せる。

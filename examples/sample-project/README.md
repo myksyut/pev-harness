@@ -25,7 +25,7 @@ sample-project/
 ├── .mcp.json                    (playwright-test MCP server)
 ├── specs/                       (Playwright Planner 出力先)
 ├── team-conventions.md          (sample-project 用の実務規約)
-└── .gitignore                   (artifacts/ / node_modules / playwright-report)
+└── .gitignore                   (.pev-artifacts/ / node_modules / playwright-report)
 ```
 
 ## Setup (1 度だけ)
@@ -73,7 +73,7 @@ npm test && npx playwright test       # 両方
 ## クリーンアップ (dog food 後)
 
 ```bash
-rm -rf artifacts/ playwright-report/ test-results/
+rm -rf .pev-artifacts/ playwright-report/ test-results/
 git checkout -- src/ tests/ tests-e2e/ index.html
 ```
 
@@ -86,4 +86,4 @@ git checkout -- src/ tests/ tests-e2e/ index.html
 - **webServer**: `npm run preview` で http-server を spawn (port 8080)
 - **Playwright agents**: `.claude/agents/playwright-test-*.md` に置かれ、 Claude Code が認識
 - **MCP server**: `.mcp.json` で `playwright-test` server (`npx playwright run-test-mcp-server`) を spawn
-- **trace**: 失敗時のみ artifacts/e2e/ に保存 (config: `trace: 'on-first-retry'`)
+- **trace**: 失敗時のみ .pev-artifacts/e2e/ に保存 (config: `trace: 'on-first-retry'`)

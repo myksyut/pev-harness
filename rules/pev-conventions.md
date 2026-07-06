@@ -6,7 +6,7 @@ pev-harness を使う際の always-follow ガイドライン。すべての agen
 
 PEV pipeline には以下の Gate / decision point がある:
 
-- **Triage decision** (v3.0+、 Phase 0 出口): `artifacts/triage.json` の decision で「Plan 必要 / Plan skip」 を判定。 `--with-plan` / `--no-plan` flag で override 可能
+- **Triage decision** (v3.0+、 Phase 0 出口): `.pev-artifacts/triage.json` の decision で「Plan 必要 / Plan skip」 を判定。 `--with-plan` / `--no-plan` flag で override 可能
 - **Gate A** (Plan → Execute、 = Plan が起動された場合のみ): `permissionMode` で判定
 - **Gate B** (Execute → Verify): Stop hook で promotion
 - **Retry Gate** (Verify FAIL時): retry_count と PEV_MAX_RETRIES で判定
@@ -15,7 +15,7 @@ PEV pipeline には以下の Gate / decision point がある:
 
 絶対遵守ルール:
 
-- **triage agent (v3.0+)** は `artifacts/triage.json` を書いたら **そこで完全停止**。 planner / executor を起動しない。 後続 phase 進行は commands/pev.md の Step 1.5 が決める
+- **triage agent (v3.0+)** は `.pev-artifacts/triage.json` を書いたら **そこで完全停止**。 planner / executor を起動しない。 後続 phase 進行は commands/pev.md の Step 1.5 が決める
 - planner は plan.md を書いたら**そこで完全停止**。 executor を起動しない。 Phase 2進行はGate A が決める
 - executor は変更を終えたら**そこで完全停止**。 verifier を起動しない。 Phase 3進行は Gate B (Stop hook) が決める
 - verifier は verify.json を書いたら**そこで完全停止**。 retry 判断は Retry Gate に委ねる
@@ -52,10 +52,10 @@ PEV pipeline には以下の Gate / decision point がある:
 
 | ファイル | 書き手 | 読み手 |
 |---|---|---|
-| `artifacts/plan.md` | planner のみ | executor / verifier / human |
-| `artifacts/execute.log` | executor | verifier / human |
-| `artifacts/verify.json` | verifier | planner (retry時) / human |
-| `artifacts/recap.log` | pev-recap skill | human / `/pev-status` |
+| `.pev-artifacts/plan.md` | planner のみ | executor / verifier / human |
+| `.pev-artifacts/execute.log` | executor | verifier / human |
+| `.pev-artifacts/verify.json` | verifier | planner (retry時) / human |
+| `.pev-artifacts/recap.log` | pev-recap skill | human / `/pev-status` |
 | `~/.claude/pev/{task_id}/*` | 各agent (自分の.md のみ) | 他agent / 次セッション |
 
 **他のagentの担当ファイルを変更しない**。

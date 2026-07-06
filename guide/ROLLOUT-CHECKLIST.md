@@ -30,7 +30,7 @@
 
 - [ ] `team-conventions.md` を作成 (`examples/team-conventions.example.md` ベース)
 - [ ] team-conventions.md の `## Language & Stack` / `## Code style` / `## Forbidden` / `## Files to never touch` を プロジェクト固有に編集
-- [ ] `.gitignore` に `artifacts/` 追加
+- [ ] `.gitignore` に `.pev-artifacts/` 追加
 - [ ] team-conventions.md と .gitignore を commit (`chore: adopt pev-harness team conventions`)
 - [ ] (オプション) `.claude/settings.json` でプロジェクトの `permissionMode` 既定値を設定
 

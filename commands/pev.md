@@ -30,7 +30,7 @@ PEV harnessのメインコマンド。Plan → Execute → Verify を順に実�
 linear\.app/[^/]+/issue/([A-Z]+-\d+)
 ```
 
-抽出した identifier (例: `ENG-123`) を `artifacts/linear/issue_id.txt` に保存。`pev-spec-template` をスキップして直接 planner に Linear-sourced spec を渡す。
+抽出した identifier (例: `ENG-123`) を `.pev-artifacts/linear/issue_id.txt` に保存。`pev-spec-template` をスキップして直接 planner に Linear-sourced spec を渡す。
 
 Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済みであることが前提。 不在時は warning を出して通常 flow にfallback。
 
@@ -51,20 +51,20 @@ Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済み�
 1. **引数判定**:
    - Linear URL → `pev-linear-sync` inbound
    - 自然文 → そのまま task description として使用
-2. **Phase 0 (Triage、 v3.0+)**: triage agent → `artifacts/triage.json` で Plan 必要性判定
+2. **Phase 0 (Triage、 v3.0+)**: triage agent → `.pev-artifacts/triage.json` で Plan 必要性判定
    - `decision = plan_required` → Step 3 (Plan) へ
    - `decision = plan_skip` → Step 4 (Execute) へ直行
-3. **Phase 1 (Plan、 on-demand)**: planner agent → `artifacts/plan.md` (= Triage が plan_required と判定した場合のみ)
+3. **Phase 1 (Plan、 on-demand)**: planner agent → `.pev-artifacts/plan.md` (= Triage が plan_required と判定した場合のみ)
 4. **Gate L (Linear issue-first、 v3.3.0+、 v3.3.1 で配置修正)**: `.linear-config.yml` 存在時、 Gate A の前に Linear issue 作成 + branch checkout
 5. **Gate A**: `permissionMode` 判定で auto / 停止 / 終了 を分岐 (= Plan が走った場合のみ)
-6. **Phase 2 (Execute)**: executor agent → コード変更 + `artifacts/execute.log`
+6. **Phase 2 (Execute)**: executor agent → コード変更 + `.pev-artifacts/execute.log`
    - plan.md があれば計画ベース、 なければ task description + cwd context ベース
    - Gate L で branch checkout 済みなら Linear 発行 branch 上で実装
    - **executor mode (v3.5.0+)**: default は `codex` (Execute phase の実 file 編集を Codex CLI に委譲、 executor agent は wrapper として execute.log / DRY review を担当)。 `--executor-mode=claude` / `PEV_EXECUTOR_MODE=claude` で Claude native に override。 codex 未 setup 時は claude に自動 degrade
 7. **Gate B**: Stop hook が verifier を促す
-8. **Phase 3 (Verify)**: verifier agent (`--strict` 時は `pev-dual-review`) → `artifacts/verify.json`
+8. **Phase 3 (Verify)**: verifier agent (`--strict` 時は `pev-dual-review`) → `.pev-artifacts/verify.json`
 9. **Retry Gate (/goal 駆動)**: `/goal` が「verifier (別 Task) の独立 PASS + 生 test 出力 exit 0」 を condition に retry を自走駆動 (max `PEV_MAX_RETRIES`)。 verifier の dispatch は pev が握り続ける。 `--expect-fail` / hooks 無効環境では `/goal` を起動せず verify 1 回で停止 (v4.1.0 で `/goal` 前提化、 legacy retry_count は撤去)
-10. **Telemetry finalize (v4.3.0+)**: pipeline が最終判定 (PASS / hand-back / infeasible) に達したら `artifacts/session.json` を確定 + durable archive (Step 8)
+10. **Telemetry finalize (v4.3.0+)**: pipeline が最終判定 (PASS / hand-back / infeasible) に達したら `.pev-artifacts/session.json` を確定 + durable archive (Step 8)
 
 ### Flag による flow override (v3.0+)
 
@@ -79,7 +79,7 @@ Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済み�
 - `--executor-mode=codex` (default): 実 file 編集を OpenAI Codex CLI に委譲。 executor agent は wrapper として残り、 `execute.log` / DRY self-review / judgment trace / Mode B Self-Clarify を担当
 - `--executor-mode=claude`: Claude executor agent が native に実装 (= codex default の override)
 - 優先順: `--executor-mode` flag > `PEV_EXECUTOR_MODE` env var > settings.json default (`codex`)
-- codex CLI が未 setup / 未認証の場合、 自動で Claude native 実装に degrade (= graceful fallback)。 setup は `/pev-init-codex`
+- codex CLI が未 setup / 未認証の場合、 自動で Claude native 実装に degrade (= graceful fallback)。 setup は `/pev-init --codex`
 - `--parallel` と併用された場合、 codex mode が優先 (codex は 1 invocation で複数 file 編集可、 並列 subprocess 化しない)
 
 ## Implementation
@@ -88,21 +88,21 @@ Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済み�
 
 ```bash
 # 既存タスクの検出
-if [ -f artifacts/.task_id ]; then
-  echo "[PEV] Existing task: $(cat artifacts/.task_id)"
+if [ -f .pev-artifacts/.task_id ]; then
+  echo "[PEV] Existing task: $(cat .pev-artifacts/.task_id)"
   echo "[PEV] Run '/pev-status' or '/pev-status --clean' first."
   exit 1
 fi
 
 # 新規タスク発行
-mkdir -p artifacts
+mkdir -p .pev-artifacts
 TASK_ID="$(date +%s)-$(openssl rand -hex 4 2>/dev/null || printf '%04x%04x' $RANDOM $RANDOM)"
-echo "$TASK_ID" > artifacts/.task_id
+echo "$TASK_ID" > .pev-artifacts/.task_id
 mkdir -p ~/.claude/pev/$TASK_ID
 echo "[PEV] Task started: $TASK_ID"
 ```
 
-**Session telemetry 初期化 (v4.3.0+)**: TASK_ID 発行直後、 `artifacts/session.json` を作成する。 `TASK_PROMPT` = user が `/pev` に渡した task description **原文**、 `TASK_FLAGS` = flag 列 (なければ空文字)。 `PEV_TELEMETRY=off` で無効化可 (local file のみ、 外部送信なし):
+**Session telemetry 初期化 (v4.3.0+)**: TASK_ID 発行直後、 `.pev-artifacts/session.json` を作成する。 `TASK_PROMPT` = user が `/pev` に渡した task description **原文**、 `TASK_FLAGS` = flag 列 (なければ空文字)。 `PEV_TELEMETRY=off` で無効化可 (local file のみ、 外部送信なし):
 
 ```bash
 if [ "${PEV_TELEMETRY:-on}" != "off" ]; then
@@ -112,27 +112,36 @@ if [ "${PEV_TELEMETRY:-on}" != "off" ]; then
     --arg branch "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || printf '%s' -)" \
     --argjson dirty "$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')" \
     --arg remote "$(git remote get-url origin 2>/dev/null || printf '%s' -)" \
-    '{task_id:$tid, harness_version:"4.3.0", user_prompt:$prompt, flags:$flags,
+    '{task_id:$tid, harness_version:"5.0.0", user_prompt:$prompt, flags:$flags,
       started_at:$ts, started_at_epoch:$epoch,
       git:{head:$head, branch:$branch, dirty_files:$dirty, remote:$remote},
       phases:null, result:null, finished_at:null, duration_seconds:null,
-      tokens:null, user_messages:null, rating:null}' > artifacts/session.json
+      tokens:null, user_messages:null, rating:null}' > .pev-artifacts/session.json
 fi
 ```
 
 ### Step 1.5 — Phase 0 (Triage、 v3.0+)
 
 - flag: `--with-plan` → `plan_required` 扱い (Triage skip) / `--no-plan` → `plan_skip` 扱い (Triage skip)
-- flag なし: **必ず triage agent を invoke する** (main が prompt の表面解釈で「対象不在」 等を自走判定して Triage を skip するのは禁止、 v3.0.5+)。 decision は `jq -r '.decision' artifacts/triage.json` で受領
+- flag なし: **必ず triage agent を invoke する** (main が prompt の表面解釈で「対象不在」 等を自走判定して Triage を skip するのは禁止、 v3.0.5+)。 decision は `jq -r '.decision' .pev-artifacts/triage.json` で受領
 - `plan_required` → Step 2 へ / `plan_skip` → Step 4 (Execute) へ直行 (Gate A は skip) / `task_infeasible` (v3.0.5+) → reasoning + missing targets を user に提示、 recap.log に記録して exit 0 (Plan / Execute / Verify を起動しない)
 - **Defensive default**: triage 無応答 / parse 失敗 / 不明 decision は `plan_required`
 - bash 参考実装 (必要時のみ Read): `skills/pev-pipeline/references/pev-implementation.md`
+
+**CrossRepo working root (v5.0.0+)**: triage.json に `target_root` があり `.` 以外の場合 (= cwd は multi-repo workspace root、 task 対象は単一 sub-repo)、 orchestrator は Triage 直後に以下を行う:
+
+1. `mv .pev-artifacts "<target_root>/.pev-artifacts"` — artifacts を対象 repo 直下へ移動 (= 対象 repo 内で claude を起動し直しても同じ task が見える)
+2. 以降の全 Step の bash は `cd "<target_root>"` を前置して実行する (= 相対 path `.pev-artifacts/` が常に working root 基準で成立)
+3. phase agent (planner / executor / verifier) の dispatch prompt に working root を明示する
+4. session.json の `git` snapshot を target_root で取り直す (`git -C "<target_root>" ...` で head / branch / dirty_files / remote を update)
+
+hooks と `/pev-status` は maxdepth 2 の discovery (`find . -maxdepth 2 -type d -name .pev-artifacts`) で移動先を自動発見するため、 workspace root からでも sub-repo 内からでも状態が見える。 `target_root` がない場合は従来どおり cwd 直下 (= 挙動不変)。
 
 ### Step 2 — Phase 1 (Plan、 on-demand、 v3.0+)
 
 Triage decision が `plan_required` の場合のみ起動。 `plan_skip` ならこの Step 全体を skip して Step 4 へ。
 
-planner agent (model: opus, effort: xhigh) を起動 → `artifacts/plan.md` 出力。 plan.md 冒頭に「## 確認質問」 が出力された場合は、 user との対話で確定後に Goal/Constraints/AC 等を確定する (= v3.0 で質問返しは必須機能)。
+planner agent (model: opus, effort: xhigh) を起動 → `.pev-artifacts/plan.md` 出力。 plan.md 冒頭に「## 確認質問」 が出力された場合は、 user との対話で確定後に Goal/Constraints/AC 等を確定する (= v3.0 で質問返しは必須機能)。
 
 ### Step 2.5 — Gate L (Linear issue-first、 v3.3.0+、 v3.3.1 で配置修正)
 
@@ -155,20 +164,20 @@ planner agent (model: opus, effort: xhigh) を起動 → `artifacts/plan.md` 出
 ### Step 4 — Phase 2 (Execute)
 
 executor agent (model: sonnet, effort: high) を起動 (`--parallel` 時は最大3並列)。
-コード変更 + `artifacts/execute.log` 記録。 **Gate L で branch checkout 済みなら、 実装は Linear 発行 branch 上で走る**。
+コード変更 + `.pev-artifacts/execute.log` 記録。 **Gate L で branch checkout 済みなら、 実装は Linear 発行 branch 上で走る**。
 
 **executor mode 解決 (v3.5.0+)**: 優先順 `--executor-mode` flag > `PEV_EXECUTOR_MODE` env > settings default (`codex`)。 解決値を `PEV_EXECUTOR_MODE` として executor に渡す。 `codex` の場合 executor agent は Codex delegation mode (`agents/executor.md`) で起動、 codex 未 setup / 未認証なら自動で Claude native に degrade (degrade は recap.log に記録)。 bash 参考実装: `skills/pev-pipeline/references/pev-implementation.md`。
 
 ### Step 5 — Gate B (Stop hookで自動)
 
-Stop hook が `artifacts/execute.log` 存在を検出し、recap.log にPhase 2完了エントリ追記 + `/pev-verify` を促す。
+Stop hook が `.pev-artifacts/execute.log` 存在を検出し、recap.log にPhase 2完了エントリ追記 + `/pev-verify` を促す。
 
 **auto / `--force-auto` path (v4.2.1+、 F_v19_1)**: Stop hook 任せにせず、 orchestrator が Execute 完了を確認したら **同 turn で verifier を dispatch する**。 headless (`-p`) では Stop hook 経由の promotion が発火せず Verify が丸ごと skip される事故が実測されたため。
 
 ### Step 6 — Phase 3 (Verify)
 
 verifier agent。`--strict` 指定時は `pev-dual-review` skill 経由でReviewer A/B並列。
-`artifacts/verify.json` 出力。
+`.pev-artifacts/verify.json` 出力。
 
 ### Step 7 — Retry Gate (/goal 駆動)
 
@@ -182,7 +191,7 @@ pipeline は Phase 3 (verify) の **後**、 以下の goal を set する (= �
 
 ```text
 /goal The pev verifier agent — dispatched as a SEPARATE Task by the pipeline, NOT the
-executor's self-report — has written artifacts/verify.json with "verdict":"PASS", and the
+executor's self-report — has written .pev-artifacts/verify.json with "verdict":"PASS", and the
 conversation shows the raw test command output exiting 0 produced by that verifier. While
 still FAIL: re-plan, re-implement, then RE-DISPATCH THE VERIFIER AS A SEPARATE TASK — never
 accept the implementer's own claim. Stop and hand back after PEV_MAX_RETRIES (default 3)
@@ -210,7 +219,7 @@ verdict 別の recap 記録・`--expect-fail` 使い分け規約・bash 参考�
 
 ### Step 8 — Session telemetry finalize (v4.3.0+)
 
-pipeline が **最終判定** に達したら `artifacts/session.json` を確定する。 対象は: PASS 完了 / `/goal` hand-back / `task_infeasible` / `--expect-fail` の verify 1 回停止。 Gate A 停止などの **途中停止では finalize しない** (後続の `/pev-verify` 完走時に finalize される)。 `artifacts/session.json` が存在しない場合 (`PEV_TELEMETRY=off`) は本 Step 全体を skip。
+pipeline が **最終判定** に達したら `.pev-artifacts/session.json` を確定する。 対象は: PASS 完了 / `/goal` hand-back / `task_infeasible` / `--expect-fail` の verify 1 回停止。 Gate A 停止などの **途中停止では finalize しない** (後続の `/pev-verify` 完走時に finalize される)。 `.pev-artifacts/session.json` が存在しない場合 (`PEV_TELEMETRY=off`) は本 Step 全体を skip。
 
 1. `finished_at` / `duration_seconds` / `result` (`PASS` \| `FAIL_handed_back` \| `infeasible` \| `expected_fail`) / `phases` を記録。 `phases` は **object 形式厳守**: `{"triage": <ISO8601|null>, "plan": ..., "execute": ..., "verify": ...}` (各 phase artifact の mtime 由来、 未実行 phase は null。 dataset として schema を揃えるため別形式は禁止)
 2. **durable archive**: `~/.claude/pev/telemetry/<TASK_ID>.session.json` に copy — `/pev-status --clean` / `--gc` 後もデータセットとして蓄積される (再現テスト / ベンチマーク用)

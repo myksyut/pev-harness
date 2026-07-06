@@ -1,5 +1,5 @@
 # PEV runtime artifacts
-artifacts/
+.pev-artifacts/
 
 # Local settings overrides
 .claude/settings.local.json

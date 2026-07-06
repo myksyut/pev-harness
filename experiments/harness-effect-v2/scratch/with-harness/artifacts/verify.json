@@ -1,0 +1,99 @@
+{
+  "verdict": "PASS",
+  "checks": [
+    {
+      "name": "build",
+      "result": "PASS",
+      "detail": "N/A — vanilla HTML/JS, no build step required per plan.md Verification strategy"
+    },
+    {
+      "name": "typecheck",
+      "result": "PASS",
+      "detail": "N/A — plain JavaScript, no TypeScript / type checker in scope"
+    },
+    {
+      "name": "lint",
+      "result": "PASS",
+      "detail": "N/A — no lint configuration in project, not required by spec"
+    },
+    {
+      "name": "tests",
+      "result": "PASS",
+      "detail": "N/A — no automated test framework (E2E framework introduction violates single-file constraint). Static review used instead."
+    }
+  ],
+  "static_review": {
+    "single_file": "PASS — cwd contains only index.html (plus artifacts/ dir). No additional JS/CSS/HTML files were created. Confirmed: `ls with-harness/` returns exactly [artifacts, index.html].",
+    "no_innerhtml_with_user_input": "PASS — grep for 'innerHTML' in index.html returns 0 matches. All user-supplied text is written exclusively via `span.textContent = todo.text` (line 188). DOM construction uses `document.createElement` throughout the render() function (lines 175-202).",
+    "no_external_resources": "PASS — grep for 'http', '<script src=', '<link rel.*href.*http' all return 0 matches. font-family uses system-ui/-apple-system (OS native). No CDN, no external script, no external stylesheet.",
+    "preventDefault_on_submit": "PASS — line 238: `e.preventDefault();` is the first statement inside the form submit handler, preventing default page reload.",
+    "event_delegation": "PASS — lines 252-264: two listeners are attached to `#todo-list` (one `click` for remove, one `change` for toggle). Individual `<li>` rows receive no listeners. Each row element carries `data-action` and `data-id` attributes for delegation dispatch.",
+    "localstorage_defensive": "PASS — loadFromStorage() (lines 146-157) wraps localStorage.getItem + JSON.parse in try/catch; catch block silently falls back to empty array (todos stays []). Additionally, Array.isArray(parsed) guard on line 151 rejects non-array parsed values (e.g., a stored number or object). saveToStorage() (lines 159-165) also uses try/catch with console.warn on failure, preventing QuotaExceededError from crashing the app."
+  },
+  "ac_results": [
+    {
+      "id": "AC1",
+      "status": "PASS",
+      "evidence": "HTML body contains `<form id=\"todo-form\">` with `<input id=\"todo-input\">` and `<button id=\"add-btn\" type=\"submit\">追加</button>`, plus `<ul id=\"todo-list\">` (lines 130-139). On DOMContentLoaded the script runs `loadFromStorage()` then `render()` (lines 267-268), so both form and list are present immediately on file open."
+    },
+    {
+      "id": "AC2",
+      "status": "PASS",
+      "evidence": "form submit listener (lines 237-247) calls `e.preventDefault()` then `addTodo(text)` on non-empty input, followed by `input.value = ''`. The submit button has `type=\"submit\"` (line 137), so both Enter key and button click trigger the form's submit event. addTodo() calls `todos.unshift(...)` → `saveToStorage()` → `render()` (lines 208-214)."
+    },
+    {
+      "id": "AC3",
+      "status": "PASS",
+      "evidence": "render() creates a checkbox `<input type=\"checkbox\">` with `data-action=\"toggle\"` for each todo (lines 178-184). The change event listener on `#todo-list` calls `toggleTodo(id)` (lines 259-263). toggleTodo() flips `done` flag (lines 218-225). span.className includes `' completed'` when `todo.done` is true (line 187). CSS `.todo-text.completed { text-decoration: line-through; color: #999; }` (lines 104-107) applies visual distinction."
+    },
+    {
+      "id": "AC4",
+      "status": "PASS",
+      "evidence": "render() creates `<button class=\"remove-btn\" data-action=\"remove\" data-id=\"...\">✕</button>` per todo (lines 190-196). click event listener on `#todo-list` calls `removeTodo(id)` when `target.dataset.action === 'remove'` (lines 252-256). removeTodo() filters the item out of the array, saves and re-renders (lines 228-234)."
+    },
+    {
+      "id": "AC5",
+      "status": "PASS",
+      "evidence": "loadFromStorage() runs at initialization (line 267) and reads `localStorage.getItem('todos.v1')`, populating the `todos` array before render(). saveToStorage() is called at end of addTodo, toggleTodo, removeTodo — keeping localStorage in sync with every mutation. STORAGE_KEY = 'todos.v1' (line 143)."
+    },
+    {
+      "id": "AC6",
+      "status": "PASS",
+      "evidence": "Two-layer guard: (1) form submit handler checks `trimmed !== ''` before calling addTodo (line 242), keeping input value intact on empty submit (line 246 comment). (2) addTodo() also checks `if (trimmed === '') return;` (line 207) as a defensive second layer. Pure-whitespace input trims to '' and is rejected at both layers."
+    },
+    {
+      "id": "AC7",
+      "status": "PASS",
+      "evidence": "`<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">` (line 5). `.app { max-width: 480px; margin: 0 auto; padding: 16px; }` (lines 22-26). `#todo-input { flex: 1; min-width: 0; }` (lines 41-49) prevents flex overflow at narrow widths. `#add-btn { white-space: nowrap; flex-shrink: 0; }` (lines 64-65) keeps button from wrapping. At 375px the flex form layout distributes correctly with no overflow."
+    },
+    {
+      "id": "AC8",
+      "status": "PASS",
+      "evidence": "No `innerHTML` usage found anywhere in index.html (grep: 0 matches). User text is written only via `span.textContent = todo.text` (line 188). textContent assignment by browsers always treats the value as a text node, automatically escaping `<`, `>`, `&` — a string like `<script>alert(1)</script>` becomes literal visible text, never executed as HTML or JS."
+    },
+    {
+      "id": "AC9",
+      "status": "PASS",
+      "evidence": "When `todos = []` (initial state or after all deletes), render() enters the forEach loop zero times, leaving `<ul id=\"todo-list\">` empty. The form (lines 130-138) is static HTML always present in the DOM regardless of list content. Empty state does not crash or hide the form."
+    },
+    {
+      "id": "AC10",
+      "status": "PASS",
+      "evidence": "`<meta charset=\"UTF-8\">` (line 4) declares UTF-8 encoding for the document. `span.textContent = todo.text` (line 188) passes the string through as-is; the browser renders Unicode codepoints (emoji, CJK) correctly. JSON.stringify/parse (used in saveToStorage/loadFromStorage) is Unicode-transparent by spec."
+    },
+    {
+      "id": "AC11",
+      "status": "PASS",
+      "evidence": "loadFromStorage() try/catch (lines 147-156): if localStorage.getItem returns a non-JSON string (e.g., 'not-json'), JSON.parse throws a SyntaxError which is caught silently — `todos` remains `[]` (its initialized value). Additionally the Array.isArray guard (line 151) means even valid JSON that isn't an array (e.g., `\"hello\"` or `123`) is ignored, keeping todos as []. The app continues to render an empty list without crashing."
+    }
+  ],
+  "issues": [],
+  "e2e": {
+    "ran": false,
+    "reason": "no-e2e: build infra absent, E2E framework introduction violates single-file constraint per plan.md Verification strategy"
+  },
+  "dispatch_reason": {
+    "confidence": "high",
+    "source": "--no-e2e (plan.md explicit: 'E2E framework導入は単一ファイル制約に反するため不可')"
+  }
+}

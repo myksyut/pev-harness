@@ -47,7 +47,7 @@ Claude Opus 4.8 時代のコーディングハーネス。 **v3.0 で「(Triage 
         │  PHASE 1: PLAN                       │
         │  agent: planner   model: opus-4-8    │
         │  effort: xhigh    budget: 50k tokens │
-        │  output: artifacts/plan.md           │
+        │  output: .pev-artifacts/plan.md           │
         └────────────┬────────────────────────┘
                      │ Gate A: permissionMode依存
                      │   - "auto"     → スキップ
@@ -68,7 +68,7 @@ Claude Opus 4.8 時代のコーディングハーネス。 **v3.0 で「(Triage 
         │  effort: xhigh                       │
         │  必須: build / type / lint / test    │
         │  任意: --strict 時のみ dual review   │
-        │  output: artifacts/verify.json       │
+        │  output: .pev-artifacts/verify.json       │
         └────────────┬────────────────────────┘
                      │
             PASS ◀───┴───▶ FAIL → /goal が re-plan → re-execute → verifier 再 dispatch を駆動 (最大3 rounds)
@@ -85,24 +85,22 @@ Claude Opus 4.8 時代のコーディングハーネス。 **v3.0 で「(Triage 
 pev-harness/
 ├── .claude-plugin/
 │   └── plugin.json
-├── agents/                                # 3つ
+├── agents/                                # 4つ
+│   ├── triage.md                          # sonnet, low (v3.0+)
 │   ├── planner.md                         # opus, xhigh
-│   ├── executor.md                        # sonnet, high
+│   ├── executor.md                        # sonnet, high (default: codex 委譲)
 │   └── verifier.md                        # sonnet, xhigh
-├── skills/                                # 8つ
+├── skills/                                # 19 + vendored 2 (§7 の一覧が正)
 │   ├── pev-pipeline/SKILL.md
 │   ├── pev-spec-template/SKILL.md
-│   ├── pev-task-budget/SKILL.md
-│   ├── pev-focus-mode/SKILL.md
-│   ├── pev-recap/SKILL.md
-│   ├── pev-subagent-memory/SKILL.md
-│   ├── pev-dual-review/SKILL.md
-│   └── pev-team-conventions/SKILL.md
-├── commands/                              # 5つ
+│   ├── ... (§7 参照)
+│   └── skill-creator/ + frontend-design/  # Anthropic 公式 vendored
+├── commands/                              # 6つ (v5.0.0 で 9 → 6 に統合)
 │   ├── pev.md
+│   ├── pev-init.md                        # --e2e / --codex mode 統合 (v5.0.0)
 │   ├── pev-plan.md
 │   ├── pev-execute.md
-│   ├── pev-verify.md
+│   ├── pev-verify.md                      # --e2e mode 統合 (v5.0.0)
 │   └── pev-status.md
 ├── hooks/
 │   └── hooks.json                         # 3 hook
@@ -141,7 +139,7 @@ agent `agents/triage.md`:
 - tools: Read / Glob / Bash
 - 入力: user の task description + cwd context (既存 codebase / spec doc / team-conventions.md の有無)
 - 動作: LLM 判断で「Plan 必要 (= 曖昧 spec / zero context / UI 拡張要素未明示) か」 を decide
-- 出力: `artifacts/triage.json` (= decision + reasoning + context_signals + ambiguity_signals)
+- 出力: `.pev-artifacts/triage.json` (= decision + reasoning + context_signals + ambiguity_signals)
 - **Defensive default**: 判断に自信がない場合は `plan_required` (= 過剰 skip を避ける)
 - Flag override: `--with-plan` (= 必ず Plan 起動、 v2.x 互換) / `--no-plan` (= 必ず Plan skip)
 
@@ -154,8 +152,8 @@ agent `agents/planner.md`：
 - 入力契約: **Goal / Constraints / Acceptance Criteria** (必須)、関連ファイルパス (任意) — 公式 Cat Wu Tip 2 ([B5](https://x.com/_catwu/status/2044808533905178822)) 「Give Claude Code your full task context upfront」 の直接実装
 - **v3.0+ 質問返し**: 入力不足 / UI 拡張要素未明示 / 表示 detail 未明示 / 拡張 feature 有無未明示 の場合、 plan.md 冒頭に「## 確認質問」 section を作って **必ず質問**。 「pattern 踏襲」 prompt 指示があっても dialog / 削除方式 / 状態遷移細部 / 拡張 feature 有無 / error UX は質問必須 (v3.0.1+)
 - **v3.0+ F1 Defensive default**: 適用領域を security / data integrity / 状態不整合 に **限定** (= v2.1.6 で全領域に適用していたものを refine)、 UI / 表示 / nice-to-have は質問必須
-- 出力: `artifacts/plan.md`
-- Task budget: 50k tokens (`pev-task-budget` skill で指定、 ただし **Claude Code surface では公式非サポート**、 prompt-level hint のみ。 [B3](https://platform.claude.com/docs/en/build-with-claude/task-budgets) 引用は当該 skill 参照)
+- 出力: `.pev-artifacts/plan.md`
+- Task budget skill は **v5.0.0 で削除** (社内 feedback 「token 見積もりは不要、 いくら掛かっても結局実行する」 + Claude Code surface で公式非サポートだったため。 実測は session telemetry §9 が担う)
 
 ### Phase 2: Execute
 
@@ -163,7 +161,7 @@ agent `agents/executor.md`：
 - `model: sonnet`, `effort: high` — 公式 B1 「Balances intelligence and cost. Choose high if you're running concurrent sessions」 と一致
 - tools: Read / Edit / Write / Bash / Grep / Glob
 - **v3.0+ 2 つの mode**:
-  - **Mode A (plan ベース)**: `artifacts/plan.md` の File-level changes に従って実装 (= v2.x までの挙動)
+  - **Mode A (plan ベース)**: `.pev-artifacts/plan.md` の File-level changes に従って実装 (= v2.x までの挙動)
   - **Mode B (plan-less、 v3.0+ 新規)**: Triage が `plan_skip` 判定した場合、 plan.md なしで user prompt + cwd context (team-conventions.md / 既存実装) を直接読んで実装。 不明確な点に直面したら推測せず停止
 - 並列化: 公式 B1 「Spawn multiple subagents in the same turn when fanning out across items or reading multiple files」 に準拠。 **default は直列 1**、 fan-out / independent items が plan.md に明示されている時のみ並列 (上限 3 = `PEV_PARALLEL_EXECUTOR_MAX`、 ADR-004)
 - DRY self-review (v2.1.6+): 同関数の再実装 / loop pattern 重複 / dead import / dead branch / dead comment を実装直後に self-check
@@ -179,7 +177,7 @@ agent `agents/verifier.md`：
   1. `git diff` で変更取得
   2. plan.md の Verification strategy を実行
   3. Acceptance Criteria を1つずつ ✅/❌ チェック
-  4. `artifacts/verify.json` に書き出し
+  4. `.pev-artifacts/verify.json` に書き出し
   5. FAIL なら pipeline が `/goal` 駆動で re-plan → re-execute → **verifier を別 Task として再 dispatch** を回す (**最大3 rounds = 経験則、 1次情報根拠なし**)。 verifier 自身はループせず verify.json を書くのみ、 retry の自走は `/goal` が担う (v4.0+)
 - `--strict` モード: `pev-dual-review` skill が起動し、Reviewer A=Opus 4.8、Reviewer B=Sonnet 4.6 を並列実行
 
@@ -212,24 +210,24 @@ agent `agents/verifier.md`：
     "Stop": [
       {
         "matcher": ".*",
-        "hooks": [{"type": "command", "command": "test -f artifacts/plan.md && test -f artifacts/execute.log && echo '[PEV] Execute phase complete. Run /pev-verify to validate.'"}]
+        "hooks": [{"type": "command", "command": "test -f .pev-artifacts/plan.md && test -f .pev-artifacts/execute.log && echo '[PEV] Execute phase complete. Run /pev-verify to validate.'"}]
       }
     ],
     "SessionStart": [
       {
         "matcher": ".*",
-        "hooks": [{"type": "command", "command": "test -f artifacts/plan.md && echo '[PEV] In-progress task detected. Run /pev-status'"}]
+        "hooks": [{"type": "command", "command": "test -f .pev-artifacts/plan.md && echo '[PEV] In-progress task detected. Run /pev-status'"}]
       }
     ]
   }
 }
 ```
 
-**v4.3.0 で Stop に telemetry enrichment を追加**: `artifacts/session.json` が存在する時のみ、 transcript (JSONL) から token 消費 (`.tokens`: input/output/cache、 main session 概算) と user 入力 chat log (`.user_messages`: isMeta / isSidechain / tool_result を除外した text のみ) を jq で集計して session.json に追記する。 session.json 不在 (`PEV_TELEMETRY=off`) なら no-op。
+**v4.3.0 で Stop に telemetry enrichment を追加**: `.pev-artifacts/session.json` が存在する時のみ、 transcript (JSONL) から token 消費 (`.tokens`: input/output/cache、 main session 概算) と user 入力 chat log (`.user_messages`: isMeta / isSidechain / tool_result を除外した text のみ) を jq で集計して session.json に追記する。 session.json 不在 (`PEV_TELEMETRY=off`) なら no-op。
 
 **意図的に入れないhook**:
 - PostToolUse format hook (プロジェクト側に任せる)
-- session persistence (artifacts/ で自然永続化)
+- session persistence (.pev-artifacts/ で自然永続化)
 
 (v4.2 まで「cost tracker は入れない」 だったが、 v4.3.0 で社内 feedback 「人的・token コスト改善を定量評価したい」 を受け、 **local-only の session telemetry** として採用。 外部送信は行わない)
 
@@ -247,7 +245,6 @@ agent `agents/verifier.md`：
     "defaultMode": "default"
   },
   "env": {
-    "PEV_TASK_BUDGET": "100000",
     "PEV_MAX_RETRIES": "3",
     "PEV_STRICT_MODE": "false",
     "PEV_PARALLEL_EXECUTOR_MAX": "3"
@@ -267,19 +264,18 @@ agent `agents/verifier.md`：
 
 | Skill | 役割 | トリガー |
 |---|---|---|
-| **pev-pipeline** | フルパイプライン定義、phase間受け渡し規約、artifacts/ 仕様 | `/pev` 起動時 |
+| **pev-pipeline** | フルパイプライン定義、phase間受け渡し規約、.pev-artifacts/ 仕様 | `/pev` 起動時 |
 | **pev-spec-template** | Goal/Constraints/AC を含む初回プロンプト雛形 | タスク開始時 |
-| **pev-task-budget** | task_budget API beta header利用、phase別推奨予算 | 各phase起動時 |
 | **pev-focus-mode** | 長時間タスクで `/focus` を促す | Execute phase 5分超 |
-| **pev-recap** | phase完了時に短い recap を `artifacts/recap.log` に追記 | 各phase終了時 |
+| **pev-recap** | phase完了時に短い recap を `.pev-artifacts/recap.log` に追記 | 各phase終了時 |
 | **pev-subagent-memory** | `~/.claude/pev/{task_id}/` 配下のmemoryディレクトリ規約 | executor並列起動時 |
 | **pev-dual-review** | santa-method軽量版。Reviewer A=Opus / B=Sonnet (model alias diversity) | `--strict` 指定時 |
 | **pev-external-reviewer** | 外部 LLM CLI (Codex) を Reviewer B として subprocess invoke (v2.0+) | `PEV_REVIEWER_MODE` が dual-codex / codex-only の時 |
 | **pev-external-executor** | 外部 LLM CLI (Codex) に Execute phase の実 file 編集を委譲、 executor agent は wrapper (v3.5.0+) | `PEV_EXECUTOR_MODE=codex` の時 |
 | **pev-team-conventions** | `team-conventions.md` を読み込み planner/executor に注入 | Plan/Execute起動時 |
-| **pev-bootstrap-playwright** | Playwright + agents の one-time setup (v1.4+) | `/pev-init-e2e` / E2E preflight 未setup |
+| **pev-bootstrap-playwright** | Playwright + agents の one-time setup (v1.4+) | `/pev-init --e2e` / E2E preflight 未setup |
 | **pev-bootstrap-project** | project 全体の初期 setup (team-conventions / .gitignore / 言語検知) (v1.9+) | `/pev-init` |
-| **pev-bootstrap-codex** | Codex CLI を reviewer + executor として導入する one-time setup (v2.0+ / v3.5.0+) | `/pev-init-codex` / codex preflight 未setup |
+| **pev-bootstrap-codex** | Codex CLI を reviewer + executor として導入する one-time setup (v2.0+ / v3.5.0+) | `/pev-init --codex` / codex preflight 未setup |
 | **empirical-prompt-tuning** | skill / slash command / プロンプトを subagent で実走させ自己申告 + 指示側メトリクスで反復改善 (v2.1+) | skill / プロンプト新規作成・大幅改訂直後 |
 | **pev-linear-sync** | Linear Issue ↔ PEV pipeline の双方向 sync (inbound / issue-first / outbound success / outbound fail の 4 direction、 v3.3.0+) | Linear URL 起動 / `.linear-config.yml` 存在時 (Gate L) / verifier 完了時 |
 | **linear-project-workflow** | Linear Project の規約 / template (5 section: Who/What/Why/完了条件/スコープ外) + title 命名規則 (Who wants What, Why、 v3.4.0+) | project の Read / Write / Update 時 |
@@ -296,22 +292,22 @@ agent `agents/verifier.md`：
 | `/pev <task> --with-plan` | Triage を skip して必ず Plan を起動 (= v2.x 互換挙動) |
 | `/pev <task> --no-plan` | Triage を skip して必ず Plan-less Execute (= 最短 path) |
 | `/pev <task> --executor-mode=codex` | Execute phase の実 file 編集を OpenAI Codex CLI に委譲 (v3.5.0+)、 executor agent は wrapper |
-| `/pev-plan <task>` | Plan のみ実行、`artifacts/plan.md` 出力 |
+| `/pev-plan <task>` | Plan のみ実行、`.pev-artifacts/plan.md` 出力 |
 | `/pev-execute` | 既存 plan.md があれば読んで実装、 なければ task description ベースで Mode B 実装 (v3.0+) |
-| `/pev-verify` | 検証のみ実行 |
-| `/pev-status` | 現在のphase / artifacts一覧 / 残り task budget |
-| `/pev-verify-e2e` | E2E verify のみ実行 (v1.4+) |
-| `/pev-init-e2e` | Playwright bootstrap (v1.4+) |
+| `/pev-verify` | 検証のみ実行。 `--e2e` で unit + Playwright E2E 両方 (v5.0.0 で旧 `/pev-verify-e2e` を統合) |
+| `/pev-status` | 現在のphase / artifacts一覧 / session telemetry summary |
 | `/pev-init [--dry-run] [--force]` | project 全体の初期セットアップ (v1.9+)。 team-conventions.md / .gitignore / (任意) .linear-config.yml.example 等を言語検知付きで生成 |
+| `/pev-init --e2e` | Playwright bootstrap (v5.0.0 で旧 `/pev-init-e2e` を統合) |
+| `/pev-init --codex` | Codex CLI bootstrap (v5.0.0 で旧 `/pev-init-codex` を統合) |
 
 各commandは10〜30行の薄いMarkdown。ロジックはskill側。
 
 ---
 
-## 9. artifacts/ 規約
+## 9. .pev-artifacts/ 規約
 
 ```
-artifacts/                       # .gitignore対象
+.pev-artifacts/                       # .gitignore対象
 ├── triage.json                  # Phase 0 出力 (v3.0+、 plan_required / plan_skip 判定)
 ├── plan.md                      # Phase 1 出力 (Plan 起動時のみ)
 ├── execute.log                  # Phase 2 ログ
@@ -323,7 +319,13 @@ artifacts/                       # .gitignore対象
     └── sync_state.json
 ```
 
-`task_id` はタスク開始時に生成 (epoch+短縮hash)、`artifacts/.task_id` に保持。
+`task_id` はタスク開始時に生成 (epoch+短縮hash)、`.pev-artifacts/.task_id` に保持。
+
+### 配置と CrossRepo (v5.0.0+)
+
+- **命名**: v5.0.0 で `artifacts/` → `.pev-artifacts/` に rename (社内 feedback: dot-prefix で作業 dir を汚さない + pev 由来の明示)。 migration: `mv artifacts .pev-artifacts` + `.gitignore` の該当行更新
+- **配置**: 原則 working root (= 起動 cwd) 直下。 cwd が multi-repo workspace root で task 対象が単一 sub-repo の場合、 triage の `target_root` を受けて `<target_root>/.pev-artifacts/` へ移動 (commands/pev.md Step 1.5)
+- **発見**: hooks / `/pev-status` は `find . -maxdepth 2 -type d -name .pev-artifacts` で階層をまたいで発見 (workspace root / sub-repo どちらから起動しても状態が見える)
 
 ### session.json (v4.3.0+)
 
@@ -338,7 +340,7 @@ artifacts/                       # .gitignore対象
 - `/pev <linear-issue-url>` でLinear IssueからGoal/Constraints/AC を抽出
 - `verify.json` (PASS) をLinear Issueにコメント自動投稿
 - Linear MCP server (`mcp__plugin_linear_linear__*`) を利用
-- v1.0ではartifacts/はローカルのみ
+- v1.0では.pev-artifacts/はローカルのみ
 
 ---
 
@@ -451,7 +453,8 @@ v2.0 の codex reviewer 統合に対し、 v3.5.0 で codex を **Execute phase 
 | **v4.2.0** | **Fable orchestrator + model tiering (金額コスト削減)** | main session を `claude-fable-5` / effort high の薄い orchestrator に、 Plan/Execute/Verify は従来 model (opus/sonnet/codex) へ委譲を維持。 orchestrator thin invariant (実装 file を Read しない / code を書かない / token 比率 ≤15%) を rules §7 に明文化。 試算でハーネスなし Claude Code 比 約 −45〜60%/task (ADR-010 + experiments/v4.2-fable-orchestrator-cost.md)。 実機 A/B は harness-effect-v19 で予定 | ✅ released |
 | **v4.2.1** | **harness-effect-v19 反映 (rich 品質バー + orchestrator 薄型化)** | planner に greenfield 体験プロダクト限定の rich 品質バー (F_v19_5)、 phase dispatch 同期必須 (F_v19_6)、 auto path の verifier 明示 dispatch (F_v19_1)、 commands/pev.md 薄型化 −39% + bash 参考実装を pev-pipeline references へ抽出 + phase agent 返答要約契約 (F_v19_2)。 実測: fable 単独 $8.85 比 −28% で品質肉薄 + 独立 verify 完走 | ✅ released |
 | **v4.2.2** | **Blindspot pass (unknown unknowns の明示化)** | plan 確定前に「user が検討した形跡のない論点」 を最大 5 件、 処置付き (`質問へ昇格` / `plan に組込` / `Non-goal 宣言` / `Risk 監視`) で plan.md `## Blindspots` に列挙。 確認質問 (known unknowns) / QA self-check (test 観点) と相補。 Thariq 氏 Fable field guide の blindspot pass を planner に統合 | ✅ released |
-| **v4.3.0** | **Session telemetry (社内 feedback 反映)** | `artifacts/session.json` 新設: user prompt 原文 / flags / git 状態 / phase timings / result / 任意 rating を記録、 Stop hook が tokens + user chat log を transcript から自動追記。 `~/.claude/pev/telemetry/` に durable archive (dataset 化)、 `PEV_TELEMETRY=off` で無効化。 local-only、 外部送信なし | ✅ released |
+| **v4.3.0** | **Session telemetry (社内 feedback 反映)** | `.pev-artifacts/session.json` 新設: user prompt 原文 / flags / git 状態 / phase timings / result / 任意 rating を記録、 Stop hook が tokens + user chat log を transcript から自動追記。 `~/.claude/pev/telemetry/` に durable archive (dataset 化)、 `PEV_TELEMETRY=off` で無効化。 local-only、 外部送信なし | ✅ released |
+| **v5.0.0** | **Breaking: `.pev-artifacts/` rename + CrossRepo + コマンド統合 (社内 feedback 反映)** | `artifacts/` → `.pev-artifacts/` 全面 rename / triage `target_root` + hooks・`/pev-status` の maxdepth 2 discovery で multi-repo workspace 対応 / コマンド 9 → 6 (`/pev-init-e2e`・`/pev-init-codex` → `/pev-init --e2e`・`--codex`、 `/pev-verify-e2e` → `/pev-verify --e2e`) / pev-task-budget skill + `PEV_TASK_BUDGET` env 削除 (token 見積もり廃止) | ✅ released |
 | v3.8+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 (reviewer + executor) | (TBD) | — |
 
 ---
@@ -490,7 +493,7 @@ v3.0 でこれを以下に refine:
 ### ADR-002: なぜ外部CLI依存をやめたか
 ECCの santa-loop は codex/gemini に依存していたが、社内ツールチェーンの統一が難しい。Claude単独 model alias 方式で model diversity を「弱く」確保し、依存ゼロを取る。v2.0で MCP経由の選択肢を残す。
 
-### ADR-003: なぜ artifacts/ を gitignore にしたか
+### ADR-003: なぜ .pev-artifacts/ を gitignore にしたか
 タスク固有の中間生成物として扱う。Linear連携 (v1.x) でplan/verifyを別管理する想定なので、リポジトリを汚さない。
 
 ### ADR-004: なぜ並列executor上限を3にしたか

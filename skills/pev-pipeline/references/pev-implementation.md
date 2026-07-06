@@ -19,26 +19,26 @@ elif [ "$NO_PLAN" = "true" ]; then
 else
   echo "[PEV] Phase 0 (Triage): Plan 必要性を判定..."
   invoke_triage_agent "$TASK_DESCRIPTION" "$(pwd)"
-  TRIAGE_DECISION=$(jq -r '.decision' artifacts/triage.json 2>/dev/null)
+  TRIAGE_DECISION=$(jq -r '.decision' .pev-artifacts/triage.json 2>/dev/null)
 fi
 
 echo "[PEV] Triage decision: $TRIAGE_DECISION"
 
 # task_infeasible の場合は user 通知して停止 (v3.0.5+)
 if [ "$TRIAGE_DECISION" = "task_infeasible" ]; then
-  REASONING=$(jq -r '.reasoning' artifacts/triage.json 2>/dev/null)
-  AMBIGUITY=$(jq -r '.ambiguity_signals[]' artifacts/triage.json 2>/dev/null)
+  REASONING=$(jq -r '.reasoning' .pev-artifacts/triage.json 2>/dev/null)
+  AMBIGUITY=$(jq -r '.ambiguity_signals[]' .pev-artifacts/triage.json 2>/dev/null)
   echo "[PEV] Phase 0 (Triage): task_infeasible — タスクの対象が cwd に見つかりません"
   echo "[PEV] reasoning: $REASONING"
   echo "[PEV] missing targets:"
   echo "$AMBIGUITY" | sed 's/^/  - /'
   echo "[PEV] task description を確認してください、 PEV pipeline は起動しません"
-  echo "[$(date -u +%FT%TZ)] Phase 0 (Triage) complete: task_infeasible → exit" >> artifacts/recap.log
+  echo "[$(date -u +%FT%TZ)] Phase 0 (Triage) complete: task_infeasible → exit" >> .pev-artifacts/recap.log
   exit 0
 fi
 
 if [ "$TRIAGE_DECISION" = "plan_skip" ]; then
-  echo "[$(date -u +%FT%TZ)] Phase 0 (Triage) complete: plan_skip → direct Execute" >> artifacts/recap.log
+  echo "[$(date -u +%FT%TZ)] Phase 0 (Triage) complete: plan_skip → direct Execute" >> .pev-artifacts/recap.log
 fi
 ```
 
@@ -48,8 +48,8 @@ fi
 # .linear-config.yml の存在 check (Gate A の前 = Triage / Plan の直後)
 if [ -f .linear-config.yml ]; then
   # 既に Linear issue がある場合 (= inbound case、 もしくは再実行) は issue 作成 skip
-  if [ -f artifacts/linear/issue_id.txt ]; then
-    BRANCH=$(cat artifacts/linear/branch_name.txt 2>/dev/null)
+  if [ -f .pev-artifacts/linear/issue_id.txt ]; then
+    BRANCH=$(cat .pev-artifacts/linear/branch_name.txt 2>/dev/null)
     if [ -n "$BRANCH" ]; then
       echo "[PEV] Gate L: 既存 Linear issue branch に checkout: $BRANCH"
       git checkout "$BRANCH" 2>/dev/null || echo "[PEV] Gate L: branch checkout skip (git 管理外 or branch なし)"
@@ -63,11 +63,11 @@ if [ -f .linear-config.yml ]; then
     #   3. mcp__plugin_linear_linear__save_issue で新規 issue 作成
     #   4. issue の branchName を取得
     #   5. git checkout -b <branchName>
-    #   6. artifacts/linear/{issue_id,issue_url,branch_name}.txt + sync_state.json 書き出し
+    #   6. .pev-artifacts/linear/{issue_id,issue_url,branch_name}.txt + sync_state.json 書き出し
     invoke_pev_linear_sync_issue_first
-    BRANCH=$(cat artifacts/linear/branch_name.txt 2>/dev/null)
+    BRANCH=$(cat .pev-artifacts/linear/branch_name.txt 2>/dev/null)
     echo "[PEV] Gate L: Linear issue 作成完了、 branch=$BRANCH で実装を進めます"
-    echo "[$(date -u +%FT%TZ)] Gate L: Linear issue created, branch=$BRANCH" >> artifacts/recap.log
+    echo "[$(date -u +%FT%TZ)] Gate L: Linear issue created, branch=$BRANCH" >> .pev-artifacts/recap.log
   fi
 fi
 ```
@@ -95,19 +95,19 @@ FORCE_AUTO=false
 
 if [ "$FORCE_AUTO" = "true" ]; then
   echo "[PEV] Gate A: --force-auto detected — overriding permissionMode=$MODE, proceeding to Phase 2"
-  echo "[$(date -u +%FT%TZ)] Gate A overridden by --force-auto (original mode: $MODE)" >> artifacts/recap.log
+  echo "[$(date -u +%FT%TZ)] Gate A overridden by --force-auto (original mode: $MODE)" >> .pev-artifacts/recap.log
 else
   case "$MODE" in
     auto)
       echo "[PEV] Gate A: auto mode — proceeding to Phase 2" ;;
     plan)
       echo "[PEV] Gate A: plan mode — STOP. Plan phase complete. Pipeline terminated."
-      cat artifacts/plan.md; exit 0 ;;
+      cat .pev-artifacts/plan.md; exit 0 ;;
     default|*)
       echo "[PEV] Gate A: default mode — STOP. Plan phase complete."
       echo "[PEV] DO NOT auto-proceed to Phase 2. Review plan.md and run /pev-execute to continue."
       echo "[PEV] (Explicit override available: re-run with --force-auto flag.)"
-      cat artifacts/plan.md; exit 0 ;;
+      cat .pev-artifacts/plan.md; exit 0 ;;
   esac
 fi
 ```
@@ -125,11 +125,11 @@ echo "[PEV] Phase 2 executor mode: $EXECUTOR_MODE"
 ## Step 7 — PASS / 上限到達時の recap (参考実装)
 
 ```bash
-VERDICT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('artifacts/verify.json','utf8')).verdict)" 2>/dev/null)
+VERDICT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.pev-artifacts/verify.json','utf8')).verdict)" 2>/dev/null)
 if [ "$VERDICT" = "PASS" ]; then
-  echo "[$(date -u +%FT%TZ)] Task complete via /goal (verdict: PASS)" >> artifacts/recap.log
+  echo "[$(date -u +%FT%TZ)] Task complete via /goal (verdict: PASS)" >> .pev-artifacts/recap.log
 else
-  echo "[$(date -u +%FT%TZ)] /goal handed back after max rounds (verdict: $VERDICT) — /pev-status --escalate" >> artifacts/recap.log
+  echo "[$(date -u +%FT%TZ)] /goal handed back after max rounds (verdict: $VERDICT) — /pev-status --escalate" >> .pev-artifacts/recap.log
   echo "[PEV] /goal handed back — run /pev-status --escalate"
 fi
 ```
@@ -137,13 +137,13 @@ fi
 ## Step 7 例外 — `--expect-fail` / hooks 無効環境 (参考実装)
 
 ```bash
-VERDICT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('artifacts/verify.json','utf8')).verdict)" 2>/dev/null)
+VERDICT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.pev-artifacts/verify.json','utf8')).verdict)" 2>/dev/null)
 
 # user が「このタスクは FAIL することを想定済」を明示するフォーマル channel。
 # retry に時間と token を費やさず即 escalate path に流す
 EXPECT_FAIL=false
 [[ "$*" == *"--expect-fail"* ]] && EXPECT_FAIL=true
-if [ "$EXPECT_FAIL" = "false" ] && grep -qE '^\s*expectFail:\s*true\s*$' artifacts/plan.md 2>/dev/null; then
+if [ "$EXPECT_FAIL" = "false" ] && grep -qE '^\s*expectFail:\s*true\s*$' .pev-artifacts/plan.md 2>/dev/null; then
   EXPECT_FAIL=true
   echo "[PEV] expectFail detected in plan.md (treating as --expect-fail)"
 fi
@@ -152,19 +152,19 @@ case "$VERDICT" in
   PASS)
     if [ "$EXPECT_FAIL" = "true" ]; then
       echo "[PEV] Verdict: PASS but --expect-fail was set — UNEXPECTED PASS (fixture intent broke?)"
-      echo "[$(date -u +%FT%TZ)] Unexpected PASS under --expect-fail (review fixture / spec drift)" >> artifacts/recap.log
+      echo "[$(date -u +%FT%TZ)] Unexpected PASS under --expect-fail (review fixture / spec drift)" >> .pev-artifacts/recap.log
     else
       echo "[PEV] Verdict: PASS — task complete"
-      echo "[$(date -u +%FT%TZ)] Task complete (verdict: PASS)" >> artifacts/recap.log
+      echo "[$(date -u +%FT%TZ)] Task complete (verdict: PASS)" >> .pev-artifacts/recap.log
     fi
     ;;
   FAIL)
     if [ "$EXPECT_FAIL" = "true" ]; then
       echo "[PEV] Verdict: FAIL as expected (--expect-fail) — no retry, escalate path"
-      echo "[$(date -u +%FT%TZ)] Expected FAIL recorded (no retry under --expect-fail)" >> artifacts/recap.log
+      echo "[$(date -u +%FT%TZ)] Expected FAIL recorded (no retry under --expect-fail)" >> .pev-artifacts/recap.log
     else
       echo "[PEV] Verdict: FAIL but /goal disabled (hooks off) — no auto-retry available"
-      echo "[$(date -u +%FT%TZ)] FAIL with /goal unavailable (hooks off) — manual retry / escalate" >> artifacts/recap.log
+      echo "[$(date -u +%FT%TZ)] FAIL with /goal unavailable (hooks off) — manual retry / escalate" >> .pev-artifacts/recap.log
     fi
     echo "[PEV] Run /pev-status --escalate"
     ;;
@@ -174,14 +174,14 @@ esac
 ## Step 8 — Session telemetry finalize (v4.3.0+、 参考実装)
 
 ```bash
-# artifacts/session.json が存在する時のみ (PEV_TELEMETRY=off なら不在 = skip)
-if [ -f artifacts/session.json ]; then
-  TASK_ID=$(cat artifacts/.task_id)
+# .pev-artifacts/session.json が存在する時のみ (PEV_TELEMETRY=off なら不在 = skip)
+if [ -f .pev-artifacts/session.json ]; then
+  TASK_ID=$(cat .pev-artifacts/.task_id)
   RESULT="PASS"   # 判定に応じて PASS / FAIL_handed_back / infeasible / expected_fail
 
   # phases を artifact mtime から復元 (object 形式厳守、 darwin: stat -f + date -r / linux: stat -c + date -d)
   iso_mtime() {
-    local f="artifacts/$1"
+    local f=".pev-artifacts/$1"
     [ -f "$f" ] || { printf 'null'; return; }
     local m=$(stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null)
     printf '"%s"' "$(date -u -r "$m" +%FT%TZ 2>/dev/null || date -u -d "@$m" +%FT%TZ)"
@@ -192,11 +192,11 @@ if [ -f artifacts/session.json ]; then
   jq --argjson p "$PHASES" --arg end "$(date -u +%FT%TZ)" \
      --argjson now "$(date -u +%s)" --arg result "$RESULT" \
      '.phases=$p | .finished_at=$end | .duration_seconds=($now - .started_at_epoch) | .result=$result' \
-     artifacts/session.json > artifacts/.session.json.tmp && mv artifacts/.session.json.tmp artifacts/session.json
+     .pev-artifacts/session.json > .pev-artifacts/.session.json.tmp && mv .pev-artifacts/.session.json.tmp .pev-artifacts/session.json
 
   # durable archive (dataset として --clean / --gc 後も残す)
   mkdir -p ~/.claude/pev/telemetry
-  cp artifacts/session.json ~/.claude/pev/telemetry/$TASK_ID.session.json
+  cp .pev-artifacts/session.json ~/.claude/pev/telemetry/$TASK_ID.session.json
 fi
 ```
 
@@ -207,8 +207,8 @@ interactive session のみ。 AskUserQuestion の回答 (skip 以外) を受け�
 ```bash
 # SCORE = 選択された数値 (5/4/2 等)、 COMMENT = Other / notes の自由記述 (なければ空)
 jq --argjson s "$SCORE" --arg c "$COMMENT" '.rating={score:$s, comment:$c}' \
-   artifacts/session.json > artifacts/.session.json.tmp && mv artifacts/.session.json.tmp artifacts/session.json
-cp artifacts/session.json ~/.claude/pev/telemetry/$(cat artifacts/.task_id).session.json
+   .pev-artifacts/session.json > .pev-artifacts/.session.json.tmp && mv .pev-artifacts/.session.json.tmp .pev-artifacts/session.json
+cp .pev-artifacts/session.json ~/.claude/pev/telemetry/$(cat .pev-artifacts/.task_id).session.json
 ```
 
 - headless (`-p`) では質問せず `.rating` は null のまま

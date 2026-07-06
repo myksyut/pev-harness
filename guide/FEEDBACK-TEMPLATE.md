@@ -42,10 +42,10 @@
 
 ## Specific reproductions
 
-問題が再現可能なら、artifacts/ または `~/.claude/pev/{TASK_ID}/` のスナップショットを添付:
+問題が再現可能なら、.pev-artifacts/ または `~/.claude/pev/{TASK_ID}/` のスナップショットを添付:
 
 ```text
-- Task X: artifacts/ snapshot at https://gist.github.com/... (or attach files to issue)
+- Task X: .pev-artifacts/ snapshot at https://gist.github.com/... (or attach files to issue)
 ```
 
 ## Suggestions

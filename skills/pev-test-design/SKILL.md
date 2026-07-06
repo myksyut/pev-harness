@@ -174,7 +174,7 @@ dog food (v1.4+v1.5) で、 planner が `pev-subagent-memory` skill の標準 pa
 
 | Channel | Content | Producer | Consumer |
 |---|---|---|---|
-| `artifacts/plan.md` の `## Test design analysis` | 6 技法の適用結果、 D1-Dn の qa_derived_checks 一覧 | planner (pev-test-design 経由) | verifier (Phase 3 で check) |
+| `.pev-artifacts/plan.md` の `## Test design analysis` | 6 技法の適用結果、 D1-Dn の qa_derived_checks 一覧 | planner (pev-test-design 経由) | verifier (Phase 3 で check) |
 | `~/.claude/pev/{TASK_ID}/notes.md` の "Notes for executor" / "Notes for verifier" | 派生観点の意図、 実装注意点、 verifier への check 委譲メモ | planner (pev-subagent-memory 経由) | executor / verifier |
 | `~/.claude/pev/{TASK_ID}/executor-{N}.md` | 実装中の発見 (例: input validation を HTML5 で実装) | executor | verifier |
 

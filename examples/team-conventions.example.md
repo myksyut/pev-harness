@@ -32,7 +32,7 @@ verifier が Phase 3 で実行する command 群。 該当しない項目は `�
 ## Notes for pev-harness
 
 - `permissionMode: default` を維持する (Gate A での人間レビュー必須)
-- `artifacts/` は gitignore 対象、 task 完了後に `/pev-status --clean`
+- `.pev-artifacts/` は gitignore 対象、 task 完了後に `/pev-status --clean`
 
 <!--
 拡張 section の例 (必要に応じて追加):

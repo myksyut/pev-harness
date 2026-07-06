@@ -1,6 +1,6 @@
 ---
 name: pev-bootstrap-project
-description: pev-harness を使うプロジェクトに必要な初期 file を 1 操作で生成する skill。 言語/構成 検知 (Node/Python/Go/Rust + E2E config) で team-conventions.md の Verification commands を auto-populate、 .gitignore に artifacts/ を追記、 オプションで .linear-config / settings.local / 個人 override skeleton を AskUserQuestion 経由で対話的に生成。 既存 file 衝突は「上書き / merge / skip」分岐。
+description: pev-harness を使うプロジェクトに必要な初期 file を 1 操作で生成する skill。 言語/構成 検知 (Node/Python/Go/Rust + E2E config) で team-conventions.md の Verification commands を auto-populate、 .gitignore に .pev-artifacts/ を追記、 オプションで .linear-config / settings.local / 個人 override skeleton を AskUserQuestion 経由で対話的に生成。 既存 file 衝突は「上書き / merge / skip」分岐。
 disable-model-invocation: true
 ---
 
@@ -18,7 +18,7 @@ disable-model-invocation: true
 
 起動すべきでない場面:
 
-- 既に `team-conventions.md` が v1.8+ template (= `## Verification commands` section あり) で揃っており、 `.gitignore` に `artifacts/` も追記済の場合 (Preflight が detect、 idempotent skip)
+- 既に `team-conventions.md` が v1.8+ template (= `## Verification commands` section あり) で揃っており、 `.gitignore` に `.pev-artifacts/` も追記済の場合 (Preflight が detect、 idempotent skip)
 
 ## CLI flags
 
@@ -42,7 +42,7 @@ test -f "$PROJECT_ROOT/.linear-config.yml"  && EXISTING_LC=true
 grep -q '^## Verification commands' "$PROJECT_ROOT/team-conventions.md" 2>/dev/null && TC_V18=true
 ```
 
-idempotent: 全 target が v1.8+ template かつ artifacts/ 追記済なら early exit + 「既に init 済」message。
+idempotent: 全 target が v1.8+ template かつ .pev-artifacts/ 追記済なら early exit + 「既に init 済」message。
 
 **`--force` の override (v1.9 dog food finding F3)**: `--force` flag は idempotent skip を **bypass** する。 既に v1.8+ template でも検知結果で **上書き**する (= 言語検知結果が変わった可能性がある時、 user が明示的に再生成したいケースを満たす)。 通常モードでのみ idempotent skip が適用される。
 
@@ -89,17 +89,17 @@ Q: 既存 team-conventions.md が見つかりました。 どうしますか?
 
 `--force` 時は確認なしで「上書き」既定。 `--dry-run` 時は質問せず「上書きを仮定」と仮プレビュー。
 
-### Step 4: .gitignore に `artifacts/` 追記
+### Step 4: .gitignore に `.pev-artifacts/` 追記
 
 ```bash
-# 既存 .gitignore に "artifacts/" を grep -F で完全一致検索
+# 既存 .gitignore に ".pev-artifacts/" を grep -F で完全一致検索
 # hit すれば skip、 なければ append
-if ! grep -Fxq 'artifacts/' "$PROJECT_ROOT/.gitignore" 2>/dev/null; then
-  printf 'artifacts/\n' >> "$PROJECT_ROOT/.gitignore"
+if ! grep -Fxq '.pev-artifacts/' "$PROJECT_ROOT/.gitignore" 2>/dev/null; then
+  printf '.pev-artifacts/\n' >> "$PROJECT_ROOT/.gitignore"
 fi
 ```
 
-`.gitignore` 自体が無ければ新規作成 (`artifacts/` 1 行のみ)。 `--dry-run` 時は実行せず予定 line だけ表示。
+`.gitignore` 自体が無ければ新規作成 (`.pev-artifacts/` 1 行のみ)。 `--dry-run` 時は実行せず予定 line だけ表示。
 
 ### Step 5: Optional file の interactive prompts
 
@@ -136,7 +136,7 @@ Detected:
 
 Planned writes:
   + team-conventions.md   (new, ~40 lines)
-  + .gitignore            (append: artifacts/)
+  + .gitignore            (append: .pev-artifacts/)
   + .linear-config.yml.example (copy from plugin examples/)
 
 Skipped:
@@ -157,7 +157,7 @@ Run without --dry-run to apply.
 
 Created:
   team-conventions.md      (Language: JavaScript, Unit: npm test, E2E: npx playwright test)
-  .gitignore               (appended: artifacts/)
+  .gitignore               (appended: .pev-artifacts/)
   .linear-config.yml.example
   .claude/settings.local.json
 
@@ -170,7 +170,7 @@ Next steps:
   3. (Linear 連携する場合) .linear-config.yml.example を .linear-config.yml にリネームして workspace/team.id を埋める
 ```
 
-`git add` / `git commit` は **行わない** (user の commit boundary を奪わない、 既存 `/pev-init-e2e` skill と同方針)。
+`git add` / `git commit` は **行わない** (user の commit boundary を奪わない、 既存 `/pev-init --e2e` skill と同方針)。
 
 ## Examples
 
@@ -187,7 +187,7 @@ claude --plugin-dir ~/pev-harness --print '/pev-harness:pev-init'
 期待出力:
 
 - `team-conventions.md`: Language=JavaScript / Unit test=`npm test` / 他 3 項目=未設定
-- `.gitignore`: `artifacts/` が新規追記 (or .gitignore 自体が新規作成)
+- `.gitignore`: `.pev-artifacts/` が新規追記 (or .gitignore 自体が新規作成)
 - AskUserQuestion で optional 3 項目を user に問う
 
 ### dry-run で内容確認

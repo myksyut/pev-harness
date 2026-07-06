@@ -5,7 +5,6 @@
     "defaultMode": "default"
   },
   "env": {
-    "PEV_TASK_BUDGET": "100000",
     "PEV_MAX_RETRIES": "3",
     "PEV_STRICT_MODE": "false",
     "PEV_PARALLEL_EXECUTOR_MAX": "3",

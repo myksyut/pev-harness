@@ -1,6 +1,6 @@
 ---
 name: pev-pipeline
-description: PEV ((Triage →) Plan-Execute-Verify) パイプラインのメインフロー (v3.0+)。 Triage の plan_required / plan_skip 判定 + 各 phase 間の受け渡し規約、 artifacts/ ディレクトリ仕様、 Gate 判定ロジックを定義
+description: PEV ((Triage →) Plan-Execute-Verify) パイプラインのメインフロー (v3.0+)。 Triage の plan_required / plan_skip 判定 + 各 phase 間の受け渡し規約、 .pev-artifacts/ ディレクトリ仕様、 Gate 判定ロジックを定義
 ---
 
 # pev-pipeline (v3.0+)
@@ -24,7 +24,7 @@ START
 [Phase 0: TRIAGE] (v3.0+ 新規)
   │   triage agentを起動 (model: sonnet, effort: low)
   │   入力: task description + cwd context
-  │   出力: artifacts/triage.json (decision = plan_required | plan_skip)
+  │   出力: .pev-artifacts/triage.json (decision = plan_required | plan_skip)
   ▼
 [Triage decision]
   │   plan_required → Phase 1 (Plan) へ
@@ -33,7 +33,7 @@ START
 [Phase 1: PLAN] (= plan_required の場合のみ)
   │   planner agentを起動 (model: opus, effort: xhigh)
   │   入力: Goal/Constraints/AC + cwd context + triage.json
-  │   出力: artifacts/plan.md (= 必要なら冒頭に「## 確認質問」)
+  │   出力: .pev-artifacts/plan.md (= 必要なら冒頭に「## 確認質問」)
   ▼
 [Gate A] permissionMode判定 (= Plan が起動された場合のみ):
   │   "auto"    → 自動でPhase 2へ
@@ -42,15 +42,15 @@ START
   ▼
 [Phase 2: EXECUTE]
   │   executor agentを起動 (並列可)
-  │   入力: artifacts/plan.md (Mode A) or task description + cwd context (Mode B)
-  │   出力: code edits + artifacts/execute.log
+  │   入力: .pev-artifacts/plan.md (Mode A) or task description + cwd context (Mode B)
+  │   出力: code edits + .pev-artifacts/execute.log
   ▼
 [Gate B] Stop hookが自動でPhase 3起動
   ▼
 [Phase 3: VERIFY]
   │   verifier agentを起動 (model: sonnet, effort: xhigh)
   │   入力: git diff + plan.md (もしくは task description)
-  │   出力: artifacts/verify.json
+  │   出力: .pev-artifacts/verify.json
   ▼
 [Retry Gate] (/goal 駆動) verify.verdict:
   │   /goal が「verifier (別 Task) 作の verdict PASS + 生 test 出力 exit 0」を condition に自走駆動
@@ -88,13 +88,13 @@ pipeline は 2 層の model 構成で動く。 **orchestrator (main session) = F
 
 ```bash
 TASK_ID="$(date +%s)-$(openssl rand -hex 4)"
-echo "$TASK_ID" > artifacts/.task_id
+echo "$TASK_ID" > .pev-artifacts/.task_id
 mkdir -p ~/.claude/pev/$TASK_ID
 ```
 
-`artifacts/.task_id` は再開時に既存タスクを識別するのに使う。
+`.pev-artifacts/.task_id` は再開時に既存タスクを識別するのに使う。
 
-### artifacts/ ディレクトリ規約
+### .pev-artifacts/ ディレクトリ規約
 
 | ファイル | 書き手 | 用途 |
 |---|---|---|
@@ -109,7 +109,7 @@ mkdir -p ~/.claude/pev/$TASK_ID
 
 ### Gate A 判定の詳細
 
-planner が `artifacts/plan.md` を出力した直後、現在の `permissionMode` を確認:
+planner が `.pev-artifacts/plan.md` を出力した直後、現在の `permissionMode` を確認:
 
 ```bash
 MODE=$(grep -o '"permissionMode"[[:space:]]*:[[:space:]]*"[^"]*"' .claude/settings.json | cut -d'"' -f4)
@@ -117,7 +117,7 @@ MODE=${MODE:-default}
 ```
 
 - `auto`: 自動でexecutor起動、ユーザーに通知のみ
-- `default`: 停止して `cat artifacts/plan.md` を表示、`/pev-execute` で続行
+- `default`: 停止して `cat .pev-artifacts/plan.md` を表示、`/pev-execute` で続行
 - `plan`: メッセージ表示してパイプライン終了
 
 ### Retry の条件と挙動 (/goal 駆動)
@@ -169,7 +169,7 @@ retry loop を skip して即 escalate path に流すための **明示宣言** 
 
 pipelineが内部で展開する命令:
 ```
-1. mkdir -p artifacts && echo "<task_id>" > artifacts/.task_id
+1. mkdir -p .pev-artifacts && echo "<task_id>" > .pev-artifacts/.task_id
 2. invoke planner with: {goal, constraints, ac, files=hint}
 3. on plan.md write → evaluate Gate A
 4. if proceed: invoke executor
@@ -181,5 +181,5 @@ pipelineが内部で展開する命令:
 ## 注意点
 
 - pipelineはskillだが、実体的なロジックは各command (`/pev`, `/pev-plan` 等) の中にも分散する。skillはあくまで「規約のsource of truth」
-- pipelineを「途中から再開」したい場合、`artifacts/.task_id` の存在で判定する
+- pipelineを「途中から再開」したい場合、`.pev-artifacts/.task_id` の存在で判定する
 - 並列executor使用時、`recap.log` は executor全員が完了してから1回だけ追記する

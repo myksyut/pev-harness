@@ -62,7 +62,7 @@ PR を出す前に:
 
 ```bash
 # markdownlint (もし手元で動かしたければ)
-npx markdownlint-cli '**/*.md' --ignore node_modules --ignore artifacts
+npx markdownlint-cli '**/*.md' --ignore node_modules --ignore .pev-artifacts
 
 # JSON schema validation
 node -e "JSON.parse(require('fs').readFileSync('.claude-plugin/plugin.json'))"
@@ -100,7 +100,7 @@ PR:
 
 ## 禁止事項
 
-- `artifacts/` をコミット (gitignore済みだが、強制 add は禁止)
+- `.pev-artifacts/` をコミット (gitignore済みだが、強制 add は禁止)
 - secrets/credentials を含める (`.gitignore` で `*.env` 追加検討)
 - 4.6時代のscaffoldingフレーズ ("step by step", "double-check"等)
 - 言語別 tooling の bundle (Python helper, npm script等)
