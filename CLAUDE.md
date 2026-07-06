@@ -4,7 +4,7 @@
 
 ## 0. このリポジトリは何か
 
-Claude Opus 4.8 native の **(Triage →) Plan → Execute → Verify (PEV) coding harness** Claude Code plugin。 v0.1 → v4.2.0 (現在) まで dog food 駆動で漸進的に成長させてきた。 v1.0 で OSS public 化済 (<https://github.com/myksyut/pev-harness>)。 **v4.2 で main session を Fable 5 orchestrator に切替** (phase は opus/sonnet/codex へ委譲、 金額コスト削減。 rules/pev-conventions.md §7 + experiments/v4.2-fable-orchestrator-cost.md)。
+Claude Opus 4.8 native の **(Triage →) Plan → Execute → Verify (PEV) coding harness** Claude Code plugin。 v0.1 → v4.3.0 (現在) まで dog food 駆動で漸進的に成長させてきた。 v1.0 で OSS public 化済 (<https://github.com/myksyut/pev-harness>)。 **v4.2 で main session を Fable 5 orchestrator に切替** (phase は opus/sonnet/codex へ委譲、 金額コスト削減。 rules/pev-conventions.md §7 + experiments/v4.2-fable-orchestrator-cost.md)。
 
 **v3.0 で根本見直し済**: ハーネスの value proposition を「user の頭の中の spec を引き出す」 に再定義。 v2.x までは Plan を必ず起動する 3-phase pipeline だったが、 v3.0 で Phase 0 (Triage) を新設、 Plan を on-demand 化、 質問判定強化、 F1 Defensive default の scope 限定 を実施。 詳細: [experiments/v3.0-design.md](./experiments/v3.0-design.md) + [experiments/harness-effect-v1 to v5](./experiments/) の 5 件の根拠実験。
 
@@ -42,7 +42,8 @@ Claude Opus 4.8 native の **(Triage →) Plan → Execute → Verify (PEV) codi
 | **v3.7** | Execute default を codex 化 + データ送信ポリシー追記 | (累積) | released |
 | **v4.0** | **公式 primitive 再配置**: Retry Gate を `/goal` 駆動 + planner に grill-me 統合 | harness-effect-v18 PoC (positive + negative)、 F_v18_5 (verifier dispatch は pev が握る) + F_v18_6 (outputStyle 継承汚染) | released |
 | **v4.1** | **`/goal` 前提化**: legacy retry_count 撤去、 retry を `/goal` に一本化 | (v4.0 dog food 継承、 spec 簡素化) | released |
-| **v4.2** | **Fable orchestrator + model tiering**: main session を fable-5/high の薄い指揮層に、 phase は opus/sonnet/codex 委譲を維持。 orchestrator thin invariant (token ≤15%) を規約化 | 費用モデル試算 (ハーネスなし比 −45〜60%)、 実機 A/B は harness-effect-v19 予定 | (current) |
+| **v4.2** | **Fable orchestrator + model tiering**: main session を fable-5/high の薄い指揮層に、 phase は opus/sonnet/codex 委譲を維持。 orchestrator thin invariant (token ≤15%) を規約化 | 費用モデル試算 (ハーネスなし比 −45〜60%)、 実機 A/B は harness-effect-v19 予定 | released |
+| **v4.3** | **Session telemetry (社内 feedback 反映)**: session.json (prompt 原文 / git / phase timings / tokens / chat log / 任意 rating) + `~/.claude/pev/telemetry/` archive | v43-dogfood (validatePostalCode task) で全項目動作確認、 F: phases は object 形式を正式 schema に | (current)。 残 feedback (コマンド過多 / dot-prefix / CrossRepo) は v5.0 予定 |
 
 **重要**: dog food は **実機 invoke** が原則。 spec review のみで release しない (v1.2 の Linear sync は dog food 未実施で、 v1.3 で 28 findings が一気に出た)。
 

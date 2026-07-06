@@ -225,10 +225,13 @@ agent `agents/verifier.md`：
 }
 ```
 
+**v4.3.0 で Stop に telemetry enrichment を追加**: `artifacts/session.json` が存在する時のみ、 transcript (JSONL) から token 消費 (`.tokens`: input/output/cache、 main session 概算) と user 入力 chat log (`.user_messages`: isMeta / isSidechain / tool_result を除外した text のみ) を jq で集計して session.json に追記する。 session.json 不在 (`PEV_TELEMETRY=off`) なら no-op。
+
 **意図的に入れないhook**:
 - PostToolUse format hook (プロジェクト側に任せる)
-- cost tracker (Claude Code本体のrecapsで代替)
 - session persistence (artifacts/ で自然永続化)
+
+(v4.2 まで「cost tracker は入れない」 だったが、 v4.3.0 で社内 feedback 「人的・token コスト改善を定量評価したい」 を受け、 **local-only の session telemetry** として採用。 外部送信は行わない)
 
 ---
 
@@ -314,12 +317,21 @@ artifacts/                       # .gitignore対象
 ├── execute.log                  # Phase 2 ログ
 ├── verify.json                  # Phase 3 結果
 ├── recap.log                    # phase完了サマリ
+├── session.json                 # session telemetry (v4.3.0+、 PEV_TELEMETRY=off で無効化)
 └── linear/                      # v1.x で追加予定
     ├── issue_id.txt
     └── sync_state.json
 ```
 
 `task_id` はタスク開始時に生成 (epoch+短縮hash)、`artifacts/.task_id` に保持。
+
+### session.json (v4.3.0+)
+
+社内 feedback 「Opus 素との人的・token コスト差を定量評価したい」 を受けた **local-only telemetry**。 起点: user prompt 原文 / flags / 開始時刻 / git 状態 (head, branch, dirty_files, remote = 再現テスト・ベンチマーク dataset 用)。 確定時: phases (artifact mtime 由来) / result / duration_seconds / 任意 rating。 Stop hook が tokens / user_messages を transcript から自動追記。
+
+- 最終判定時に `~/.claude/pev/telemetry/<TASK_ID>.session.json` へ **durable archive** (= `/pev-status --clean` / `--gc` 後も dataset として蓄積)
+- 外部送信は一切しない。 opt-in の外部収集は将来 roadmap (社内 feedback 提案) で別途検討
+- `PEV_TELEMETRY=off` で session.json 生成ごと無効化 (hook は file 不在で自然に no-op)
 
 ### Linear連携 (v1.x ロードマップ)
 
@@ -439,6 +451,7 @@ v2.0 の codex reviewer 統合に対し、 v3.5.0 で codex を **Execute phase 
 | **v4.2.0** | **Fable orchestrator + model tiering (金額コスト削減)** | main session を `claude-fable-5` / effort high の薄い orchestrator に、 Plan/Execute/Verify は従来 model (opus/sonnet/codex) へ委譲を維持。 orchestrator thin invariant (実装 file を Read しない / code を書かない / token 比率 ≤15%) を rules §7 に明文化。 試算でハーネスなし Claude Code 比 約 −45〜60%/task (ADR-010 + experiments/v4.2-fable-orchestrator-cost.md)。 実機 A/B は harness-effect-v19 で予定 | ✅ released |
 | **v4.2.1** | **harness-effect-v19 反映 (rich 品質バー + orchestrator 薄型化)** | planner に greenfield 体験プロダクト限定の rich 品質バー (F_v19_5)、 phase dispatch 同期必須 (F_v19_6)、 auto path の verifier 明示 dispatch (F_v19_1)、 commands/pev.md 薄型化 −39% + bash 参考実装を pev-pipeline references へ抽出 + phase agent 返答要約契約 (F_v19_2)。 実測: fable 単独 $8.85 比 −28% で品質肉薄 + 独立 verify 完走 | ✅ released |
 | **v4.2.2** | **Blindspot pass (unknown unknowns の明示化)** | plan 確定前に「user が検討した形跡のない論点」 を最大 5 件、 処置付き (`質問へ昇格` / `plan に組込` / `Non-goal 宣言` / `Risk 監視`) で plan.md `## Blindspots` に列挙。 確認質問 (known unknowns) / QA self-check (test 観点) と相補。 Thariq 氏 Fable field guide の blindspot pass を planner に統合 | ✅ released |
+| **v4.3.0** | **Session telemetry (社内 feedback 反映)** | `artifacts/session.json` 新設: user prompt 原文 / flags / git 状態 / phase timings / result / 任意 rating を記録、 Stop hook が tokens + user chat log を transcript から自動追記。 `~/.claude/pev/telemetry/` に durable archive (dataset 化)、 `PEV_TELEMETRY=off` で無効化。 local-only、 外部送信なし | ✅ released |
 | v3.8+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 (reviewer + executor) | (TBD) | — |
 
 ---

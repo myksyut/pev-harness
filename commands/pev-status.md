@@ -58,13 +58,21 @@ if [ -f artifacts/recap.log ]; then
   echo "Recent recap (last 5 entries):"
   tail -n 5 artifacts/recap.log | sed 's/^/  /'
 fi
+
+# Session telemetry summary (v4.3.0+)
+if [ -f artifacts/session.json ]; then
+  echo ""
+  echo "Telemetry (artifacts/session.json):"
+  jq -r '"  started:  \(.started_at)\n  result:   \(.result // "in progress")\n  duration: \(.duration_seconds // "-")s\n  tokens:   in=\(.tokens.input // "-") out=\(.tokens.output // "-") (approx)\n  git:      \(.git.branch)@\(.git.head[0:8]) (dirty files: \(.git.dirty_files))"' artifacts/session.json
+  echo "  archive:  ~/.claude/pev/telemetry/ (dataset、 --clean 後も残る)"
+fi
 ```
 
 ### --recent
 
 ```bash
 echo "[Recent PEV tasks]"
-find ~/.claude/pev -maxdepth 1 -mindepth 1 -type d -print0 2>/dev/null \
+find ~/.claude/pev -maxdepth 1 -mindepth 1 -type d ! -name telemetry -print0 2>/dev/null \
   | xargs -0 stat -f "%m %N" 2>/dev/null \
   | sort -rn \
   | head -5 \
@@ -86,9 +94,14 @@ echo "  - artifacts/"
 echo "  - ~/.claude/pev/$TASK_ID/"
 read -p "Confirm (y/N)? " ans
 if [ "$ans" = "y" ] || [ "$ans" = "Y" ]; then
+  # telemetry は dataset として保全してから削除 (v4.3.0+)
+  if [ -f artifacts/session.json ]; then
+    mkdir -p ~/.claude/pev/telemetry
+    cp artifacts/session.json ~/.claude/pev/telemetry/$TASK_ID.session.json
+  fi
   rm -rf artifacts/
   rm -rf ~/.claude/pev/$TASK_ID
-  echo "[PEV] Cleaned task $TASK_ID"
+  echo "[PEV] Cleaned task $TASK_ID (telemetry archived to ~/.claude/pev/telemetry/)"
 fi
 ```
 
@@ -98,7 +111,8 @@ fi
 APPLY=""
 [ "$1" = "--apply" ] && APPLY="yes"
 
-STALE_DIRS=$(find ~/.claude/pev -maxdepth 1 -mindepth 1 -type d -mtime +30 2>/dev/null)
+# telemetry/ は dataset 蓄積用なので gc 対象外 (v4.3.0+)
+STALE_DIRS=$(find ~/.claude/pev -maxdepth 1 -mindepth 1 -type d ! -name telemetry -mtime +30 2>/dev/null)
 if [ -z "$STALE_DIRS" ]; then
   echo "[PEV] No stale tasks (>30 days)."
   exit 0

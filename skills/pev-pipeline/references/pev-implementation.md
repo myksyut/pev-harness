@@ -171,6 +171,49 @@ case "$VERDICT" in
 esac
 ```
 
+## Step 8 — Session telemetry finalize (v4.3.0+、 参考実装)
+
+```bash
+# artifacts/session.json が存在する時のみ (PEV_TELEMETRY=off なら不在 = skip)
+if [ -f artifacts/session.json ]; then
+  TASK_ID=$(cat artifacts/.task_id)
+  RESULT="PASS"   # 判定に応じて PASS / FAIL_handed_back / infeasible / expected_fail
+
+  # phases を artifact mtime から復元 (object 形式厳守、 darwin: stat -f + date -r / linux: stat -c + date -d)
+  iso_mtime() {
+    local f="artifacts/$1"
+    [ -f "$f" ] || { printf 'null'; return; }
+    local m=$(stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null)
+    printf '"%s"' "$(date -u -r "$m" +%FT%TZ 2>/dev/null || date -u -d "@$m" +%FT%TZ)"
+  }
+  PHASES=$(printf '{"triage":%s,"plan":%s,"execute":%s,"verify":%s}' \
+    "$(iso_mtime triage.json)" "$(iso_mtime plan.md)" "$(iso_mtime execute.log)" "$(iso_mtime verify.json)")
+
+  jq --argjson p "$PHASES" --arg end "$(date -u +%FT%TZ)" \
+     --argjson now "$(date -u +%s)" --arg result "$RESULT" \
+     '.phases=$p | .finished_at=$end | .duration_seconds=($now - .started_at_epoch) | .result=$result' \
+     artifacts/session.json > artifacts/.session.json.tmp && mv artifacts/.session.json.tmp artifacts/session.json
+
+  # durable archive (dataset として --clean / --gc 後も残す)
+  mkdir -p ~/.claude/pev/telemetry
+  cp artifacts/session.json ~/.claude/pev/telemetry/$TASK_ID.session.json
+fi
+```
+
+## Step 8 — 任意 session 評価の記録 (参考実装)
+
+interactive session のみ。 AskUserQuestion の回答 (skip 以外) を受けたら:
+
+```bash
+# SCORE = 選択された数値 (5/4/2 等)、 COMMENT = Other / notes の自由記述 (なければ空)
+jq --argjson s "$SCORE" --arg c "$COMMENT" '.rating={score:$s, comment:$c}' \
+   artifacts/session.json > artifacts/.session.json.tmp && mv artifacts/.session.json.tmp artifacts/session.json
+cp artifacts/session.json ~/.claude/pev/telemetry/$(cat artifacts/.task_id).session.json
+```
+
+- headless (`-p`) では質問せず `.rating` は null のまま
+- skip 選択時も null のまま (= 「評価なし」 と 「低評価」 を区別する)
+
 ## `--expect-fail` の使い分け (v1.8+)
 
 - **適切**: dog food fixture で意図的に retry-exhaust シナリオを exercise するケース、 regression test で「FAIL が現状の正解」 と確定しているケース、 negative test fixture

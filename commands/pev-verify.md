@@ -57,6 +57,10 @@ description: Run only the Verify phase. Validates changes against plan.md accept
 
 `PEV_MAX_RETRIES` (default: 3) 回まで自動retry。3回超えたら escalate。
 
+## Session telemetry finalize (v4.3.0+)
+
+`/pev-verify` 単体実行で最終判定 (PASS / escalate) に達した場合も、 `artifacts/session.json` が存在すれば finalize する (= Gate A 停止 → `/pev-execute` → `/pev-verify` の手動 path でも telemetry が完結する)。 手順は `commands/pev.md` Step 8 と同一、 bash 参考実装: `skills/pev-pipeline/references/pev-implementation.md`。
+
 ## Implementation note
 
 verify.json の構造 / dual-review の Agent並列起動 / report formatter は v0.4 で実装。詳細は [Issue #4](https://github.com/myksyut/pev-harness/issues/4) / [Issue #5](https://github.com/myksyut/pev-harness/issues/5)。

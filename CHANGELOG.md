@@ -13,6 +13,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
 
+## [4.3.0] - 2026-07-06
+
+**Session telemetry — 社内 feedback 「定量的な feedback がむずい」 への回答**。 「Opus 素で同じ実装をやらせた場合と比べて、 人的・token コストがどれだけ改善したかを定量評価したい。 chat log / session 時間 / token 消費 / 実行時 git 情報があると再現テストでき、 それ自体がベンチマーク dataset になる」 という社内 user 要望を、 **local-only の `artifacts/session.json`** として実装。 外部送信は一切しない (opt-in 外部収集は将来 roadmap)。
+
+### Added
+
+- **`artifacts/session.json` (telemetry artifact)**: `/pev` Step 1 で初期化 — `user_prompt` (原文) / `flags` / `started_at` / `git` (head, branch, dirty_files, remote = あとから再現テストするための snapshot)。 pipeline 最終判定 (PASS / hand-back / infeasible / expected_fail) で finalize — `phases` (artifact mtime 由来の timings) / `result` / `duration_seconds` (commands/pev.md Step 8 新設)
+- **Stop hook: telemetry enrichment** (`hooks/hooks.json`): transcript (JSONL) から `tokens` (input / output / cache_read / cache_creation / assistant_turns、 main session 概算) と `user_messages` (isMeta / isSidechain / tool_result を除外した user 入力 chat log) を jq 集計して session.json に自動追記。 session.json 不在なら no-op
+- **任意 session 評価**: 最終判定後、 interactive session のみ AskUserQuestion で 1 問 (5 / 4 / 2 / skip)。 headless では聞かない。 `.rating = {score, comment}` に記録
+- **durable archive**: finalize 時に `~/.claude/pev/telemetry/<TASK_ID>.session.json` へ copy。 `/pev-status --clean` も削除前に archive するため、 telemetry は task lifecycle を超えて dataset として蓄積される (`--gc` / SessionStart stale 検出は `telemetry/` を除外)
+- **`/pev-status` に Telemetry summary 表示**: started / result / duration / tokens / git を表示
+- **`PEV_TELEMETRY=off`**: session.json 生成ごと無効化する opt-out (env var)
+
+### Changed
+
+- **SPEC §5**: 「cost tracker は意図的に入れない (v4.2 まで)」 を撤回し、 local-only session telemetry として採用 — 社内 feedback 起点の方針転換を明記
+- **`commands/pev-verify.md`**: 単体実行で最終判定に達した場合も session.json を finalize (Gate A 停止 → 手動 path でも telemetry が完結)
+
+### Verified via dog food
+
+- `/tmp/v43-dogfood` (form fixture copy、 headless stream-json + `--force-auto --executor-mode=claude`): validatePostalCode 追加 task が plan_skip → Execute (Self-Clarify defaults) → 独立 verifier 32/32 pass (PASS via /goal) で完走。 telemetry 全項目動作 — init (prompt 原文 / flags / git fallback) / finalize (result=PASS, duration=515s, phases) / Stop hook 追記 (tokens in=55k out=56k cache_read=1.0M, user_messages) / `~/.claude/pev/telemetry/` archive / rating=null (headless で質問 skip)
+- finding: orchestrator が `phases` を参考実装の array 形式でなく object 形式 (`{triage, plan, execute, verify}` + ISO8601) で出力 → dataset として扱いやすい object 形式を正式 schema に採用し、 参考実装・Step 8 を合わせて pin
+
+### Reference
+
+- 要望元: 社内 e3 チーム feedback (2026-07-06)。 「定量 feedback」 のほか 「コマンド/フラグ過多」 「artifacts の dot-prefix 化」 「CrossRepo 対応」 も受領済 — 後者 3 件は breaking のため v5.0 で対応予定
+
 ## [4.2.2] - 2026-07-04
 
 **Blindspot pass — planner が「user の unknown unknowns」 を明示化**。 確認質問 (known unknowns) / QA self-check (test 観点) ではカバーされない「user が検討した形跡のない要件論点」 を、 plan 確定前に 1 pass 列挙して `## Blindspots` section に処置付きで記録する。 Anthropic Thariq 氏「A Field Guide to Fable: Finding Your Unknowns」 の blindspot pass を planner に統合 (同氏の grill-me を v4.0 で interview として統合したのと同系列)。

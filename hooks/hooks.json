@@ -18,6 +18,10 @@
           {
             "type": "command",
             "command": "if [ -f artifacts/.task_id ] && [ -f artifacts/execute.log ] && [ ! -f artifacts/verify.json ]; then TS=$(date -u +%FT%TZ); LINES=$(wc -l < artifacts/execute.log | tr -d ' '); { echo \"[$TS] Phase 2 (Execute) completed ($LINES log entries)\"; echo \"  - Next: run /pev-verify to validate against acceptance criteria\"; echo \"\"; } >> artifacts/recap.log; echo '[PEV] Execute phase complete. Run /pev-verify to validate.'; fi; if [ -f artifacts/verify.json ]; then VERDICT=$(node -e \"console.log(JSON.parse(require('fs').readFileSync('artifacts/verify.json','utf8')).verdict||'')\" 2>/dev/null); if [ -n \"$VERDICT\" ] && ! grep -q \"Phase 3 (Verify) completed\" artifacts/recap.log 2>/dev/null; then TS=$(date -u +%FT%TZ); { echo \"[$TS] Phase 3 (Verify) completed (verdict: $VERDICT)\"; echo \"\"; } >> artifacts/recap.log; fi; fi; exit 0"
+          },
+          {
+            "type": "command",
+            "command": "IN=$(cat); TP=$(printf '%s' \"$IN\" | jq -r '.transcript_path // empty' 2>/dev/null); if [ -f artifacts/session.json ] && [ -n \"$TP\" ] && [ -f \"$TP\" ]; then TOK=$(jq -s '{input:([.[]|select(.type==\"assistant\")|.message.usage.input_tokens//0]|add//0),output:([.[]|select(.type==\"assistant\")|.message.usage.output_tokens//0]|add//0),cache_read:([.[]|select(.type==\"assistant\")|.message.usage.cache_read_input_tokens//0]|add//0),cache_creation:([.[]|select(.type==\"assistant\")|.message.usage.cache_creation_input_tokens//0]|add//0),assistant_turns:([.[]|select(.type==\"assistant\")]|length),source:\"stop-hook transcript scan (main session approx; external codex excluded)\"}' \"$TP\" 2>/dev/null); MSGS=$(jq -s '[.[]|select(.type==\"user\" and ((.isMeta//false)|not) and ((.isSidechain//false)|not))|.message.content|if type==\"string\" then . elif type==\"array\" then ([.[]|select(.type==\"text\")|.text]|join(\"\\n\")) else \"\" end|select(length>0)]' \"$TP\" 2>/dev/null); if [ -n \"$TOK\" ] && [ -n \"$MSGS\" ]; then jq --argjson t \"$TOK\" --argjson m \"$MSGS\" '.tokens=$t|.user_messages=$m' artifacts/session.json > artifacts/.session.json.tmp 2>/dev/null && mv artifacts/.session.json.tmp artifacts/session.json; fi; fi; exit 0"
           }
         ]
       }
@@ -28,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if [ -f artifacts/.task_id ]; then TASK_ID=$(cat artifacts/.task_id); echo \"[PEV] In-progress task detected: $TASK_ID\"; echo \"[PEV] Run /pev-status for details\"; fi; STALE=$(find ~/.claude/pev -maxdepth 1 -mindepth 1 -type d -mtime +30 2>/dev/null | wc -l | tr -d ' '); if [ \"${STALE:-0}\" -gt 0 ]; then echo \"[PEV] $STALE stale task(s) >30 days. Run /pev-status --gc\"; fi; exit 0"
+            "command": "if [ -f artifacts/.task_id ]; then TASK_ID=$(cat artifacts/.task_id); echo \"[PEV] In-progress task detected: $TASK_ID\"; echo \"[PEV] Run /pev-status for details\"; fi; STALE=$(find ~/.claude/pev -maxdepth 1 -mindepth 1 -type d ! -name telemetry -mtime +30 2>/dev/null | wc -l | tr -d ' '); if [ \"${STALE:-0}\" -gt 0 ]; then echo \"[PEV] $STALE stale task(s) >30 days. Run /pev-status --gc\"; fi; exit 0"
           }
         ]
       }

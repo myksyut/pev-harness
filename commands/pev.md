@@ -38,7 +38,7 @@ Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済み�
 
 `/pev` を実行する main session は **orchestrator (Fable 5、 settings.json の `"model": "claude-fable-5"`)** として振る舞う。 orchestrator の単価は高い (Opus の 2 倍) ため、 このコマンドの実装 (Step 1〜7) は以下を厳守する:
 
-- orchestrator が行うのは **artifacts の parse (jq / grep)、 flag 判定、 agent dispatch、 `/goal` set、 recap 追記** のみ
+- orchestrator が行うのは **artifacts の parse (jq / grep)、 flag 判定、 agent dispatch、 `/goal` set、 recap / session.json (telemetry) 追記** のみ
 - **実装 file (src/ / tests/) を orchestrator turn で Read しない**。 codebase 理解が必要な作業はすべて phase agent (triage / planner / executor / verifier) に委譲する
 - **orchestrator turn で code 変更・test 実行をしない** (= 「小さい修正だから直接やる」 は禁止、 Execute phase へ)
 - 各 phase agent の model / effort は `agents/*.md` frontmatter が正 (Triage=sonnet low / Plan=opus xhigh / Execute=sonnet high or codex / Verify=sonnet xhigh)。 orchestrator が dispatch 時に model を fable へ引き上げない
@@ -64,6 +64,7 @@ Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済み�
 7. **Gate B**: Stop hook が verifier を促す
 8. **Phase 3 (Verify)**: verifier agent (`--strict` 時は `pev-dual-review`) → `artifacts/verify.json`
 9. **Retry Gate (/goal 駆動)**: `/goal` が「verifier (別 Task) の独立 PASS + 生 test 出力 exit 0」 を condition に retry を自走駆動 (max `PEV_MAX_RETRIES`)。 verifier の dispatch は pev が握り続ける。 `--expect-fail` / hooks 無効環境では `/goal` を起動せず verify 1 回で停止 (v4.1.0 で `/goal` 前提化、 legacy retry_count は撤去)
+10. **Telemetry finalize (v4.3.0+)**: pipeline が最終判定 (PASS / hand-back / infeasible) に達したら `artifacts/session.json` を確定 + durable archive (Step 8)
 
 ### Flag による flow override (v3.0+)
 
@@ -99,6 +100,24 @@ TASK_ID="$(date +%s)-$(openssl rand -hex 4 2>/dev/null || printf '%04x%04x' $RAN
 echo "$TASK_ID" > artifacts/.task_id
 mkdir -p ~/.claude/pev/$TASK_ID
 echo "[PEV] Task started: $TASK_ID"
+```
+
+**Session telemetry 初期化 (v4.3.0+)**: TASK_ID 発行直後、 `artifacts/session.json` を作成する。 `TASK_PROMPT` = user が `/pev` に渡した task description **原文**、 `TASK_FLAGS` = flag 列 (なければ空文字)。 `PEV_TELEMETRY=off` で無効化可 (local file のみ、 外部送信なし):
+
+```bash
+if [ "${PEV_TELEMETRY:-on}" != "off" ]; then
+  jq -n --arg tid "$TASK_ID" --arg prompt "$TASK_PROMPT" --arg flags "$TASK_FLAGS" \
+    --arg ts "$(date -u +%FT%TZ)" --argjson epoch "$(date -u +%s)" \
+    --arg head "$(git rev-parse HEAD 2>/dev/null || printf '%s' -)" \
+    --arg branch "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || printf '%s' -)" \
+    --argjson dirty "$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')" \
+    --arg remote "$(git remote get-url origin 2>/dev/null || printf '%s' -)" \
+    '{task_id:$tid, harness_version:"4.3.0", user_prompt:$prompt, flags:$flags,
+      started_at:$ts, started_at_epoch:$epoch,
+      git:{head:$head, branch:$branch, dirty_files:$dirty, remote:$remote},
+      phases:null, result:null, finished_at:null, duration_seconds:null,
+      tokens:null, user_messages:null, rating:null}' > artifacts/session.json
+fi
 ```
 
 ### Step 1.5 — Phase 0 (Triage、 v3.0+)
@@ -188,3 +207,14 @@ PASS 時は recap.log に `Task complete via /goal (verdict: PASS)`、 `PEV_MAX_
 - hooks 無効環境 (`disableAllHooks` / `allowManagedHooksOnly`) — `/goal` evaluator が動かないため verify 1 回 + escalate 案内
 
 verdict 別の recap 記録・`--expect-fail` 使い分け規約・bash 参考実装: `skills/pev-pipeline/references/pev-implementation.md` (該当 path に入った時のみ Read)。
+
+### Step 8 — Session telemetry finalize (v4.3.0+)
+
+pipeline が **最終判定** に達したら `artifacts/session.json` を確定する。 対象は: PASS 完了 / `/goal` hand-back / `task_infeasible` / `--expect-fail` の verify 1 回停止。 Gate A 停止などの **途中停止では finalize しない** (後続の `/pev-verify` 完走時に finalize される)。 `artifacts/session.json` が存在しない場合 (`PEV_TELEMETRY=off`) は本 Step 全体を skip。
+
+1. `finished_at` / `duration_seconds` / `result` (`PASS` \| `FAIL_handed_back` \| `infeasible` \| `expected_fail`) / `phases` を記録。 `phases` は **object 形式厳守**: `{"triage": <ISO8601|null>, "plan": ..., "execute": ..., "verify": ...}` (各 phase artifact の mtime 由来、 未実行 phase は null。 dataset として schema を揃えるため別形式は禁止)
+2. **durable archive**: `~/.claude/pev/telemetry/<TASK_ID>.session.json` に copy — `/pev-status --clean` / `--gc` 後もデータセットとして蓄積される (再現テスト / ベンチマーク用)
+3. **任意 session 評価**: interactive session のみ、 AskUserQuestion で 1 問 (「5 — 期待以上 / 4 — 期待どおり / 2 — 手直しが必要だった / skip — 記録しない」)。 headless (`-p`) では聞かずに skip。 回答は `.rating = {score, comment}` に記録して archive も上書き
+4. token 消費と user 入力 chat log は **Stop hook が transcript から自動追記** する (`.tokens` / `.user_messages`)。 orchestrator の作業は不要。 値は main session transcript 由来の概算で、 外部 codex subprocess 分は含まない
+
+bash 参考実装: `skills/pev-pipeline/references/pev-implementation.md`
