@@ -137,7 +137,9 @@ cd $DEST && npm install --silent
 # v3.0 flow を invoke
 PROMPT="/pev-harness:pev <task description>"
 INIT=$(jq -nc --arg t "$PROMPT" '{type:"user",message:{role:"user",content:[{type:"text",text:$t}]}}')
-echo "$INIT" | claude --plugin-dir ~/oss/pev-harness \
+# ※ echo は使わない: PROMPT が multi-line の場合、 zsh の echo が jq の \n エスケープを
+#   解釈して stream-json が壊れる (F_v20_2)。 printf '%s\n' が安全
+printf '%s\n' "$INIT" | claude --plugin-dir ~/oss/pev-harness \
   --settings '{"outputStyle":"default"}' \
   --input-format stream-json --output-format stream-json --include-partial-messages \
   --permission-mode bypassPermissions --verbose --model claude-opus-5 -p \
