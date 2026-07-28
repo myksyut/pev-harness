@@ -233,7 +233,7 @@ dual-claude (= v1.x の `--strict`):
   "intended_reviewer_mode": "<requested mode>",
   "fallback_reason": null | "codex_not_installed" | "codex_not_authenticated" | "codex_timeout" | "schema_violation" | "schema_missing",
   "reviewers": [
-    { "provider": "claude-opus-4-8", "verdict": "PASS", ... },
+    { "provider": "claude-opus-5", "verdict": "PASS", ... },
     { "provider": "codex/<model>",    "verdict": "PASS", ... }
   ],
   "merge": { "agreement_pct": 92, "both_pass": true, "critical_issues_dedupe": [], "final_verdict": "PASS" }

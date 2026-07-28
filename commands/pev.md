@@ -34,17 +34,17 @@ linear\.app/[^/]+/issue/([A-Z]+-\d+)
 
 Linear MCP plugin (`@plugin_linear_linear`) が install済みかつ認証済みであることが前提。 不在時は warning を出して通常 flow にfallback。
 
-## Model tiering (v4.2.0+)
+## Model tiering (v4.2.0+、 v5.1.0 で orchestrator = Opus 5)
 
-`/pev` を実行する main session は **orchestrator (Fable 5、 settings.json の `"model": "claude-fable-5"`)** として振る舞う。 orchestrator の単価は高い (Opus の 2 倍) ため、 このコマンドの実装 (Step 1〜7) は以下を厳守する:
+`/pev` を実行する main session は **orchestrator (Opus 5、 settings.json の `"model": "claude-opus-5"`)** として振る舞う。 orchestrator は上位単価 tier で、 かつ会話 context が全 phase を跨いで累積するため、 このコマンドの実装 (Step 1〜7) は以下を厳守する:
 
 - orchestrator が行うのは **artifacts の parse (jq / grep)、 flag 判定、 agent dispatch、 `/goal` set、 recap / session.json (telemetry) 追記** のみ
 - **実装 file (src/ / tests/) を orchestrator turn で Read しない**。 codebase 理解が必要な作業はすべて phase agent (triage / planner / executor / verifier) に委譲する
 - **orchestrator turn で code 変更・test 実行をしない** (= 「小さい修正だから直接やる」 は禁止、 Execute phase へ)
-- 各 phase agent の model / effort は `agents/*.md` frontmatter が正 (Triage=sonnet low / Plan=opus xhigh / Execute=sonnet high or codex / Verify=sonnet xhigh)。 orchestrator が dispatch 時に model を fable へ引き上げない
+- 各 phase agent の model / effort は `agents/*.md` frontmatter が正 (Triage=sonnet low / Plan=opus xhigh / Execute=sonnet high or codex / Verify=sonnet xhigh)。 orchestrator が dispatch 時に model を上位 tier (fable 等) へ引き上げない
 - **phase agent の dispatch は同期 (foreground) Task で行う**。 background dispatch は禁止 — headless (`-p`) 実行では background task の待機上限 (default 600 秒) で session ごと terminate され、 実行中の phase が成果物未着地のまま切断される (harness-effect-v19 / F_v19_6)。 phase は元々逐次依存 (Plan → Execute → Verify) なので並行化の利得もない
 
-規約詳細: `rules/pev-conventions.md` §7、 費用モデル: `experiments/v4.2-fable-orchestrator-cost.md`。
+規約詳細: `rules/pev-conventions.md` §7、 費用モデル: `experiments/v4.2-fable-orchestrator-cost.md` + `experiments/v5.1-opus5-retiering.md`。
 
 ## フロー (v3.0+)
 
@@ -112,7 +112,7 @@ if [ "${PEV_TELEMETRY:-on}" != "off" ]; then
     --arg branch "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || printf '%s' -)" \
     --argjson dirty "$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')" \
     --arg remote "$(git remote get-url origin 2>/dev/null || printf '%s' -)" \
-    '{task_id:$tid, harness_version:"5.0.0", user_prompt:$prompt, flags:$flags,
+    '{task_id:$tid, harness_version:"5.1.0", user_prompt:$prompt, flags:$flags,
       started_at:$ts, started_at_epoch:$epoch,
       git:{head:$head, branch:$branch, dirty_files:$dirty, remote:$remote},
       phases:null, result:null, finished_at:null, duration_seconds:null,

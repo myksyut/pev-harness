@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gemini CLI 対応 (reviewer + executor、 `pev-external-*` の subprocess pattern を別 vendor へ拡張)
 - codex 完全所有 executor mode (= execute.log も codex が authoring する案、 ADR-009 の roadmap 候補)
 
+## [5.1.0] - 2026-07-28
+
+**Opus 5 retiering — orchestrator を Fable 5 から Opus 5 に世代交代**。 根拠は 2 つ: (1) harness-effect-v19 の F_v19_10 実測 (opus-tier orchestrator は完走性・品質・総額で fable と等価、 コストで fable を選ぶ理由は消滅済み)、 (2) Opus 5 リリース (Opus 4.8 と同価格 $5/$25 のドロップイン後継で、 fable の残存優位だった long-horizon/agentic 判断がまさに強化領域。 retention 制約もなく ZDR org で動く)。 phase 実体 (plan/execute/verify の alias + effort) は不変。
+
+### Changed
+
+- **settings.json の main session model**: `claude-fable-5` → `claude-opus-5` (effortLevel high は据え置き)。 **Fable 5 は opt-in tier に反転** — 最上位判断が必要な長大 pipeline では `.claude/settings.local.json` で `"model": "claude-fable-5"` に override (単価 2 倍、 ZDR org 不可)。 v4.2 の「Fable 不可 org は opus-4-8 へ degrade」 という非対称 path は解消
+- **rules/pev-conventions.md §7 / commands/pev.md / skills/pev-pipeline**: tiering 表と invariant 文言を Opus 5 前提に更新。 「fable は orchestrator 専用 tier」 ルールは「orchestrator より上位の tier に上げない」 に一般化。 15% token 比率目安・thin invariant・同期 dispatch・返答要約契約はすべて維持
+- **`opus`/`sonnet` alias の実態追随 (docs 乖離の解消)**: agent frontmatter の alias は CLI v2.1.219+ で Claude 5 世代 (Opus 5 / Sonnet 5) に自動解決される — つまり planner は本 release 前から既に Opus 5 で動いていた。 planner/spec-template 等の「Opus 4.8」 記述を現世代表記に更新 (alias 方針は維持、 pin が必要な provider 環境のみ full ID)
+- **dual-review の reviewer model pin**: Reviewer A `claude-opus-4-8` → `claude-opus-5`、 Reviewer B `claude-sonnet-4-6` → `claude-sonnet-5` (例示 JSON の provider 文字列も同期)
+- plugin.json / marketplace.json: description を Claude Opus 5 native に、 keyword `opus-4-8` → `opus-5`
+
+### Added
+
+- **SPEC.md ADR-011**: 切替判断の構造 (F_v19_10 の前提変化 + Opus 5 の位置付け + 饒舌さ risk の監視方針) を記録
+- **experiments/v5.1-opus5-retiering.md**: 新単価表、 alias 解決の事実確認 (CLI v2.1.219+ で Claude 5 世代)、 採らなかった選択肢 (Fable 維持 / opus-5 明示 pin / 4.8 据え置き pin)、 監視 4 項目
+
+### Verified via dog food
+
+- `/tmp/v51-dogfood` (headless、 validatePostalCode task、 `--model claude-opus-5`): Triage plan_skip 正判定 → Execute → 独立 verifier 28/28 tests PASS (AC 3/3)。 modelUsage は **opus-5 $1.18 + sonnet-5 $1.29 で fable 消費 $0** — orchestrator の Opus 5 動作を実測確認。 orchestrator 出力 12.6k tokens は v19 の opus-4-8 (≈19k) より小さく、 懸念した饒舌さの悪化は非観測 (要約契約が Opus 5 でも機能)
+- **F_v51_1**: session.json の `harness_version` が commands/pev.md にハードコードで version 同期から漏れていた → 5.1.0 に修正 + CLAUDE.md §5 release 手順に同期対象として明記
+- **F_v51_2**: codex が途中切断 (validation.js のみ編集して output なし終了) → executor が `fallback_reason: codex_incomplete` を記録し Claude native で完遂。 v3.5.0 設計の graceful degrade の実戦初確認
+- 詳細と findings 全文: [experiments/v5.1-opus5-retiering.md](./experiments/v5.1-opus5-retiering.md) §5
+
 ## [5.0.0] - 2026-07-06
 
 **Breaking release — 社内 feedback の残り 3 件 (artifacts dot-prefix / CrossRepo / コマンド過多) をまとめて反映**。 「期待は安くて構造的に振る舞う Fable であって Claude 拡張ではない」 という指摘に対し、 user が覚えるべき surface を `/pev` 1 コマンドに寄せ、 補助コマンドを統合した。

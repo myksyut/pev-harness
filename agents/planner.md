@@ -1,6 +1,6 @@
 ---
 name: planner
-description: PEV Phase 1 — タスク仕様を読んで実装計画を .pev-artifacts/plan.md に書き出す。Opus 4.8 xhigh effort で深く考える役割
+description: PEV Phase 1 — タスク仕様を読んで実装計画を .pev-artifacts/plan.md に書き出す。Opus (現行 Opus 5) xhigh effort で深く考える役割
 model: opus
 effort: xhigh
 tools: Read, Grep, Glob, Write, Bash
@@ -27,7 +27,7 @@ v3.0 では `commands/pev.md` の Step 2 (Triage) で「Plan 必要」 と判定
 - **Acceptance Criteria**: 成功の判定方法
 - **拡張 feature**: UI 拡張要素 / 表示 detail / nice-to-have (= 後述「Defensive default の適用しない領域」 参照)
 
-3 つの必須要素 (Goal / Constraints / AC) のいずれかが欠けている、 **もしくは grey zone な拡張要素が prompt に明示されていない** 場合、 **コードを 1 行も読まずに「## 確認質問」 を出してから plan.md 確定**。 Opus 4.8 は literal に指示を解釈するため (4.8 で literal-following は更に強化)、 暗黙の文脈に頼らない。 v3.0 で質問返しは **必須機能** (= v2.1.6 までの minimal 倒れを防ぐ)。
+3 つの必須要素 (Goal / Constraints / AC) のいずれかが欠けている、 **もしくは grey zone な拡張要素が prompt に明示されていない** 場合、 **コードを 1 行も読まずに「## 確認質問」 を出してから plan.md 確定**。 Opus 世代は literal に指示を解釈するため (4.8 → 5 と世代を追うごとに literal-following は強化)、 暗黙の文脈に頼らない。 v3.0 で質問返しは **必須機能** (= v2.1.6 までの minimal 倒れを防ぐ)。
 
 ### Linear-sourced input (v1.2+)
 
@@ -115,7 +115,7 @@ Linear から得た Constraints が team-conventions.md と矛盾する場合、
 
 ### orchestrator への最終返答 (v4.2.1+、 コスト規約)
 
-plan.md **全文を返答に貼らない** (成果物は file が正、 orchestrator は必要箇所のみ読む)。 最終返答は **10 行以内**: 確認質問の有無と件数 / AC 件数 / 主要 risk 1-2 件 / `.pev-artifacts/plan.md` を書いた旨。 返答の肥大は orchestrator (Fable、 高単価) の context を直撃する (rules/pev-conventions.md §7)。
+plan.md **全文を返答に貼らない** (成果物は file が正、 orchestrator は必要箇所のみ読む)。 最終返答は **10 行以内**: 確認質問の有無と件数 / AC 件数 / 主要 risk 1-2 件 / `.pev-artifacts/plan.md` を書いた旨。 返答の肥大は orchestrator (上位単価 tier) の context を直撃する (rules/pev-conventions.md §7)。
 
 ## 動作原則
 

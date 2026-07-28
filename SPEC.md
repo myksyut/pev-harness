@@ -39,13 +39,13 @@ Claude Opus 4.8 時代のコーディングハーネス。 **v3.0 で「(Triage 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │              /pev <task>  または 自然言語入力                │
-│  orchestrator: main session = fable-5 / high (v4.2.0+)       │
+│  orchestrator: main session = opus-5 / high (v5.1.0+)        │
 │  役割: dispatch / Gate 判定 / /goal 駆動のみ (実装は委譲)     │
 └─────────────────────────┬───────────────────────────────────┘
                           ▼
         ┌─────────────────────────────────────┐
         │  PHASE 1: PLAN                       │
-        │  agent: planner   model: opus-4-8    │
+        │  agent: planner   model: opus-5      │
         │  effort: xhigh    budget: 50k tokens │
         │  output: .pev-artifacts/plan.md           │
         └────────────┬────────────────────────┘
@@ -239,7 +239,7 @@ agent `agents/verifier.md`：
 
 ```json
 {
-  "model": "claude-fable-5",
+  "model": "claude-opus-5",
   "effortLevel": "high",
   "permissions": {
     "defaultMode": "default"
@@ -256,6 +256,7 @@ agent `agents/verifier.md`：
 - Auto Mode利用者は Shift+Tab でセッション内切替、または `.claude/settings.local.json` で個別上書き
 - B1 「If you're upgrading to the new model, we recommend experimenting with effort rather than just porting over an old setting」 を踏まえ、 session 内で `/effort` 切替も推奨 (default high は出発点)
 - **v4.2.0**: main session model を `claude-fable-5` (orchestrator 専用 tier) に、 effortLevel を `high` に変更。 phase agent の model/effort は frontmatter が正で不変。 Fable が使えない org (ZDR) は `.claude/settings.local.json` で `"model": "claude-opus-4-8"` に override (= v4.1 相当に degrade)。 費用モデル: [experiments/v4.2-fable-orchestrator-cost.md](./experiments/v4.2-fable-orchestrator-cost.md)
+- **v5.1.0**: main session model を `claude-opus-5` に変更 (Fable 5 は settings.local.json での opt-in tier へ)。 根拠は F_v19_10 (opus-tier orchestrator は fable と等価) + Opus 5 リリース (Opus 4.8 同価格で long-horizon/agentic を強化、 ZDR org でも利用可)。 詳細: ADR-011 + [experiments/v5.1-opus5-retiering.md](./experiments/v5.1-opus5-retiering.md)
 - skill auto-invocation 抑止: top-level の独自 field ではなく、 各 SKILL.md の `disable-model-invocation: true` / `user-invocable: false` で個別制御 (v2.1.2 から)
 
 ---
@@ -455,6 +456,7 @@ v2.0 の codex reviewer 統合に対し、 v3.5.0 で codex を **Execute phase 
 | **v4.2.2** | **Blindspot pass (unknown unknowns の明示化)** | plan 確定前に「user が検討した形跡のない論点」 を最大 5 件、 処置付き (`質問へ昇格` / `plan に組込` / `Non-goal 宣言` / `Risk 監視`) で plan.md `## Blindspots` に列挙。 確認質問 (known unknowns) / QA self-check (test 観点) と相補。 Thariq 氏 Fable field guide の blindspot pass を planner に統合 | ✅ released |
 | **v4.3.0** | **Session telemetry (社内 feedback 反映)** | `.pev-artifacts/session.json` 新設: user prompt 原文 / flags / git 状態 / phase timings / result / 任意 rating を記録、 Stop hook が tokens + user chat log を transcript から自動追記。 `~/.claude/pev/telemetry/` に durable archive (dataset 化)、 `PEV_TELEMETRY=off` で無効化。 local-only、 外部送信なし | ✅ released |
 | **v5.0.0** | **Breaking: `.pev-artifacts/` rename + CrossRepo + コマンド統合 (社内 feedback 反映)** | `artifacts/` → `.pev-artifacts/` 全面 rename / triage `target_root` + hooks・`/pev-status` の maxdepth 2 discovery で multi-repo workspace 対応 / コマンド 9 → 6 (`/pev-init-e2e`・`/pev-init-codex` → `/pev-init --e2e`・`--codex`、 `/pev-verify-e2e` → `/pev-verify --e2e`) / pev-task-budget skill + `PEV_TASK_BUDGET` env 削除 (token 見積もり廃止) | ✅ released |
+| **v5.1.0** | **Opus 5 retiering (orchestrator 世代交代)** | main session を `claude-fable-5` → `claude-opus-5` に切替 (同 effort high)。 根拠: F_v19_10 実測 (opus-tier orchestrator は完走性・品質・総額で fable と等価) + Opus 5 が Opus 4.8 同価格 ($5/$25) で long-horizon/agentic を強化 + ZDR org 互換。 Fable 5 は settings.local.json での opt-in tier に格下げ。 planner 等の `opus`/`sonnet` alias は CLI v2.1.219+ で Claude 5 世代に自動解決 (docs を実態に追随)。 ADR-011 + experiments/v5.1-opus5-retiering.md | ✅ released |
 | v3.8+ | verifier 側で self-clarify 漏れ検出 (2 段階防御) / Mode B verify protocol skill 化 / Gemini CLI 対応 (reviewer + executor) | (TBD) | — |
 
 ---
@@ -563,3 +565,18 @@ trade-off: codex の編集後に Claude が diff 全体を読むため、 完全
 - **invariant が崩れると即反転する**: orchestrator が実装 file を読み始めると 1 変数で baseline 超え (感度分析)。 だから「orchestrator thin」 を rules/pev-conventions.md §7 の絶対遵守ルールとして規約化した (prompt の努力目標ではなく規約)
 
 trade-off: v4.1 (opus orchestrator) 比では +$0.33/task 程度の premium を払う。 これは goal の比較対象 (ハーネスなし Claude Code) に対する削減幅より 1 桁小さく、 retry/escalation 判断の品質向上への対価として許容。 数値と検証計画は [experiments/v4.2-fable-orchestrator-cost.md](./experiments/v4.2-fable-orchestrator-cost.md)。
+
+### ADR-011: なぜ orchestrator を Fable 5 から Opus 5 に切り替えるのか (v5.1.0 で新規)
+
+ADR-010 の前提が 2 つ変わった:
+
+1. **F_v19_10 (実測)**: ADR-010 は fable premium を +$0.33/task と試算したが、 実測では premium ≈ $0 — opus-tier orchestrator は出力が饒舌 (約 2.5 倍) で単価差を食い潰し、 完走性・品質も fable と等価だった。 「コストで fable を選ぶ理由」 はこの時点で消滅し、 残る選定軸は (a) retry/escalation 判断品質、 (b) ZDR 互換、 (c) long-horizon 余裕 の 3 点に整理されていた
+2. **Opus 5 リリース (2026-07)**: Opus 4.8 と同価格 ($5/$25 per MTok) のドロップイン後継で、 公式に「deep reasoning・agentic・long-horizon work が最も強化された領域」。 つまり残存軸 (a)(c) がまさに Opus 5 の主戦場になり、 (b) は Opus 5 に retention 制約がない (Fable は 30-day retention 必須で ZDR org は 400) ため Opus 5 側の一方的な優位
+
+これを受け、 orchestrator default を `claude-opus-5` に切り替える。 判断の構造:
+
+- **単価半分で判断品質の gap が縮小**: Fable は依然最上位 tier だが、 orchestrator の仕事 (dispatch / Gate 判定 / retry 打ち切り) に必要な判断品質は Opus 5 で十分と評価。 F_v19_10 で Opus 4.8 ですら等価だった仕事に、 それを上回る Opus 5 を充てる
+- **degrade path の解消**: v4.2 の「Fable 不可 org は opus-4-8 に degrade」 という非対称構成が消え、 default が全 org で動く。 Fable は「最上位判断が必要な長大 pipeline」 向けの opt-in override に反転
+- **phase 実体は不変**: ADR-010 と同じく、 plan/execute/verify の frontmatter (alias + effort) は変えない。 `opus`/`sonnet` alias が CLI v2.1.219+ で Claude 5 世代に解決されるため、 planner は追加変更なしで Opus 5 化済み (docs を実態に追随させた)
+
+trade-off: Opus 5 は Opus 4.8 より応答が長くなる傾向が公式 migration guide に明記されており、 F_v19_10 の「饒舌さが単価差を相殺する」 機構が orchestrator token 比率 (§7 の 15% 目安) を再び圧迫する risk がある。 既存の緩和策 (phase agent 返答要約契約 + pev.md 薄型化) は維持し、 dog food で orchestrator 比率を継続監視する。 判断の詳細と新単価表: [experiments/v5.1-opus5-retiering.md](./experiments/v5.1-opus5-retiering.md)。

@@ -78,26 +78,28 @@ PEV pipeline には以下の Gate / decision point がある:
 - 出力 (plan.md, recap.log等) は user の言語に合わせる
 - code内のコメントは原則書かない (rules/native-prompting.md参照)
 
-## 7. Model tiering (v4.2.0+、 コスト規約)
+## 7. Model tiering (v4.2.0+、 コスト規約。 v5.1.0 で orchestrator を Opus 5 に切替)
 
-pev-harness は main session を **orchestrator (Fable 5)**、 各 phase を **委譲先 model** として階層化する。 Fable の単価は Opus の 2 倍 ($10/$50 vs $5/$25 per MTok) なので、 **orchestrator が薄いこと** がコスト設計の前提になる。
+pev-harness は main session を **orchestrator (Opus 5)**、 各 phase を **委譲先 model** として階層化する。 orchestrator は上位単価 tier ($5/$25 per MTok、 Sonnet 5 の約 1.7 倍) で、 かつ会話 context が全 phase を跨いで累積するため、 **orchestrator が薄いこと** がコスト設計の前提になる。
 
 | Layer | Model (settings / frontmatter) | Effort | 責務 |
 |---|---|---|---|
-| Orchestrator (main session) | `claude-fable-5` | high | Triage dispatch / Gate 判定 / `/goal` set / recap。 **実装・検証はしない** |
-| Triage agent | `sonnet` | low | Plan 必要性の 1 turn 判定 |
-| Planner agent | `opus` | xhigh | plan.md authoring (質問返し含む) |
+| Orchestrator (main session) | `claude-opus-5` | high | Triage dispatch / Gate 判定 / `/goal` set / recap。 **実装・検証はしない** |
+| Triage agent | `sonnet` (現行 Sonnet 5) | low | Plan 必要性の 1 turn 判定 |
+| Planner agent | `opus` (現行 Opus 5) | xhigh | plan.md authoring (質問返し含む) |
 | Executor agent | `sonnet` (default は codex 委譲) | high | code edits + execute.log |
 | Verifier agent | `sonnet` | xhigh | build/test/AC 照合 + verify.json |
+
+agent frontmatter の `opus` / `sonnet` alias は CLI が提供する最新の Opus / Sonnet に解決される (CLI v2.1.219+ で Claude 5 世代)。 pin が必要な環境 (provider 差異等) のみ full ID を明示する。
 
 絶対遵守ルール:
 
 - **orchestrator は実装 file を Read しない**。 artifacts (triage.json / plan.md / verify.json) の parse と cwd の存在確認まで。 src/ の中身を読む必要が生じたら、 それは phase agent の仕事 (= dispatch する)
-- **orchestrator は code を書かない・test を走らせない**。 Execute は executor agent (or codex)、 検証は verifier agent へ。 orchestrator turn での「ついで実装」 はコスト invariant 違反 (2 倍単価で heavy work を行うことになる)
-- **agent frontmatter の model を fable に上げない**。 phase の品質が必要なら effort を上げる (それでも足りない場合のみ ADR で議論)。 fable は orchestrator 専用 tier
+- **orchestrator は code を書かない・test を走らせない**。 Execute は executor agent (or codex)、 検証は verifier agent へ。 orchestrator turn での「ついで実装」 はコスト invariant 違反 (上位単価 + 累積 context で heavy work を行うことになる)
+- **agent frontmatter の model を orchestrator より上位の tier に上げない**。 phase の品質が必要なら effort を上げる (それでも足りない場合のみ ADR で議論)
 - 目安: orchestrator の token 消費は task 全体の **15% 以下**。 超えるようなら orchestrator が phase の仕事を抱えている signal
 
-背景と費用モデル: [experiments/v4.2-fable-orchestrator-cost.md](../experiments/v4.2-fable-orchestrator-cost.md)。 Fable が使えない環境 (ZDR org 等、 Fable は 30-day retention 必須) では `.claude/settings.local.json` で `"model": "claude-opus-4-8"` に override して従来挙動に degrade する。
+背景と費用モデル: [experiments/v4.2-fable-orchestrator-cost.md](../experiments/v4.2-fable-orchestrator-cost.md) + [experiments/v5.1-opus5-retiering.md](../experiments/v5.1-opus5-retiering.md)。 **Fable 5 は opt-in tier**: 最上位の判断品質が必要な長大 pipeline では `.claude/settings.local.json` で `"model": "claude-fable-5"` に override できる (単価 2 倍 $10/$50、 30-day retention 必須のため ZDR org では不可)。 v4.2〜v5.0 の default だったが、 F_v19_10 (opus-tier orchestrator と等価) + Opus 5 リリースを受けて v5.1.0 で default を Opus 5 に変更した。
 
 ## 8. team-conventions.md の優先順位
 

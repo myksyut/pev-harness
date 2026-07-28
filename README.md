@@ -18,7 +18,7 @@
 
 1. **勝手に作らない** — 仕様が曖昧なら実装前に質問が返ってくる (対話できない実行では、 根拠付きのデフォルトを明示して確定)
 2. **自己申告を信じない** — 「できました」ではなく、 独立した verifier がテストを書いて exit code で PASS/FAIL を判定。 FAIL なら自動で直して再検証 (最大 3 回)
-3. **金額を設計する** — 指揮は Fable 5、 計画は Opus、 実装/検証は Sonnet か Codex。 トークンの重い仕事ほど安いモデルに落ちる
+3. **金額を設計する** — 指揮と計画は Opus 5、 実装/検証は Sonnet か Codex。 トークンの重い仕事ほど安いモデルに落ちる
 
 ## 実測: 同じ「マイクラ作って」を投げると
 
@@ -31,14 +31,14 @@
 | **pev-harness (本 plugin)** | **$5.33** | **◎ テクスチャ/ホットバー/FPS 表示まで同等品質** | **✅ 独立 verifier が自作テストで PASS 判定** |
 | 〃 (実装バグが出た回) | $8.98 | ◎ | ✅ **FAIL を検出 → 自動修正 → 再検証で PASS** (retry 機構の実戦例) |
 
-つまり: **Fable 級の品質を約 4 割引きで、 しかも検証付きで** 出すのがこの harness の現在地です。
+つまり: **Fable 級の品質を約 4 割引きで、 しかも検証付きで** 出すのがこの harness の現在地です。 (実測は v4.2 構成 = 指揮層 Fable 時のもの。 v5.1 で指揮層は等価な判断品質と実測された Opus tier の最新世代 Opus 5 に切替済みで、 指揮層の単価はさらに半分になっています — 根拠: [F_v19_10 と再検討メモ](./experiments/v5.1-opus5-retiering.md))
 
 ## 仕組み
 
 ```text
   あなた: /pev "タスク"
        ↓
-  指揮層 (Fable 5) … 各フェーズの起動と進行判定だけを行う。 実装ファイルは読まない
+  指揮層 (Opus 5) … 各フェーズの起動と進行判定だけを行う。 実装ファイルは読まない
        ↓
   [0] TRIAGE  (Sonnet)  計画が要るタスクか 1 ターンで判定
        ↓ 要る場合のみ
@@ -55,7 +55,7 @@
 
 - **Gate A (人間の承認ポイント)**: 計画が立った直後、 permissionMode が `default` なら必ず止まって plan.md を見せます。 軽いタスクは `auto` で素通し、 重要な変更だけレビュー、 という運用ができます
 - **検証の独立性**: verifier は実装した agent と別のタスクとして起動され、 実装側のテストを鵜呑みにせず自分でテストを書くことも許可されています。 「実装者の自己採点で PASS」 は構造的に起きません
-- **コスト規約**: 指揮層 (Fable、 Opus の 2 倍単価) は artifacts の読み書きと指示だけ。 実装ファイルを読む・コードを書くのは常に安い層の仕事です
+- **コスト規約**: 指揮層 (Opus 5、 上位単価 + 会話が全フェーズを跨いで累積) は artifacts の読み書きと指示だけ。 実装ファイルを読む・コードを書くのは常に安い層の仕事です
 
 ## Quick start
 
@@ -149,21 +149,21 @@ install しない場合は該当機能が warning 付きで skip されるだけ
 | **hooks** (3) | PreToolUse (破壊的コマンドの block) / Stop (recap 自動追記 + telemetry 集計) / SessionStart (task 再開) |
 | **rules** (3) | `pev-conventions.md` (Gate 遵守・model tiering) / `native-prompting.md` (4.X で逆効果な定型句の禁止リスト) / `error-patterns.md` (エラー推測 catalog) |
 
-### モデル構成 (v4.2+)
+### モデル構成 (v5.1+)
 
 | 層 | Model / Effort | 単価 ($/MTok in/out) |
 |---|---|---|
-| 指揮 (main session) | Fable 5 / high | 10 / 50 |
-| Triage | Sonnet / low | 3 / 15 |
-| Plan | Opus 4.8 / xhigh | 5 / 25 |
-| Execute | Sonnet / high (default: Codex CLI 委譲) | 3 / 15 (codex は 0) |
-| Verify | Sonnet / xhigh | 3 / 15 |
+| 指揮 (main session) | Opus 5 / high | 5 / 25 |
+| Triage | Sonnet 5 / low | 3 / 15 |
+| Plan | Opus 5 / xhigh | 5 / 25 |
+| Execute | Sonnet 5 / high (default: Codex CLI 委譲) | 3 / 15 (codex は 0) |
+| Verify | Sonnet 5 / xhigh | 3 / 15 |
 
-Fable が使えない環境 (ZDR org 等) は `.claude/settings.local.json` で `"model": "claude-opus-4-8"` に override すれば従来構成で動きます。
+最上位の判断品質が必要な長大タスクでは `.claude/settings.local.json` で `"model": "claude-fable-5"` に override すると指揮層だけ Fable 5 (10 / 50、 ZDR org では利用不可) に上げられます。
 
 ## Documentation
 
-- [SPEC.md](./SPEC.md) — 完全仕様 (12 章 + ADR 10 件)
+- [SPEC.md](./SPEC.md) — 完全仕様 (12 章 + ADR 11 件)
 - [ONBOARDING.md](./ONBOARDING.md) — Installation, troubleshooting, FAQ
 - [experiments/](./experiments/) — 設計判断の根拠実験 (harness-effect-v1〜v19)
 - [CHANGELOG.md](./CHANGELOG.md) — version history
@@ -204,6 +204,7 @@ Fable が使えない環境 (ZDR org 等) は `.claude/settings.local.json` で 
 | **v4.2〜v4.2.1** | **Fable orchestrator + model tiering** — 実測で Fable 単独比 −40% / rich 品質バー / orchestrator 薄型化 | ✅ released |
 | **v4.3** | **session telemetry** — prompt / git / timing / tokens / 評価を session.json に記録 (local-only) | ✅ released |
 | **v5.0** | **breaking**: `.pev-artifacts/` rename + CrossRepo 対応 + コマンド統合 (9→6) | ✅ released |
+| **v5.1** | **Opus 5 retiering** — 指揮層を Fable 5 → Opus 5 に切替 (F_v19_10 の等価実測 + Opus 5 リリースが根拠)、 Fable は opt-in へ | ✅ released |
 | future | orchestrator turn 統合 (コスト比率 15% 目標) / Gemini CLI 対応 / opt-in telemetry 外部収集 | [Issues](https://github.com/myksyut/pev-harness/issues) |
 
 全履歴は [CHANGELOG.md](./CHANGELOG.md)、 各 release の根拠実験は [experiments/](./experiments/) 参照。

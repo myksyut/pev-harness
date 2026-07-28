@@ -128,7 +128,7 @@ default は `workspace-write` (workspace 内 file write 可、 network 不可)�
   "fallback_reason": null,
   "reviewers": [
     {
-      "provider": "claude-opus-4-8",
+      "provider": "claude-opus-5",
       "verdict": "PASS",
       "critical_issues": [],
       "suggestions": ["..."],

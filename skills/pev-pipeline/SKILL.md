@@ -62,19 +62,19 @@ START
 DONE → pev-recap が recap.log に追記
 ```
 
-### Model tiering (v4.2.0+)
+### Model tiering (v4.2.0+、 v5.1.0 で orchestrator = Opus 5)
 
-pipeline は 2 層の model 構成で動く。 **orchestrator (main session) = Fable 5** が phase 遷移と Gate 判定だけを担い、 token 量の重い phase 実体は委譲先 model が担う:
+pipeline は 2 層の model 構成で動く。 **orchestrator (main session) = Opus 5** が phase 遷移と Gate 判定だけを担い、 token 量の重い phase 実体は委譲先 model が担う:
 
 | Layer | Model | Effort | Input/Output 単価 ($/MTok) |
 |---|---|---|---|
-| Orchestrator (main session) | claude-fable-5 | high | 10 / 50 |
-| Triage | sonnet | low | 3 / 15 |
-| Plan | opus | xhigh | 5 / 25 |
+| Orchestrator (main session) | claude-opus-5 | high | 5 / 25 |
+| Triage | sonnet (現行 Sonnet 5) | low | 3 / 15 |
+| Plan | opus (現行 Opus 5) | xhigh | 5 / 25 |
 | Execute (default: codex 委譲) | sonnet | high | 3 / 15 (codex 時は API 課金 0) |
 | Verify | sonnet | xhigh | 3 / 15 |
 
-コスト invariant: **orchestrator は artifacts の parse と dispatch のみ** (実装 file の Read / code 変更 / test 実行は phase agent へ)。 orchestrator token 比率の目安は task 全体の 15% 以下。 規約は `rules/pev-conventions.md` §7、 費用モデルと根拠は `experiments/v4.2-fable-orchestrator-cost.md`。
+コスト invariant: **orchestrator は artifacts の parse と dispatch のみ** (実装 file の Read / code 変更 / test 実行は phase agent へ)。 orchestrator token 比率の目安は task 全体の 15% 以下。 規約は `rules/pev-conventions.md` §7、 費用モデルと根拠は `experiments/v4.2-fable-orchestrator-cost.md` + `experiments/v5.1-opus5-retiering.md`。 Fable 5 (10 / 50) は settings.local.json での opt-in tier。
 
 ### Flag override (v3.0+)
 

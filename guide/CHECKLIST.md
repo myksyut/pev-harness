@@ -47,7 +47,7 @@ cd ~/pev-harness && find . -type f -not -path './.git/*' -not -path './node_modu
 
 - [ ] **§1 設計原則 P1-P5**: ミニマル維持、4.X-native、No backwards compat、Convention over configuration、Hook-driven
 - [ ] **§4 Phase Gates**: Gate A (permissionMode判定)、Gate B (Stop hook)、Retry Gate (最大3回)
-- [ ] **§6 settings.json**: model=opus-4-8, effort=xhigh, permissionMode=default (安全側) で良いか
+- [ ] **§6 settings.json**: model=opus-5, effort=high, permissionMode=default (安全側) で良いか
 - [ ] **§7 Skills 8つ**: 過不足ないか
 - [ ] **§10 Dual Review**: Claude単独 model alias (A=Opus / B=Sonnet) で OK か
 - [ ] **§11 ロードマップ**: v0.2 → v1.0 → v2.0 のマイルストーン妥当性

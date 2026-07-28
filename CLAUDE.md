@@ -4,7 +4,7 @@
 
 ## 0. このリポジトリは何か
 
-Claude Opus 4.8 native の **(Triage →) Plan → Execute → Verify (PEV) coding harness** Claude Code plugin。 v0.1 → v5.0.0 (現在) まで dog food 駆動で漸進的に成長させてきた。 v1.0 で OSS public 化済 (<https://github.com/myksyut/pev-harness>)。 **v4.2 で main session を Fable 5 orchestrator に切替** (phase は opus/sonnet/codex へ委譲、 金額コスト削減。 rules/pev-conventions.md §7 + experiments/v4.2-fable-orchestrator-cost.md)。
+Claude Opus 5 native の **(Triage →) Plan → Execute → Verify (PEV) coding harness** Claude Code plugin。 v0.1 → v5.1.0 (現在) まで dog food 駆動で漸進的に成長させてきた。 v1.0 で OSS public 化済 (<https://github.com/myksyut/pev-harness>)。 **v4.2 で main session を Fable 5 orchestrator に切替、 v5.1 で Opus 5 に世代交代** (Fable は settings.local.json の opt-in tier へ。 phase は opus/sonnet/codex へ委譲を維持。 rules/pev-conventions.md §7 + ADR-011 + experiments/v5.1-opus5-retiering.md)。
 
 **v3.0 で根本見直し済**: ハーネスの value proposition を「user の頭の中の spec を引き出す」 に再定義。 v2.x までは Plan を必ず起動する 3-phase pipeline だったが、 v3.0 で Phase 0 (Triage) を新設、 Plan を on-demand 化、 質問判定強化、 F1 Defensive default の scope 限定 を実施。 詳細: [experiments/v3.0-design.md](./experiments/v3.0-design.md) + [experiments/harness-effect-v1 to v5](./experiments/) の 5 件の根拠実験。
 
@@ -44,7 +44,8 @@ Claude Opus 4.8 native の **(Triage →) Plan → Execute → Verify (PEV) codi
 | **v4.1** | **`/goal` 前提化**: legacy retry_count 撤去、 retry を `/goal` に一本化 | (v4.0 dog food 継承、 spec 簡素化) | released |
 | **v4.2** | **Fable orchestrator + model tiering**: main session を fable-5/high の薄い指揮層に、 phase は opus/sonnet/codex 委譲を維持。 orchestrator thin invariant (token ≤15%) を規約化 | 費用モデル試算 (ハーネスなし比 −45〜60%)、 実機 A/B は harness-effect-v19 予定 | released |
 | **v4.3** | **Session telemetry (社内 feedback 反映)**: session.json (prompt 原文 / git / phase timings / tokens / chat log / 任意 rating) + `~/.claude/pev/telemetry/` archive | v43-dogfood (validatePostalCode task) で全項目動作確認、 F: phases は object 形式を正式 schema に | released |
-| **v5.0** | **Breaking (社内 feedback 残 3 件)**: `.pev-artifacts/` rename + CrossRepo (triage `target_root` + maxdepth 2 discovery) + コマンド統合 9→6 + pev-task-budget 削除 | v50-dogfood で rename 後の full pipeline + telemetry 動作確認 | (current) |
+| **v5.0** | **Breaking (社内 feedback 残 3 件)**: `.pev-artifacts/` rename + CrossRepo (triage `target_root` + maxdepth 2 discovery) + コマンド統合 9→6 + pev-task-budget 削除 | v50-dogfood で rename 後の full pipeline + telemetry 動作確認 | released |
+| **v5.1** | **Opus 5 retiering**: orchestrator を fable-5 → opus-5 (F_v19_10 の等価実測 + Opus 5 リリースが根拠)、 Fable は opt-in 化、 `opus`/`sonnet` alias の Claude 5 世代解決 (CLI v2.1.219+) を docs 追随 | v51-dogfood (form fixture) で orchestrator=opus-5 の full pipeline 動作確認 | (current) |
 
 **重要**: dog food は **実機 invoke** が原則。 spec review のみで release しない (v1.2 の Linear sync は dog food 未実施で、 v1.3 で 28 findings が一気に出た)。
 
@@ -82,7 +83,7 @@ chore(deps): <Dependabot>
 
 <body, HEREDOC で multi-line>
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
 ```
 
 ## 3. dog food fixture (examples/sample-project/)
@@ -139,7 +140,7 @@ INIT=$(jq -nc --arg t "$PROMPT" '{type:"user",message:{role:"user",content:[{typ
 echo "$INIT" | claude --plugin-dir ~/oss/pev-harness \
   --settings '{"outputStyle":"default"}' \
   --input-format stream-json --output-format stream-json --include-partial-messages \
-  --permission-mode bypassPermissions --verbose --model claude-opus-4-8 -p \
+  --permission-mode bypassPermissions --verbose --model claude-opus-5 -p \
   > /tmp/dogfood-turn1.log 2>&1
 # ※ --settings '{"outputStyle":"default"}' 必須: 親の Learning style 継承で
 #   executor が Learn by Doing 停止し pipeline が空振りするのを防ぐ (§8.5 / F_v18_6)
@@ -211,6 +212,7 @@ rm -rf .pev-artifacts/ playwright-report/ test-results/
 [5] **plugin manifest version 同期** (v2.1+ marketplace 経由 install で surface される):
     - .claude-plugin/plugin.json の "version" を vX.Y.Z に
     - .claude-plugin/marketplace.json の plugins[0].version を vX.Y.Z に
+    - commands/pev.md の session.json 雛形 `harness_version:"X.Y.Z"` も同期 (v5.1.0 dog food F_v51_1: ここが漏れると telemetry が旧 version を記録し続ける)
 [6] pre-commit check:
     - grep -rEinH "step.by.step|double.check|..." agents/ skills/ commands/
     - node -e "JSON.parse(...)" で JSON file 全部
@@ -303,7 +305,7 @@ rm -rf .pev-artifacts/ playwright-report/ test-results/
 - 言語別 patterns (python-patterns 等) の bundle
 - 自動 fmt / lint helper
 - 50+ agents の追加 (ミニマル原則違反)
-- 後方互換性 (Claude Code v2.1.156+ 必須 = Opus 4.8 pin + <2.1.156 の tool-use bug 回避のため、 4.6 互換しない)
+- 後方互換性 (Claude Code v2.1.156+ 必須 = <2.1.156 の tool-use bug 回避。 `opus`/`sonnet` alias は CLI 最新世代に追随させる方針で、 4.6 互換しない。 Claude 5 世代解決には v2.1.219+ 推奨)
 - カスタム Node.js ヘルパー (plugin 単独で完結)
 
 ## 10. 開発者の心構え (これまでのセッションで確立)
@@ -316,7 +318,7 @@ rm -rf .pev-artifacts/ playwright-report/ test-results/
 
 ## 11. Cross-references
 
-- 仕様: [SPEC.md](./SPEC.md) (12章 + ADR 5 件)
+- 仕様: [SPEC.md](./SPEC.md) (12章 + ADR 11 件)
 - 履歴: [CHANGELOG.md](./CHANGELOG.md) (Keep a Changelog format)
 - 公開向け: [README.md](./README.md)
 - 社内展開: [ONBOARDING.md](./ONBOARDING.md) + [guide/ROLLOUT-CHECKLIST.md](./guide/ROLLOUT-CHECKLIST.md) + [guide/FEEDBACK-TEMPLATE.md](./guide/FEEDBACK-TEMPLATE.md)
